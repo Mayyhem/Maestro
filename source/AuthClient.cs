@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -49,7 +50,6 @@ namespace Maestro
 
         private async Task<string> GetAuthorizeUrl()
         {
-            Logger.Info("Requesting authorize URL from Intune");
             try
             {
                 string url = "https://intune.microsoft.com/signin/idpRedirect.js";
@@ -58,19 +58,8 @@ namespace Maestro
                 if (idpRedirectResponse != null)
                 {
                     Logger.Debug(idpRedirectResponse);
-
                     string pattern = @"https://login\.microsoftonline\.com/organizations/oauth2/v2\.0/authorize\?.*?(?=\"")";
-
                     Match idpRedirectUrlMatch = Regex.Match(idpRedirectResponse, pattern);
-
-                    if (idpRedirectUrlMatch.Success)
-                    {
-                        Logger.Info($"Found authorize URL: {idpRedirectUrlMatch.Value}");
-                    }
-                    else
-                    {
-                        Logger.Warning("No authorize URL found in the response");
-                    }
                     return idpRedirectUrlMatch.Value;
                 }
             }
@@ -88,13 +77,11 @@ namespace Maestro
 
             if (!authorizeUrlWithSsoNonceMatch.Success)
             {
-                Logger.Warning("No authorize URL found in the response");
                 return null;
             }
             // Replace Unicode in URL with corresponding characters and placeholder with "organizations"
             string ssoNonceUrl = Regex.Unescape(authorizeUrlWithSsoNonceMatch.Value).Replace(
                 "{0}", "organizations");
-            Logger.Info($"Found authorize URL in the response: {ssoNonceUrl}");
             return ssoNonceUrl;
         }
 
@@ -110,7 +97,6 @@ namespace Maestro
             if (actionUrlMatch.Success)
             {
                 actionUrl = actionUrlMatch.Groups[1].Value;
-                Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
             }
 
             // Get all hidden input fields
@@ -126,7 +112,6 @@ namespace Maestro
                 }
                 // Construct POST Request Data
                 formData = new FormUrlEncodedContent(formDataPairs);
-                Logger.Info("Found hidden input fields in the response");
             }
             return (actionUrl, formData);
         }
@@ -175,11 +160,9 @@ namespace Maestro
 
             if (!ssoNonceMatch.Success)
             {
-                Logger.Warning("No sso_nonce parameter was found in the URL");
                 return null;
             }
             string ssoNonce = ssoNonceMatch.Groups[1].Value;
-            Logger.Info($"Found sso_nonce parameter in the URL: {ssoNonce}");
             return ssoNonce;
         }
 
@@ -187,55 +170,94 @@ namespace Maestro
         {
             try
             {
-                string authorizeUrl = await Util.ExecuteAndCheckForNullAsync(
-                    GetAuthorizeUrl,
-                    nameof(GetAuthorizeUrl));
+                Logger.Info("Requesting authorize URL from Intune");
+                string authorizeUrl = await GetAuthorizeUrl(); 
+                if (authorizeUrl == null)
+                {
+                    Logger.Error("No authorize URL found in the response");
+                    return null;
+                }
+                Logger.Info($"Found authorize URL: {authorizeUrl}");
 
                 Logger.Info("Requesting PRT cookie for this user/device from LSA/CloudAP");
                 string xMsRefreshtokencredential = ROADToken.GetXMsRefreshtokencredential();
+                if (xMsRefreshtokencredential == null)
+                {
+                    Logger.Error("Failed to obtain x-Ms-Refreshtokencredential");
+                    return null;
+                }
+                Logger.Info($"Obtained x-Ms-Refreshtokencredential: {xMsRefreshtokencredential}");
 
-                Logger.Info("Using PRT to authenticate to authorize URL");
-                string initialAuthorizeResponse = await Util.ExecuteAndCheckForNullAsync(
-                    () => AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredential),
-                    $"First call to {nameof(AuthorizeWithPrt)}");
-                
-                string authorizeUrlWithSsoNonce = Util.ExecuteAndCheckForNull(
-                    () => ParseInitialAuthorizeResponseForSsoNonceUrl(initialAuthorizeResponse),
-                    nameof(ParseInitialAuthorizeResponseForSsoNonceUrl));
-                
-                string ssoNonce = Util.ExecuteAndCheckForNull(
-                    () => ParseSsoNonce(authorizeUrlWithSsoNonce),
-                    nameof(ParseSsoNonce));
 
-                Logger.Info("Requesting PRT cookie using Azure-supplied nonce");
-                string xMsRefreshtokencredentialWithNonce = Util.ExecuteAndCheckForNull(
-                    () => ROADToken.GetXMsRefreshtokencredential(ssoNonce),
-                    nameof(ROADToken.GetXMsRefreshtokencredential));
+                Logger.Info("Using PRT cookie to authenticate to authorize URL");
+                string initialAuthorizeResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredential);
+                if (initialAuthorizeResponse == null)
+                {
+                    Logger.Error("No response was received from the authorize URL");
+                    return null;
+                }
+                Logger.Info("Obtained response from authorize URL");
+
+                string ssoNonceUrl = ParseInitialAuthorizeResponseForSsoNonceUrl(initialAuthorizeResponse);
+                if (ssoNonceUrl == null)
+                {
+                    Logger.Warning("No authorize URL was found in the response");
+                    return null;
+                }
+                Logger.Info($"Found authorize URL in the response: {ssoNonceUrl}");
+                
+                string ssoNonce = ParseSsoNonce(ssoNonceUrl);
+                if (ssoNonce == null)
+                {
+                    Logger.Warning("No sso_nonce parameter was found in the URL");
+                    return null;
+                }
+                Logger.Info($"Found sso_nonce parameter in the URL: {ssoNonce}");
+
+                Logger.Info("Requesting PRT cookie from LSA/CloudAP using nonce");
+                string xMsRefreshtokencredentialWithNonce = ROADToken.GetXMsRefreshtokencredential(ssoNonce);
+                if (xMsRefreshtokencredentialWithNonce == null)
+                {
+                    Logger.Error("Failed to obtain x-Ms-Refreshtokencredential with nonce");
+                    return null;
+                }
+                Logger.Info($"Obtained x-Ms-Refreshtokencredential with nonce: {xMsRefreshtokencredentialWithNonce}");
 
                 Logger.Info("Using PRT with nonce to obtain code+id_token required for Intune signin");
-                string authorizeWithSsoNonceResponse = await Util.ExecuteAndCheckForNullAsync(
-                    () => AuthorizeWithPrt(authorizeUrlWithSsoNonce, xMsRefreshtokencredentialWithNonce),
-                    $"Second call to {nameof(AuthorizeWithPrt)} with sso_nonce");
+                string authorizeWithSsoNonceResponse =
+                    await AuthorizeWithPrt(ssoNonceUrl, xMsRefreshtokencredentialWithNonce);
+                if (authorizeWithSsoNonceResponse == null)
+                {
+                    Logger.Error("No response was received from the authorize URL");
+                    return null;
+                }
+                Logger.Info("Obtained response from authorize URL");
 
-                (string actionUrl, FormUrlEncodedContent formData) = Util.ExecuteAndCheckForNull(
-                    () => ParseFormDataFromHtml(authorizeWithSsoNonceResponse),
-                    nameof(ParseFormDataFromHtml));
+                (string actionUrl, FormUrlEncodedContent formData) = ParseFormDataFromHtml(authorizeWithSsoNonceResponse);
+                if (actionUrl == null)
+                {
+                    Logger.Error("No hidden form action URLs were found in the response");
+                    return null;
+                }
+
+                if (formData == null)
+                {
+                    Logger.Error("No hidden input fields were found in the response");
+                    return null;
+                }
+                Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
+                Logger.Info("Found hidden input fields in the response");
 
                 Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
-                string signinResponse = await Util.ExecuteAndCheckForNull(
-                    () => _httpHandler.PostAsync(actionUrl, formData),
-                    nameof(_httpHandler.PostAsync));
-                Logger.Debug(signinResponse);
+                string signinResponse = await _httpHandler.PostAsync(actionUrl, formData);
 
-                /*
-                string refreshToken = Util.ExecuteAndCheckForNull(
-                    () => ParseRefreshToken(signinResponse),
-                    nameof(ParseRefreshToken));
-                */
-                string refreshToken = Util.ExecuteAndCheckForNull(
-                    () => Util.GetMatch(signinResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\""),
-                    "");
-                Logger.Debug($"Found refresh token after signin:\n{refreshToken}");
+                string refreshToken = Util.GetMatch(signinResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
+                if (refreshToken == null)
+                {
+                    Logger.Error("No refreshToken was found in the signin response");
+                    return null;
+                }
+                Logger.Info($"Found refresh token in signin response:\n{refreshToken}");
             }
             catch (Exception e)
             {

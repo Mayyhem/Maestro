@@ -55,6 +55,7 @@ namespace Maestro
                 }
 
                 Logger.Info($"Received {response.StatusCode} status code from: {request.RequestUri}");
+                Logger.Debug(await response.Content.ReadAsStringAsync());
                 return await response.Content.ReadAsStringAsync();
             }
             catch (HttpRequestException e)

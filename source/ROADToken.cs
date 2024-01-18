@@ -89,7 +89,6 @@ namespace Maestro
                     return null;
                 }
                 xMsRefreshtokencredential = match.Groups[1].Value;
-                Logger.Info($"Successfully obtained x-Ms-Refreshtokencredential: {xMsRefreshtokencredential}");
                 return xMsRefreshtokencredential;
             }
         }
