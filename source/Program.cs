@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -17,6 +19,10 @@ namespace Maestro
             var httpHandler = new HttpHandler();
             var authClient = new AuthClient(httpHandler);
             string intuneAccessToken = await authClient.GetIntuneAccessToken();
+            httpHandler.SetAuthorizationHeader(intuneAccessToken);
+            var msgraphClient = new MSGraphClient(httpHandler);
+            var intuneClient = new IntuneClient(msgraphClient);
+            await intuneClient.ListEnrolledDevicesAsync();
 
             // Debugging
             Console.ReadLine();

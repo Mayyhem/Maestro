@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Http;
-using System.Security.Policy;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -27,9 +27,9 @@ namespace Maestro
             return await SendRequestAsync(request);
         }
 
-        public async Task<string> PostAsync(string url, FormUrlEncodedContent formData)
+        public async Task<string> PostAsync(string url, HttpContent content)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = formData };
+            var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
             return await SendRequestAsync(request);
         }
 
@@ -66,6 +66,11 @@ namespace Maestro
             {
                 throw new Exception($"Exception: {e.Message}", e);
             }
+        }
+
+        public void SetAuthorizationHeader(string bearerToken)
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
         }
     }
 }

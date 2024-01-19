@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web.Script.Serialization;
 
 namespace Maestro
 {
@@ -48,6 +48,24 @@ namespace Maestro
             return null;
         }
 
+        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization)
+        {
+            string url = "https://intune.microsoft.com/api/DelegationToken";
+            var jsonObject = new
+            {
+                extensionName = "Microsoft_Intune_DeviceSettings",
+                resourceName = "microsoft.graph",
+                tenant = tenantId,
+                portalAuthorization
+            };
+            var serializer = new JavaScriptSerializer();
+            string json = serializer.Serialize(jsonObject);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            string response = await _httpHandler.PostAsync(url, content);
+            string authHeader = Util.GetMatch(response, "\"authHeader\":\"Bearer ([^\"]+)\"");
+            return authHeader;
+        }
+
         private async Task<string> GetAuthorizeUrl()
         {
             try
@@ -68,6 +86,25 @@ namespace Maestro
                 Logger.Error(e.Message);
             }
             return null;
+        }
+
+        // Submit refreshToken to DelegationToken endpoint for PortalAuthorization blob
+        private async Task<string> GetPortalAuthorization(string tenantId, string refreshToken)
+        {
+            string url = "https://intune.microsoft.com/api/DelegationToken";
+            var jsonObject = new
+            {
+                extensionName = "HubsExtension",
+                resourceName = "",
+                tenant = tenantId,
+                portalAuthorization = refreshToken
+            };
+            var serializer = new JavaScriptSerializer();
+            string json = serializer.Serialize(jsonObject);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            string response = await _httpHandler.PostAsync(url, content);
+            string portalAuthorization = Util.GetMatch(response, "\\\"portalAuthorization\\\":\\\"([^\\\"]+)\\\"");
+            return portalAuthorization;
         }
 
         private string ParseInitialAuthorizeResponseForSsoNonceUrl(string authorizeResponse)
@@ -170,6 +207,7 @@ namespace Maestro
         {
             try
             {
+                // HTTP request 1
                 Logger.Info("Requesting authorize URL from Intune");
                 string authorizeUrl = await GetAuthorizeUrl(); 
                 if (authorizeUrl == null)
@@ -179,6 +217,7 @@ namespace Maestro
                 }
                 Logger.Info($"Found authorize URL: {authorizeUrl}");
 
+                // Local request to mint PRT cookie 1
                 Logger.Info("Requesting PRT cookie for this user/device from LSA/CloudAP");
                 string xMsRefreshtokencredential = ROADToken.GetXMsRefreshtokencredential();
                 if (xMsRefreshtokencredential == null)
@@ -188,7 +227,7 @@ namespace Maestro
                 }
                 Logger.Info($"Obtained x-Ms-Refreshtokencredential: {xMsRefreshtokencredential}");
 
-
+                // HTTP request 2
                 Logger.Info("Using PRT cookie to authenticate to authorize URL");
                 string initialAuthorizeResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredential);
                 if (initialAuthorizeResponse == null)
@@ -214,6 +253,7 @@ namespace Maestro
                 }
                 Logger.Info($"Found sso_nonce parameter in the URL: {ssoNonce}");
 
+                // Local request to mint PRT cookie 2
                 Logger.Info("Requesting PRT cookie from LSA/CloudAP using nonce");
                 string xMsRefreshtokencredentialWithNonce = ROADToken.GetXMsRefreshtokencredential(ssoNonce);
                 if (xMsRefreshtokencredentialWithNonce == null)
@@ -223,6 +263,7 @@ namespace Maestro
                 }
                 Logger.Info($"Obtained x-Ms-Refreshtokencredential with nonce: {xMsRefreshtokencredentialWithNonce}");
 
+                // HTTP request 3
                 Logger.Info("Using PRT with nonce to obtain code+id_token required for Intune signin");
                 string authorizeWithSsoNonceResponse =
                     await AuthorizeWithPrt(ssoNonceUrl, xMsRefreshtokencredentialWithNonce);
@@ -239,17 +280,26 @@ namespace Maestro
                     Logger.Error("No hidden form action URLs were found in the response");
                     return null;
                 }
+                Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
 
                 if (formData == null)
                 {
                     Logger.Error("No hidden input fields were found in the response");
                     return null;
                 }
-                Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
                 Logger.Info("Found hidden input fields in the response");
 
+                // HTTP request 4
                 Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
                 string signinResponse = await _httpHandler.PostAsync(actionUrl, formData);
+
+                string tenantId = Util.GetMatch(signinResponse, "\\\"tenantId\\\":\\\"([^\\\"]+)\\\"");
+                if (tenantId == null)
+                {
+                    Logger.Error("No tenantId was found in the signin response");
+                    return null;
+                }
+                Logger.Info($"Found tenantId in signin response: {tenantId}");
 
                 string refreshToken = Util.GetMatch(signinResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
                 if (refreshToken == null)
@@ -258,6 +308,27 @@ namespace Maestro
                     return null;
                 }
                 Logger.Info($"Found refresh token in signin response:\n{refreshToken}");
+
+                // HTTP request 5
+                Logger.Info("Requesting portalAuthorization from DelegationToken endpoint with refreshToken");
+                string portalAuthorization = await GetPortalAuthorization(tenantId, refreshToken);
+                if (portalAuthorization == null)
+                {
+                    Logger.Error("No portalAuthorization was found in the DelegationToken response");
+                    return null;
+                }
+                Logger.Info("Obtained portalAuthorization from DelegationToken response");
+
+                // HTTP request 6
+                Logger.Info("Requesting Intune access token from DelegationToken endpoint with portalAuthorization");
+                string accessToken = await GetAuthHeader(tenantId, portalAuthorization);
+                if (accessToken == null)
+                {
+                    Logger.Error("No authHeader was found in the DelegationToken response");
+                    return null;
+                }
+                Logger.Info($"Obtained Intune access token: {accessToken}");
+                return accessToken;
             }
             catch (Exception e)
             {
