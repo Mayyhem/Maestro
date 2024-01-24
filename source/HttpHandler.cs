@@ -1,5 +1,4 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -35,37 +34,32 @@ namespace Maestro
 
         private async Task<string> SendRequestAsync(HttpRequestMessage request)
         {
+            string responseContent = string.Empty;
+
+            Logger.Info($"Sending {request.Method} request to: {request.RequestUri}");
             try
             {
-                Logger.Info($"Sending {request.Method} request to: {request.RequestUri}");
-                var response = await _httpClient.SendAsync(request);
+                HttpResponseMessage response = await _httpClient.SendAsync(request);
+
+                // Throw HttpRequestException if the response is not successful
+                response.EnsureSuccessStatusCode();  
+                responseContent = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                    {
-                        Logger.Error("Access denied. Unauthorized request.");
-                        throw new UnauthorizedAccessException("Access denied. Unauthorized request.");
-                    }
-                    else
-                    {
-                        throw new HttpRequestException($"Error: {response.StatusCode}. Details: {errorContent}");
-                    }
+                    Logger.Error(response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                        ? "Access denied: Unauthorized request"
+                        : $"Error: {response.StatusCode}\n Response: {responseContent}");
+                    return null;
                 }
-
                 Logger.Info($"Received {response.StatusCode} status code from: {request.RequestUri}");
-                Logger.Debug(await response.Content.ReadAsStringAsync());
-                return await response.Content.ReadAsStringAsync();
+                Logger.Debug($"Response:\n {responseContent}");
             }
-            catch (HttpRequestException e)
+            catch (HttpRequestException ex)
             {
-                throw new Exception($"HTTP Request Exception: {e.Message}", e);
+                Logger.ExceptionDetails(ex);
             }
-            catch (Exception e)
-            {
-                throw new Exception($"Exception: {e.Message}", e);
-            }
+            return responseContent;
         }
 
         public void SetAuthorizationHeader(string bearerToken)

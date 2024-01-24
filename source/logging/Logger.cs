@@ -13,8 +13,8 @@ namespace Maestro
             Warning,
             Error
         }
-        private static ILogger _logger;
         private static LogLevel _logLevel;
+        private static ILogger _logger;
 
         public static void Initialize(ILogger logger, LogLevel logLevel)
         {
@@ -33,9 +33,9 @@ namespace Maestro
             Log(LogLevel.Debug, message);
         }
 
-        public static void Error(string message)
+        public static void Verbose(string message)
         {
-            Log(LogLevel.Error, message);
+            Log(LogLevel.Verbose, message);
         }
 
         public static void Info(string message)
@@ -43,13 +43,32 @@ namespace Maestro
             Log(LogLevel.Info, message);
         }
 
-        public static void Verbose(string message)
-        {
-            Log(LogLevel.Verbose, message);
-        }
         public static void Warning(string message)
         {
             Log(LogLevel.Warning, message);
+        }
+
+        public static void Error(string message)
+        {
+            Log(LogLevel.Error, message);
+        }
+
+        public static void ExceptionDetails(Exception ex)
+        {
+            Logger.Error($"An exception occurred!\n");
+            while (ex != null)
+            {
+                Console.WriteLine($"  Exception type: {ex.GetType().Name}");
+                Console.WriteLine($"  Message: {ex.Message}");
+                Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
+                Console.WriteLine();
+                ex = ex.InnerException;
+            }
+        }
+        public static string NullError(string message)
+        {
+            Logger.Error(message);
+            return null;
         }
     }
 }

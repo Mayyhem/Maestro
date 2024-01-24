@@ -10,6 +10,7 @@ namespace Maestro
         public static string GetXMsRefreshtokencredential(string nonce = null)
         {
             string xMsRefreshtokencredential = null;
+            Logger.Info("Requesting PRT cookie" + (nonce != null ? " with nonce " : " ") + "for this user/device from LSA/CloudAP");
 
             string[] filelocs = {
                 @"C:\Program Files\Windows Security\BrowserCore\browsercore.exe",
@@ -48,7 +49,7 @@ namespace Maestro
                 }
                 else
                 {
-                    Logger.Warning("No nonce supplied, refresh cookie will likely not work!");
+                    Logger.Warning("No nonce supplied, refresh cookie will likely not work");
                     stuff = "{" +
                         "\"method\":\"GetCookies\"," +
                         $"\"uri\":\"https://login.microsoftonline.com/common/oauth2/authorize\"," +
@@ -84,11 +85,10 @@ namespace Maestro
                 string pattern = "\"name\":\"x-ms-RefreshTokenCredential\",\"data\":\"(eyJh[^\"]+)";
                 Match match = Regex.Match(processOutput, pattern);
 
-                if (!match.Success)
+                if (match.Success)
                 {
-                    return null;
+                    xMsRefreshtokencredential = match.Groups[1].Value;
                 }
-                xMsRefreshtokencredential = match.Groups[1].Value;
                 return xMsRefreshtokencredential;
             }
         }

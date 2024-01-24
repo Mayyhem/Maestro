@@ -1,7 +1,7 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -10,22 +10,47 @@ namespace Maestro
     {
         private static async Task Main(string[] args)
         {
+            // Logging and debugging
+            Logger.LogLevel logLevel = Logger.LogLevel.Info;
+            if (args.Contains<string>("--debug"))
+            {
+                logLevel = Logger.LogLevel.Debug;
+            }
             ILogger logger = new ConsoleLogger();
-            Logger.Initialize(logger, Logger.LogLevel.Debug);
+            Logger.Initialize(logger, logLevel);
+
+            // Execution timer
+            var timer = new Stopwatch();
+            timer.Start();
             Logger.Info("Execution started");
 
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                var httpHandler = new HttpHandler();
+                var authClient = new AuthClient(httpHandler);
+                string intuneAccessToken = await authClient.GetIntuneAccessToken();
+                if (intuneAccessToken is null)
+                {
+                    return;
+                }
+                httpHandler.SetAuthorizationHeader(intuneAccessToken);
+                var msgraphClient = new MSGraphClient(httpHandler);
+                var intuneClient = new IntuneClient(msgraphClient);
+                await intuneClient.ListEnrolledDevicesAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.ExceptionDetails(ex);
+            }
 
-            var httpHandler = new HttpHandler();
-            var authClient = new AuthClient(httpHandler);
-            string intuneAccessToken = await authClient.GetIntuneAccessToken();
-            httpHandler.SetAuthorizationHeader(intuneAccessToken);
-            var msgraphClient = new MSGraphClient(httpHandler);
-            var intuneClient = new IntuneClient(msgraphClient);
-            await intuneClient.ListEnrolledDevicesAsync();
+            // Stop timer and complete execution
+            timer.Stop();
+            Logger.Info($"Completed execution in {timer.Elapsed}");
 
-            // Debugging
-            Console.ReadLine();
+            // Delay completion when debugging
+            if (Debugger.IsAttached)
+                Console.ReadLine();
         }
     }
 }
