@@ -1,46 +1,20 @@
-﻿using System;
-using System.Net.Http;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace Maestro
 {
     public class MSGraphClient
     {
-        private readonly HttpClient _httpClient;
+        private readonly IHttpHandler _httpHandler;
 
-        public MSGraphClient(HttpClient httpClient)
+        public MSGraphClient(IHttpHandler httpHandler)
         {
-            _httpClient = httpClient;
+            _httpHandler = httpHandler;
         }
 
-        public async Task<string> GetAsync(string uri)
+        public async Task<string> GetAsync(string url)
         {
-            try
-            {
-                var response = await _httpClient.GetAsync(uri);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                    {
-                        throw new UnauthorizedAccessException("Access denied. Unauthorized request.");
-                    }
-                    else
-                    {
-                        throw new HttpRequestException($"Error: {response.StatusCode}. Details: {errorContent}");
-                    }
-                }
-                return await response.Content.ReadAsStringAsync();
-            }
-            catch (HttpRequestException e)
-            {
-                throw new Exception($"HTTP Request Exception: {e.Message}", e);
-            }
-            catch (Exception e)
-            {
-                throw new Exception($"Exception: {e.Message}", e);
-            }
+            string response = await _httpHandler.GetAsync(url);
+            return response;
         }
     }
 }

@@ -1,41 +1,56 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Maestro
 {
     class Program
     {
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            string accessToken = args[0];
+            // Logging and debugging
+            Logger.LogLevel logLevel = Logger.LogLevel.Info;
+            if (args.Contains<string>("--debug"))
+            {
+                logLevel = Logger.LogLevel.Debug;
+            }
+            ILogger logger = new ConsoleLogger();
+            Logger.Initialize(logger, logLevel);
 
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-            var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-            var msGraphClient = new MSGraphClient(httpClient);
-            var intuneClient = new IntuneClient(msGraphClient);
+            // Execution timer
+            var timer = new Stopwatch();
+            timer.Start();
+            Logger.Info("Execution started");
 
             try
             {
-                var devices = await intuneClient.ListEnrolledDevicesAsync();
-                Console.WriteLine(devices);
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                var httpHandler = new HttpHandler();
+                var authClient = new AuthClient(httpHandler);
+                string intuneAccessToken = await authClient.GetIntuneAccessToken();
+                if (intuneAccessToken is null)
+                {
+                    return;
+                }
+                httpHandler.SetAuthorizationHeader(intuneAccessToken);
+                var msgraphClient = new MSGraphClient(httpHandler);
+                var intuneClient = new IntuneClient(msgraphClient);
+                await intuneClient.ListEnrolledDevicesAsync();
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.WriteLine("An error occurred:");
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
-
-                // In a production environment, consider logging the error instead
-                // LogError(e);
+                Logger.ExceptionDetails(ex);
             }
 
-            Console.ReadLine();
+            // Stop timer and complete execution
+            timer.Stop();
+            Logger.Info($"Completed execution in {timer.Elapsed}");
+
+            // Delay completion when debugging
+            if (Debugger.IsAttached)
+                Console.ReadLine();
         }
     }
 }
