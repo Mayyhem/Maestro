@@ -34,10 +34,25 @@ namespace Maestro
                 {
                     return;
                 }
+
                 httpHandler.SetAuthorizationHeader(intuneAccessToken);
-                var msgraphClient = new MSGraphClient(httpHandler);
-                var intuneClient = new IntuneClient(msgraphClient);
-                await intuneClient.ListEnrolledDevicesAsync();
+                var intuneClient = new IntuneClient(httpHandler);
+
+                /*
+                string accessCheckResponse = await intuneClient.ListEnrolledDevicesAsync();
+                if (accessCheckResponse is null)
+                {
+                    return;
+                } 
+                
+                string scriptId = await intuneClient.CreateScriptPackage("Yee", "bmV0IGxvY2FsZ3JvdXAgYWRtaW5pc3RyYXRvcnM=");
+                if (scriptId is null)
+                {
+                    return;
+                }
+                Logger.Info($"Obtained script ID: {scriptId}");
+                */
+
             }
             catch (Exception ex)
             {

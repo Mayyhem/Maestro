@@ -65,7 +65,12 @@ namespace Maestro
                 ex = ex.InnerException;
             }
         }
-        public static string NullError(string message)
+        public static T NullError<T>(string message) where T : class
+        {
+            Logger.Error(message);
+            return null;
+        }
+        public static T? NullErrorValue<T>(string message) where T : struct
         {
             Logger.Error(message);
             return null;
