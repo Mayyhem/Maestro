@@ -29,30 +29,17 @@ namespace Maestro
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var httpHandler = new HttpHandler();
                 var authClient = new AuthClient(httpHandler);
-                string intuneAccessToken = await authClient.GetIntuneAccessToken();
-                if (intuneAccessToken is null)
-                {
-                    return;
-                }
-
-                httpHandler.SetAuthorizationHeader(intuneAccessToken);
-                var intuneClient = new IntuneClient(httpHandler);
-
-                /*
+                await authClient.GetTenantIdAndRefreshTokenFromIntune();
+                await authClient.GetIntuneAccessToken(authClient.TenantId, authClient.RefreshToken);
+                //await authClient.GetEntraIdAccessToken(authClient.TenantId, authClient.RefreshToken);
+                var intuneClient = new IntuneClient(authClient);
                 string accessCheckResponse = await intuneClient.ListEnrolledDevicesAsync();
-                if (accessCheckResponse is null)
-                {
-                    return;
-                } 
-                
-                string scriptId = await intuneClient.CreateScriptPackage("Yee", "bmV0IGxvY2FsZ3JvdXAgYWRtaW5pc3RyYXRvcnM=");
-                if (scriptId is null)
-                {
-                    return;
-                }
-                Logger.Info($"Obtained script ID: {scriptId}");
-                */
+                if (accessCheckResponse is null) return;
 
+                string scriptId = await intuneClient.CreateScriptPackage("Yee", "bmV0IGxvY2FsZ3JvdXAgYWRtaW5pc3RyYXRvcnM=");
+                if (scriptId is null) return;
+                Logger.Info($"Obtained script ID: {scriptId}");
+                
             }
             catch (Exception ex)
             {

@@ -8,18 +8,17 @@ namespace Maestro
 {
     public class IntuneClient
     {
-        private readonly IHttpHandler _httpHandler;
-
-        public IntuneClient(IHttpHandler httpHandler)
+        private readonly IAuthClient _authClient;
+        public IntuneClient(IAuthClient authClient)
         {
-            _httpHandler = httpHandler;
+            _authClient = authClient;
         }
 
         public async Task<string> ListEnrolledDevicesAsync()
         {
             // Define the specific URI for Intune-enrolled devices
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
-            return await _httpHandler.GetAsync(intuneDevicesUrl);
+            return await _authClient.HttpHandler.GetAsync(intuneDevicesUrl);
         }
 
         public async Task<string> CreateScriptPackage(string displayName, string detectionScriptContent, string description = "", string publisher = "", string remediationScriptContent = "", bool runAs32Bit = true, string runAsAccount = "system")
@@ -40,7 +39,7 @@ namespace Maestro
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            string response = await _httpHandler.PostAsync(url, content);
+            string response = await _authClient.HttpHandler.PostAsync(url, content);
             if (response is null)
             {
                 return null;

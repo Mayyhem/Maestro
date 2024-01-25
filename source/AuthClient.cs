@@ -1,5 +1,4 @@
-﻿using Microsoft.SqlServer.Server;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -9,12 +8,17 @@ using System.Web.Script.Serialization;
 
 namespace Maestro
 {
-    public class AuthClient
+    public class AuthClient : IAuthClient
     {
-        private readonly IHttpHandler _httpHandler;
+        public IHttpHandler HttpHandler { get; private set; }
+        public string EntraIdAccessToken { get; private set; }
+        public string IntuneAccessToken { get; private set; }
+        public string RefreshToken { get; private set; }
+        public string TenantId { get; private set; }
+
         public AuthClient(IHttpHandler httpHandler)
         {
-            _httpHandler = httpHandler;
+            HttpHandler = httpHandler;
         }
 
         private async Task<string> AuthorizeWithPrt(string url, string xMSRefreshtokencredential)
@@ -31,8 +35,8 @@ namespace Maestro
                 Path = "/"
             };
 
-            _httpHandler.CookiesContainer.Add(prtCookie);
-            authorizeResponse = await _httpHandler.GetAsync(url);
+            HttpHandler.CookiesContainer.Add(prtCookie);
+            authorizeResponse = await HttpHandler.GetAsync(url);
             if (authorizeResponse is null)
                 return Logger.NullError<string>("No response was received from the authorize URL");
             Logger.Info("Obtained response from authorize URL");
@@ -40,30 +44,29 @@ namespace Maestro
             return authorizeResponse;
         }
 
-        private async Task<string> GetAccessToken(string tenantId, string portalAuthorization)
+        private async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string url, string extensionName, string resourceName)
         {
             Logger.Info("Requesting access token from DelegationToken endpoint with portalAuthorization");
-            string accessToken = await GetAuthHeader(tenantId, portalAuthorization);
+            string accessToken = await GetAuthHeader(tenantId, portalAuthorization, url, extensionName, resourceName);
             if (accessToken is null)
                 return Logger.NullError<string>("No authHeader was found in the DelegationToken response");
             Logger.Info($"Found access token in DelegationToken response: {accessToken}");
             return accessToken;
         }
 
-        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization)
+        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string url, string extensionName, string resourceName)
         {
-            string url = "https://intune.microsoft.com/api/DelegationToken";
             var jsonObject = new
             {
-                extensionName = "Microsoft_Intune_DeviceSettings",
-                resourceName = "microsoft.graph",
+                extensionName,
+                resourceName,
                 tenant = tenantId,
                 portalAuthorization
             };
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            string response = await _httpHandler.PostAsync(url, content);
+            string response = await HttpHandler.PostAsync(url, content);
             string authHeader = Util.GetMatch(response, "\"authHeader\":\"Bearer ([^\"]+)\"");
             return authHeader;
         }
@@ -73,7 +76,7 @@ namespace Maestro
             string url = "https://intune.microsoft.com/signin/idpRedirect.js";
             Logger.Info($"Requesting authorize URL from: {url}");
 
-            string idpRedirectResponse = await _httpHandler.GetAsync(url);
+            string idpRedirectResponse = await HttpHandler.GetAsync(url);
 
             if (idpRedirectResponse is null)
             {
@@ -90,7 +93,74 @@ namespace Maestro
             return authorizeUrl;
         }
 
-        public async Task<string> GetIntuneAccessToken()
+        public async Task<string> GetEntraIdAccessToken(string tenantId, string portalAuthorization)
+        {
+            Logger.Info("Requesting EntraID access token");
+            string entraIdAccessToken = await GetAccessToken(tenantId, portalAuthorization,
+                "https://intune.microsoft.com/api/DelegationToken",
+                "Microsoft_AAD_IAM", "microsoft.graph");
+            if (entraIdAccessToken is null) return null;
+
+            EntraIdAccessToken = entraIdAccessToken;
+            return entraIdAccessToken;
+        }
+
+        public async Task<string> GetEntraIdPortalAuthorization(string tenantId, string portalAuthorization)
+        {
+            Logger.Info("Requesting EntraID portal authorization");
+            string entraIdPortalAuthorization = await GetPortalAuthorization(tenantId, portalAuthorization,
+                "https://intune.microsoft.com/api/DelegationToken",
+                "Microsoft_AAD_IAM", "microsoft.graph");
+            if (entraIdPortalAuthorization is null) return null;
+
+            RefreshToken = entraIdPortalAuthorization;
+            return entraIdPortalAuthorization;
+        }
+
+        public async Task<string> GetIntuneAccessToken(string tenantId, string portalAuthorization)
+        {
+            Logger.Info("Requesting Intune access token");
+            string intuneAccessToken = await GetAccessToken(tenantId, portalAuthorization,
+                "https://intune.microsoft.com/api/DelegationToken",
+                "Microsoft_Intune_DeviceSettings", "microsoft.graph"); if (intuneAccessToken is null) return null;
+
+            HttpHandler.SetAuthorizationHeader(intuneAccessToken);
+            IntuneAccessToken = intuneAccessToken;
+            return intuneAccessToken;
+        }
+
+        public async Task<string> GetIntunePortalAuthorization()
+        {
+            string signInResponse = await SignInToIntune();
+            if (signInResponse is null) return null;
+
+            string tenantId = ParseTenantIdFromJsonResponse(signInResponse);
+            if (tenantId is null) return null;
+            TenantId = tenantId;
+
+            string refreshToken = ParseRefreshTokenFromJsonResponse(signInResponse);
+            if (refreshToken is null) return null;
+
+            string portalAuthorization = await GetPortalAuthorization(tenantId, refreshToken,
+                "https://intune.microsoft.com/api/DelegationToken",
+                "HubExtension", "");
+            if (portalAuthorization is null) return null;
+
+            RefreshToken = portalAuthorization;
+            return portalAuthorization;
+        }
+
+        private async Task<string> GetIntuneSignInResponse(string actionUrl, HttpContent formData)
+        {
+            Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
+            string signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
+            if (signinResponse is null)
+                return Logger.NullError<string>("No response was received from the signin URL");
+            Logger.Info("Obtained response from signin URL");
+            return signinResponse;
+        }
+
+        private async Task<string> SignInToIntune()
         {
             // HTTP request 1
             string authorizeUrl = await GetAuthorizeUrl();
@@ -134,26 +204,15 @@ namespace Maestro
             FormUrlEncodedContent formData = ParseFormDataFromHtml(authorizeWithSsoNonceResponse);
             if (formData is null) return null;
 
-            string signInResponse = await SignInToIntune(actionUrl, formData);
+            string signInResponse = await GetIntuneSignInResponse(actionUrl, formData);
             if (signInResponse is null)
                 return Logger.NullError<string>("Could not sign in to Intune");
-
-            string tenantId = GetTenantIdFromJsonResponse(signInResponse);
-            if (tenantId is null) return null;
-
-            string refreshToken = GetRefreshTokenFromJsonResponse(signInResponse);
-            if (refreshToken is null) return null;
-
-            string portalAuthorization = await GetPortalAuthorization(tenantId, refreshToken);
-            if (portalAuthorization is null) return null;
-
-            Logger.Info("Requesting Intune access token");
-            string intuneAccessToken = await GetAccessToken(tenantId, portalAuthorization);
-            return intuneAccessToken;
+            return signInResponse;
         }
 
+
         // Submit refreshToken/PortalAuthorization blob to DelegationToken endpoint for PortalAuthorization blob
-        private async Task<string> GetPortalAuthorization(string tenantId, string refreshToken, string url = "https://intune.microsoft.com/api/DelegationToken", string extensionName = "HubsExtension", string resourceName = "")
+        private async Task<string> GetPortalAuthorization(string tenantId, string refreshToken, string url, string extensionName, string resourceName)
         {
             Logger.Info("Requesting portalAuthorization from DelegationToken endpoint with refreshToken");
             var jsonObject = new
@@ -166,7 +225,7 @@ namespace Maestro
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            string response = await _httpHandler.PostAsync(url, content);
+            string response = await HttpHandler.PostAsync(url, content);
             string portalAuthorization = Util.GetMatch(response, "\\\"portalAuthorization\\\":\\\"([^\\\"]+)\\\"");
             if (portalAuthorization is null)
                 return Logger.NullError<string>("No portalAuthorization was found in the DelegationToken response");
@@ -175,25 +234,20 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        private string GetTenantIdFromJsonResponse(string jsonResponse)
+        public async Task<(string, string)> GetTenantIdAndRefreshTokenFromIntune()
         {
-            // Parse response for tenantId
-            string tenantId = Util.GetMatch(jsonResponse, "\\\"tenantId\\\":\\\"([^\\\"]+)\\\"");
-            if (tenantId is null)
-                return Logger.NullError<string>("No tenantId was found in the response");
-            Logger.Info($"Found tenantId in the response: {tenantId}");
-            return tenantId;
-        }
+            string signInResponse = await SignInToIntune();
+            if (signInResponse is null) return (null, null);
 
-        private string GetRefreshTokenFromJsonResponse(string jsonResponse)
-        {
-            // Parse response for refreshToken
-            string refreshToken = Util.GetMatch(jsonResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
-            if (refreshToken is null)
-                return Logger.NullError<string>("No refreshToken was found in the response");
-            Logger.Info($"Found refreshToken in response: {Util.TruncateString(refreshToken)}");
-            Logger.Debug(refreshToken);
-            return refreshToken;
+            string tenantId = ParseTenantIdFromJsonResponse(signInResponse);
+            if (tenantId is null) return (null, null);
+            TenantId = tenantId;
+
+            string refreshToken = ParseRefreshTokenFromJsonResponse(signInResponse);
+            if (refreshToken is null) return (null, null);
+            RefreshToken = refreshToken;
+
+            return (tenantId, refreshToken);
         }
 
         private FormUrlEncodedContent ParseFormDataFromHtml(string htmlContent)
@@ -237,14 +291,26 @@ namespace Maestro
             return ssoNonceUrl;
         }
 
-        private async Task<string> SignInToIntune(string actionUrl, HttpContent formData)
+        private string ParseRefreshTokenFromJsonResponse(string jsonResponse)
         {
-            Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
-            string signinResponse = await _httpHandler.PostAsync(actionUrl, formData);
-            if (signinResponse is null)
-                return Logger.NullError<string>("No response was received from the signin URL");
-            Logger.Info("Obtained response from signin URL");
-            return signinResponse;
+            // Parse response for refreshToken
+            string refreshToken = Util.GetMatch(jsonResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
+            if (refreshToken is null)
+                return Logger.NullError<string>("No refreshToken was found in the response");
+            Logger.Info($"Found refreshToken in response: {Util.TruncateString(refreshToken)}");
+            Logger.Debug(refreshToken);
+            return refreshToken;
         }
+
+        private string ParseTenantIdFromJsonResponse(string jsonResponse)
+        {
+            // Parse response for tenantId
+            string tenantId = Util.GetMatch(jsonResponse, "\\\"tenantId\\\":\\\"([^\\\"]+)\\\"");
+            if (tenantId is null)
+                return Logger.NullError<string>("No tenantId was found in the response");
+            Logger.Info($"Found tenantId in the response: {tenantId}");
+            return tenantId;
+        }
+
     }
 }
