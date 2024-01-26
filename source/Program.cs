@@ -10,45 +10,56 @@ namespace Maestro
     {
         private static async Task Main(string[] args)
         {
-            // Logging and debugging
-            Logger.LogLevel logLevel = Logger.LogLevel.Info;
-            if (args.Contains<string>("--debug"))
-            {
-                logLevel = Logger.LogLevel.Debug;
-            }
-            ILogger logger = new ConsoleLogger();
-            Logger.Initialize(logger, logLevel);
-
-            // Execution timer
-            var timer = new Stopwatch();
-            timer.Start();
-            Logger.Info("Execution started");
-
             try
             {
+                if (args.Length < 2)
+                    Util.DisplayUsageAndExit();
+
+                // Logging and debugging
+                Logger.LogLevel logLevel = Logger.LogLevel.Info;
+                if (args.Contains<string>("--debug"))
+                {
+                    logLevel = Logger.LogLevel.Debug;
+                }
+                ILogger logger = new ConsoleLogger();
+                Logger.Initialize(logger, logLevel);
+
+                string deviceName = args[0];
+                string scriptContents = args[1];
+
+                // Execution timer
+                var timer = new Stopwatch();
+                timer.Start();
+                Logger.Info("Execution started");
+
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var httpHandler = new HttpHandler();
                 var authClient = new AuthClient(httpHandler);
-                await authClient.GetTenantIdAndRefreshTokenFromIntune();
-                await authClient.GetIntuneAccessToken(authClient.TenantId, authClient.RefreshToken);
-                //await authClient.GetEntraIdAccessToken(authClient.TenantId, authClient.RefreshToken);
-                var intuneClient = new IntuneClient(authClient);
-                string accessCheckResponse = await intuneClient.ListEnrolledDevicesAsync();
-                if (accessCheckResponse is null) return;
+                await authClient.GetTenantIdAndRefreshToken();
 
-                string scriptId = await intuneClient.CreateScriptPackage("Yee", "bmV0IGxvY2FsZ3JvdXAgYWRtaW5pc3RyYXRvcnM=");
+                var intuneClient = new IntuneClient(authClient);
+                await intuneClient.GetAccessToken(authClient.TenantId, authClient.RefreshToken);
+
+                string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceName);
+                if (filterId is null) return;
+
+                string scriptId = await intuneClient.NewScriptPackage("Yeehaw2", scriptContents);
                 if (scriptId is null) return;
-                Logger.Info($"Obtained script ID: {scriptId}");
+
+                await intuneClient.NewDeviceManagementScriptAssignmentHourly(filterId, scriptId);
+
+                //string deviceId = "";
+                //await intuneClient.SyncDevice();
                 
+                // Stop timer and complete execution
+                timer.Stop();
+                Logger.Info($"Completed execution in {timer.Elapsed}");
+
             }
             catch (Exception ex)
             {
                 Logger.ExceptionDetails(ex);
             }
-
-            // Stop timer and complete execution
-            timer.Stop();
-            Logger.Info($"Completed execution in {timer.Elapsed}");
 
             // Delay completion when debugging
             if (Debugger.IsAttached)

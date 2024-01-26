@@ -10,11 +10,12 @@ namespace Maestro
 {
     public class AuthClient : IAuthClient
     {
-        public IHttpHandler HttpHandler { get; private set; }
+        public IHttpHandler HttpHandler { get; }
         public string EntraIdAccessToken { get; private set; }
         public string IntuneAccessToken { get; private set; }
         public string RefreshToken { get; private set; }
         public string TenantId { get; private set; }
+
 
         public AuthClient(IHttpHandler httpHandler)
         {
@@ -44,7 +45,7 @@ namespace Maestro
             return authorizeResponse;
         }
 
-        private async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string url, string extensionName, string resourceName)
+        public async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string url, string extensionName, string resourceName)
         {
             Logger.Info("Requesting access token from DelegationToken endpoint with portalAuthorization");
             string accessToken = await GetAuthHeader(tenantId, portalAuthorization, url, extensionName, resourceName);
@@ -91,18 +92,6 @@ namespace Maestro
             if (authorizeUrl is null) return null;
             Logger.Info($"Found authorize URL: {authorizeUrl}");
             return authorizeUrl;
-        }
-
-        public async Task<string> GetEntraIdAccessToken(string tenantId, string portalAuthorization)
-        {
-            Logger.Info("Requesting EntraID access token");
-            string entraIdAccessToken = await GetAccessToken(tenantId, portalAuthorization,
-                "https://intune.microsoft.com/api/DelegationToken",
-                "Microsoft_AAD_IAM", "microsoft.graph");
-            if (entraIdAccessToken is null) return null;
-
-            EntraIdAccessToken = entraIdAccessToken;
-            return entraIdAccessToken;
         }
 
         public async Task<string> GetEntraIdPortalAuthorization(string tenantId, string portalAuthorization)
@@ -234,7 +223,7 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task<(string, string)> GetTenantIdAndRefreshTokenFromIntune()
+        public async Task<(string, string)> GetTenantIdAndRefreshToken()
         {
             string signInResponse = await SignInToIntune();
             if (signInResponse is null) return (null, null);

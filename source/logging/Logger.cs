@@ -60,7 +60,7 @@ namespace Maestro
             {
                 Console.WriteLine($"  Exception type: {ex.GetType().Name}");
                 Console.WriteLine($"  Message: {ex.Message}");
-                Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
+                Console.WriteLine($"  Stack Trace:\n {ex.StackTrace}");
                 Console.WriteLine();
                 ex = ex.InnerException;
             }
