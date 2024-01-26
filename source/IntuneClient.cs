@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net.Http;
-using System.Security.Policy;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 
 namespace Maestro
 {
@@ -20,6 +16,21 @@ namespace Maestro
         {
             _authClient = authClient;
             _httpHandler = authClient.HttpHandler;
+        }
+
+        public async Task DeleteDeviceAssignmentFilter(string filterId)
+        {
+
+            Logger.Info($"Deleting device assignment filter with ID: {filterId}");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/assignmentFilters/{filterId}";
+            await _httpHandler.DeleteAsync(url);
+        }
+
+        public async Task DeleteScriptPackage(string scriptId)
+        {
+            Logger.Info($"Deleting detection script with scriptId: {scriptId}");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
+            await _httpHandler.DeleteAsync(url);
         }
 
         public async Task<string> GetAccessToken(string tenantId, string portalAuthorization)

@@ -32,6 +32,12 @@ namespace Maestro
             return new StringContent(json, Encoding.UTF8, "application/json");
         }
 
+        public async Task<string> DeleteAsync(string url)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Delete, url);
+            return await SendRequestAsync(request);
+        }
+
         public async Task<string> GetAsync(string url)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
