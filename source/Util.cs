@@ -5,11 +5,6 @@ namespace Maestro
 {
     internal class Util
     {
-        public static void DisplayUsageAndExit()
-        {
-            Console.WriteLine("Usage:\n\n  Maestro.exe <device> <base64-encoded.ps1>\n");
-            throw new ArgumentException("Incorrect number of arguments specified");
-        }
         public static string GetMatch(string input, string pattern, bool group = true)
         {
             var match = Regex.Match(input, pattern);

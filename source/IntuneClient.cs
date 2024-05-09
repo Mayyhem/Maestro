@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -11,7 +12,6 @@ namespace Maestro
         private readonly IAuthClient _authClient;
         private readonly IHttpHandler _httpHandler;
         public string AccessToken;
-
         public IntuneClient(IAuthClient authClient)
         {
             _authClient = authClient;
@@ -50,6 +50,18 @@ namespace Maestro
         {
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
             return await _httpHandler.GetAsync(intuneDevicesUrl);
+        }
+
+        public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
+        {
+            Logger.Info($"Initiating on demand proactive remediation - execution script {scriptId} on device {deviceId}");
+            string url =
+                $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/initiateOnDemandProactiveRemediation";
+            var content = _httpHandler.CreateJsonContent(new
+            {
+                ScriptPolicyId = scriptId,
+            });
+            await _httpHandler.PostAsync(url);
         }
 
         public async Task<string> NewDeviceAssignmentFilter(string deviceName)
