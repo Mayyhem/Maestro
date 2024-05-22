@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Maestro
 {
@@ -21,6 +20,13 @@ namespace Maestro
             }
 
             return match.Value;
+        }
+
+        public static string TruncateString(string str)
+        {
+            if (str.Length <= 12)
+                return str;
+            return str.Substring(0, 6) + "..." + str.Substring(str.Length - 6);
         }
     }
 }

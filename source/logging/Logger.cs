@@ -60,12 +60,17 @@ namespace Maestro
             {
                 Console.WriteLine($"  Exception type: {ex.GetType().Name}");
                 Console.WriteLine($"  Message: {ex.Message}");
-                Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
+                Console.WriteLine($"  Stack Trace:\n {ex.StackTrace}");
                 Console.WriteLine();
                 ex = ex.InnerException;
             }
         }
-        public static string NullError(string message)
+        public static T NullError<T>(string message) where T : class
+        {
+            Logger.Error(message);
+            return null;
+        }
+        public static T? NullErrorValue<T>(string message) where T : struct
         {
             Logger.Error(message);
             return null;

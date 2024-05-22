@@ -76,19 +76,22 @@ namespace Maestro
                 {
                     string line = myProcess.StandardOutput.ReadLine();
                     processOutput += line;
-                    Console.WriteLine(line);
                 }
                 // Wait for exit
                 myProcess.WaitForExit();
-                Console.WriteLine(myProcess.ExitCode);
+                //Console.WriteLine(myProcess.ExitCode);
+
+                Logger.Debug(processOutput);
 
                 string pattern = "\"name\":\"x-ms-RefreshTokenCredential\",\"data\":\"(eyJh[^\"]+)";
                 Match match = Regex.Match(processOutput, pattern);
 
-                if (match.Success)
+                if (!match.Success)
                 {
-                    xMsRefreshtokencredential = match.Groups[1].Value;
+                    return Logger.NullError<string>("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
                 }
+                xMsRefreshtokencredential = match.Groups[1].Value;
+                Logger.Info($"Obtained x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce" : " ") + $": {xMsRefreshtokencredential}");
                 return xMsRefreshtokencredential;
             }
         }

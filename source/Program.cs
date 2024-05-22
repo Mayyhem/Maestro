@@ -1,56 +1,68 @@
-﻿using System;
+﻿using Maestro.source.command;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 
 namespace Maestro
 {
     class Program
     {
-        private static async Task Main(string[] args)
+        private static void Main(string[] args)
         {
-            // Logging and debugging
-            Logger.LogLevel logLevel = Logger.LogLevel.Info;
-            if (args.Contains<string>("--debug"))
-            {
-                logLevel = Logger.LogLevel.Debug;
-            }
-            ILogger logger = new ConsoleLogger();
-            Logger.Initialize(logger, logLevel);
-
             // Execution timer
             var timer = new Stopwatch();
-            timer.Start();
-            Logger.Info("Execution started");
 
             try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                var httpHandler = new HttpHandler();
-                var authClient = new AuthClient(httpHandler);
-                string intuneAccessToken = await authClient.GetIntuneAccessToken();
-                if (intuneAccessToken is null)
+                // Logging and debugging
+                Logger.LogLevel logLevel = Logger.LogLevel.Info;
+                if (args.Contains<string>("--debug"))
                 {
-                    return;
+                    logLevel = Logger.LogLevel.Debug;
                 }
-                httpHandler.SetAuthorizationHeader(intuneAccessToken);
-                var msgraphClient = new MSGraphClient(httpHandler);
-                var intuneClient = new IntuneClient(msgraphClient);
-                await intuneClient.ListEnrolledDevicesAsync();
+                ILogger logger = new ConsoleLogger();
+                Logger.Initialize(logger, logLevel);
+
+                // Start timer and begin execution
+                timer.Start();
+                Logger.Info("Execution started");
+
+                // Parse arguments
+                Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
+                if (parsedArguments == null) return;
+
+                // Directing execution flow based on the command
+                switch (parsedArguments["command"])
+                {
+                    case "exec":
+                        ExecCommand.Execute(parsedArguments);
+                        break;
+                    case "get":
+                        GetCommand.Execute(parsedArguments);
+                        break;
+                    default:
+                        Console.WriteLine("Unknown command");
+                        CommandLine.PrintUsage();
+                        break;
+                }
             }
+
             catch (Exception ex)
             {
                 Logger.ExceptionDetails(ex);
             }
 
-            // Stop timer and complete execution
-            timer.Stop();
-            Logger.Info($"Completed execution in {timer.Elapsed}");
+            finally
+            {
+                // Stop timer and complete execution
+                timer.Stop();
+                Logger.Info($"Completed execution in {timer.Elapsed}");
 
-            // Delay completion when debugging
-            if (Debugger.IsAttached)
-                Console.ReadLine();
+                // Delay exit when debugging
+                if (Debugger.IsAttached)
+                    Console.ReadLine();
+            }
         }
     }
 }

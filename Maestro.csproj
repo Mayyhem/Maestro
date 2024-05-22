@@ -38,24 +38,44 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.ValueTuple.4.5.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="source\IntuneClient.cs" />
-    <Compile Include="source\EntraID.cs" />
-    <Compile Include="source\MSGraphClient.cs" />
+    <Compile Include="source\AuthClient.cs" />
+    <Compile Include="source\command\Option.cs" />
+    <Compile Include="source\command\Subcommand.cs" />
+    <Compile Include="source\command\Command.cs" />
+    <Compile Include="source\command\ExecCommand.cs" />
+    <Compile Include="source\command\GetCommand.cs" />
+    <Compile Include="source\command\CommandLine.cs" />
+    <Compile Include="source\entra\EntraIDClient.cs" />
+    <Compile Include="source\interfaces\IAuthClient.cs" />
+    <Compile Include="source\intune\IntuneDevice.cs" />
+    <Compile Include="source\ROADToken.cs" />
+    <Compile Include="source\Util.cs" />
+    <Compile Include="source\logging\Logger.cs" />
+    <Compile Include="source\logging\ConsoleLogger.cs" />
+    <Compile Include="source\HttpHandler.cs" />
+    <Compile Include="source\interfaces\IHttpHandler.cs" />
+    <Compile Include="source\interfaces\ILogger.cs" />
+    <Compile Include="source\intune\IntuneClient.cs" />
     <Compile Include="source\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
+    <PostBuildEvent>scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)* labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:C:\Users\cthompson\git\Maestro\bin\Debug\</PostBuildEvent>
   </PropertyGroup>
 </Project>
