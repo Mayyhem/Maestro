@@ -9,7 +9,7 @@ namespace Maestro
         public static async void Execute(Dictionary<string, string> arguments)
         {
             // Implementation for exec command
-            Console.WriteLine("Executing 'exec' command...");
+            Console.WriteLine("Executing \"exec\" command...");
             if (arguments.TryGetValue("target", out string target) && arguments.TryGetValue("script", out string script))
             {
                 Console.WriteLine($"Target: {target}, Script: {script}");
@@ -33,8 +33,8 @@ namespace Maestro
             }
             else
             {
-                Console.WriteLine("Missing arguments for 'exec' command.");
-                CommandLine.PrintExecUsage();
+                Console.WriteLine("Missing arguments for \"exec\" command.");
+                //CommandLine.PrintExecUsage();
             }
         }
     }

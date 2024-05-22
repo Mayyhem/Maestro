@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
 
 namespace Maestro
 {
@@ -12,16 +10,11 @@ namespace Maestro
     {
         private static void Main(string[] args)
         {
+            // Execution timer
+            var timer = new Stopwatch();
+
             try
             {
-                // Parse arguments
-                Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
-                if (parsedArguments == null)
-                {
-                    Console.WriteLine("Failed to parse command line arguments or no arguments provided.");
-                    return;
-                }
-
                 // Logging and debugging
                 Logger.LogLevel logLevel = Logger.LogLevel.Info;
                 if (args.Contains<string>("--debug"))
@@ -31,13 +24,16 @@ namespace Maestro
                 ILogger logger = new ConsoleLogger();
                 Logger.Initialize(logger, logLevel);
 
-                // Execution timer
-                var timer = new Stopwatch();
+                // Start timer and begin execution
                 timer.Start();
                 Logger.Info("Execution started");
 
-                // Directing execution flow based on the subcommand
-                switch (parsedArguments["subcommand"])
+                // Parse arguments
+                Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
+                if (parsedArguments == null) return;
+
+                // Directing execution flow based on the command
+                switch (parsedArguments["command"])
                 {
                     case "exec":
                         ExecCommand.Execute(parsedArguments);
@@ -46,24 +42,27 @@ namespace Maestro
                         GetCommand.Execute(parsedArguments);
                         break;
                     default:
-                        Console.WriteLine("Unknown subcommand. Please check the usage.");
-                        CommandLine.PrintGeneralUsage();
+                        Console.WriteLine("Unknown command");
+                        CommandLine.PrintUsage();
                         break;
                 }
-
-                // Stop timer and complete execution
-                timer.Stop();
-                Logger.Info($"Completed execution in {timer.Elapsed}");
-
             }
+
             catch (Exception ex)
             {
                 Logger.ExceptionDetails(ex);
             }
 
-            // Delay completion when debugging
-            if (Debugger.IsAttached)
-                Console.ReadLine();
+            finally
+            {
+                // Stop timer and complete execution
+                timer.Stop();
+                Logger.Info($"Completed execution in {timer.Elapsed}");
+
+                // Delay exit when debugging
+                if (Debugger.IsAttached)
+                    Console.ReadLine();
+            }
         }
     }
 }

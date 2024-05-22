@@ -8,7 +8,7 @@ namespace Maestro.source.command
         public static void Execute(Dictionary<string, string> arguments)
         {
             // Implementation for get command
-            Console.WriteLine("Executing 'get' command...");
+            Console.WriteLine("Executing \"get\" command...");
             if (arguments.TryGetValue("target", out string target))
             {
                 Console.WriteLine($"Target: {target}");
@@ -16,8 +16,8 @@ namespace Maestro.source.command
             }
             else
             {
-                Console.WriteLine("Missing arguments for 'get' command.");
-                CommandLine.PrintGetUsage();
+                Console.WriteLine("Missing arguments for \"get\" command.");
+                CommandLine.PrintUsage("get");
             }
         }
     }

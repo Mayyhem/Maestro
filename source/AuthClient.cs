@@ -300,6 +300,5 @@ namespace Maestro
             Logger.Info($"Found tenantId in the response: {tenantId}");
             return tenantId;
         }
-
     }
 }

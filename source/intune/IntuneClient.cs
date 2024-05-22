@@ -38,7 +38,8 @@ namespace Maestro
             Logger.Info("Requesting Intune access token");
             string intuneAccessToken = await _authClient.GetAccessToken(_authClient.TenantId, _authClient.RefreshToken,
                 "https://intune.microsoft.com/api/DelegationToken",
-                "Microsoft_Intune_DeviceSettings", "microsoft.graph"); if (intuneAccessToken is null) return null;
+                "Microsoft_Intune_DeviceSettings", "microsoft.graph"); 
+            if (intuneAccessToken is null) return null;
 
             _httpHandler.SetAuthorizationHeader(intuneAccessToken);
             
@@ -46,8 +47,27 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task<string> ListEnrolledDevicesAsync()
+        public async Task<string> GetDevices(string deviceId = "", string deviceName = "")
         {
+            string query = "";
+            string intuneDevicesUrl = "";
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                query = deviceId;
+                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceId%20eq%20%27{deviceId}%27";
+            }
+            else if (!string.IsNullOrEmpty(deviceName))
+            {
+                query = deviceName;
+                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
+            }
+            Logger.Info($"Requesting information for: {query}");
+            return await _httpHandler.GetAsync(intuneDevicesUrl);
+        }
+
+        public async Task<string> ListEnrolledDevices()
+        {
+            Logger.Info("Requesting list of devices enrolled in Intune");
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
             return await _httpHandler.GetAsync(intuneDevicesUrl);
         }
@@ -178,7 +198,7 @@ namespace Maestro
 
         public async Task SyncDevice(string deviceId)
         {
-            Logger.Info($"Intune will attempt to check in and sync actions and policies to device: with device {deviceId}");
+            Logger.Info($"Intune will attempt to check in and sync actions and policies to device with device {deviceId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
             await _httpHandler.PostAsync(url);
         }

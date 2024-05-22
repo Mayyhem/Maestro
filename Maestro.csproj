@@ -49,11 +49,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="source\AuthClient.cs" />
+    <Compile Include="source\command\Option.cs" />
+    <Compile Include="source\command\Subcommand.cs" />
+    <Compile Include="source\command\Command.cs" />
     <Compile Include="source\command\ExecCommand.cs" />
     <Compile Include="source\command\GetCommand.cs" />
     <Compile Include="source\command\CommandLine.cs" />
-    <Compile Include="source\EntraIDClient.cs" />
+    <Compile Include="source\entra\EntraIDClient.cs" />
     <Compile Include="source\interfaces\IAuthClient.cs" />
+    <Compile Include="source\intune\IntuneDevice.cs" />
     <Compile Include="source\ROADToken.cs" />
     <Compile Include="source\Util.cs" />
     <Compile Include="source\logging\Logger.cs" />
@@ -61,7 +65,7 @@
     <Compile Include="source\HttpHandler.cs" />
     <Compile Include="source\interfaces\IHttpHandler.cs" />
     <Compile Include="source\interfaces\ILogger.cs" />
-    <Compile Include="source\IntuneClient.cs" />
+    <Compile Include="source\intune\IntuneClient.cs" />
     <Compile Include="source\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
