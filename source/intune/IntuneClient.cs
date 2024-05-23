@@ -1,7 +1,10 @@
-﻿using System;
+﻿using LiteDB;
+using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Web.Script.Serialization;
 
 namespace Maestro
 {
@@ -12,6 +15,13 @@ namespace Maestro
         private readonly IAuthClient _authClient;
         private readonly IHttpHandler _httpHandler;
         public string AccessToken;
+
+        public IntuneClient()
+        {
+            _httpHandler = new HttpHandler();
+            _authClient = new AuthClient(_httpHandler);
+        }
+
         public IntuneClient(IAuthClient authClient)
         {
             _authClient = authClient;
@@ -38,16 +48,16 @@ namespace Maestro
             Logger.Info("Requesting Intune access token");
             string intuneAccessToken = await _authClient.GetAccessToken(_authClient.TenantId, _authClient.RefreshToken,
                 "https://intune.microsoft.com/api/DelegationToken",
-                "Microsoft_Intune_DeviceSettings", "microsoft.graph"); 
+                "Microsoft_Intune_DeviceSettings", "microsoft.graph");
             if (intuneAccessToken is null) return null;
 
             _httpHandler.SetAuthorizationHeader(intuneAccessToken);
-            
+
             AccessToken = intuneAccessToken;
             return intuneAccessToken;
         }
 
-        public async Task<string> GetDevices(string deviceId = "", string deviceName = "")
+        public async Task GetDevices(string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
         {
             string query = "";
             string intuneDevicesUrl = "";
@@ -61,8 +71,50 @@ namespace Maestro
                 query = deviceName;
                 intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
             }
-            Logger.Info($"Requesting information for: {query}");
-            return await _httpHandler.GetAsync(intuneDevicesUrl);
+            Logger.Info($"Querying information for: {query}");
+            if (database != null)
+            {
+                if (database.Exists<IntuneDevice>("Id", deviceId))
+                {
+                    Logger.Info($"Found device in database");
+                    Console.WriteLine(database.GetByProperty<IntuneDevice>("Id", deviceId));
+                }
+                else
+                {
+                    Logger.Info($"No matching device found in database, requesting from Intune");
+                }
+            }
+
+            // Request devices from Intune
+            await SignInToIntuneAndGetAccessToken();
+            string devicesResponse = await _httpHandler.GetAsync(intuneDevicesUrl);
+
+            // Deserialize the JSON response to a dictionary
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var intuneDeviceResponse = serializer.Deserialize<Dictionary<string, object>>(devicesResponse);
+
+            if (intuneDeviceResponse != null)
+            {
+                Console.WriteLine();
+
+                // Create an IntuneDevice object for each device in the response
+                var intuneDevice = new IntuneDevice();
+                foreach (var device in intuneDeviceResponse)
+                {
+                    intuneDevice.AddProperty(device.Key, device.Value);
+                    Console.WriteLine(intuneDevice);
+                    Console.WriteLine("-----------------------");
+                    if (database != null)
+                    {
+                        database.Upsert(intuneDevice);
+                    }
+                }
+                Console.WriteLine();
+            }
+            else
+            {
+                Logger.Info("No devices found.");
+            }
         }
 
         public async Task<string> ListEnrolledDevices()
@@ -109,7 +161,7 @@ namespace Maestro
         public async Task NewDeviceManagementScriptAssignment(string filterId, string scriptId)
         {
             // Start script 5 minutes from now to account for sync
-            var now = DateTime.UtcNow.AddMinutes(5); 
+            var now = DateTime.UtcNow.AddMinutes(5);
             Logger.Info($"Assigning script {scriptId} to filter {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}/assign";
 
@@ -194,6 +246,15 @@ namespace Maestro
             string scriptId = Util.GetMatch(response, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained script ID: {scriptId}");
             return scriptId;
+        }
+
+        public async 
+        Task
+SignInToIntuneAndGetAccessToken()
+        {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            await _authClient.GetTenantIdAndRefreshToken();
+            await GetAccessToken(_authClient.TenantId, _authClient.RefreshToken);
         }
 
         public async Task SyncDevice(string deviceId)

@@ -1,14 +1,14 @@
-﻿using Maestro.source.command;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Maestro
 {
     class Program
     {
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
             // Execution timer
             var timer = new Stopwatch();
@@ -32,14 +32,22 @@ namespace Maestro
                 Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
                 if (parsedArguments == null) return;
 
-                // Directing execution flow based on the command
+                // Use database file if option is specified
+                IDatabaseHandler database = null;
+                if (parsedArguments.TryGetValue("--database", out string databasePath))
+                {
+                    database = new LiteDBHandler(databasePath);
+                    Logger.Info($"Using database file: {databasePath}");
+                }
+
+                // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
                     case "exec":
                         ExecCommand.Execute(parsedArguments);
                         break;
                     case "get":
-                        GetCommand.Execute(parsedArguments);
+                        await GetCommand.Execute(parsedArguments, database);
                         break;
                     default:
                         Console.WriteLine("Unknown command");

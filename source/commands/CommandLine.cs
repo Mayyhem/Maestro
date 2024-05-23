@@ -6,12 +6,6 @@ namespace Maestro
 {
     internal static class CommandLine
     {
-        private static readonly List<Option> GlobalOptions = new List<Option>
-        {
-            new Option { ShortName = "-h", LongName = "--help", Description = "Display usage", IsFlag = true },
-            new Option { ShortName = "-v", LongName = "--verbosity", ValuePlaceholder = "LEVEL", Description = "Set the log verbosity level (1-5)" }
-        };
-
         private static List<Command> commands = new List<Command>
         {
             new Command
@@ -20,8 +14,10 @@ namespace Maestro
                 Description = "Execute a script on a target device",
                 Options = new List<Option>
                 {
-                    new Option { ShortName = "-t", LongName = "--target", ValuePlaceholder = "DEVICE", Description = "Target device to execute the script on" },
-                    new Option { ShortName = "-s", LongName = "--script", ValuePlaceholder = "B64_SCRIPT", Description = "Base64-encoded PowerShell script to execute" }
+                    new Option { ShortName = "-t", LongName = "--target", ValuePlaceholder = "DEVICE",
+                        Description = "Target device to execute the script on" },
+                    new Option { ShortName = "-s", LongName = "--script", ValuePlaceholder = "B64_SCRIPT", 
+                        Description = "Base64-encoded PowerShell script to execute" }
                 }
             },
             new Command
@@ -36,12 +32,24 @@ namespace Maestro
                         Description = "Get information about Intune enrolled devices",
                         Options = new List<Option>
                         {
-                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID", Description = "ID of the device to get information from" },
-                            new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME", Description = "Name of the device to get information from" }
+                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID", 
+                                Description = "ID of the device to get information from" },
+                            new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME", 
+                                Description = "Name of the device to get information from" }
                         }
                     }
                 }
             }
+        };
+
+        private static readonly List<Option> GlobalOptions = new List<Option>
+        {
+            new Option { ShortName = "-d", LongName = "--database", ValuePlaceholder = "PATH.db", 
+                Description = "Database file used to read/write data that has already been queried" },
+            new Option { ShortName = "-h", LongName = "--help", 
+                Description = "Display usage", IsFlag = true },
+            new Option { ShortName = "-v", LongName = "--verbosity", ValuePlaceholder = "LEVEL", 
+                Description = "Set the log verbosity level (1-5)" }
         };
 
         public static Dictionary<string, string> Parse(string[] args)
@@ -55,7 +63,8 @@ namespace Maestro
 
             // Separate global options from the rest
             var parsedArguments = new Dictionary<string, string>();
-            var remainingArgs = ParseGlobalOptions(args, parsedArguments);
+            string[] remainingArgs = ParseGlobalOptions(args, parsedArguments);
+            if (remainingArgs is null) return null;
 
             if (remainingArgs.Length == 0)
             {
@@ -115,9 +124,9 @@ namespace Maestro
                     {
                         if (i + 1 >= args.Length)
                         {
-                            Console.WriteLine($"Missing value for global option: {args[i]}");
-                            PrintUsage(null);
-                            return args;
+                            Logger.Error($"Missing value for global option: {args[i]}");
+                            PrintUsage();
+                            return null;
                         }
                         parsedArguments[option.LongName] = args[i + 1];
                         i++;
@@ -147,7 +156,7 @@ namespace Maestro
                     {
                         if (i + 1 >= args.Length)
                         {
-                            Console.WriteLine("Missing value for option.");
+                            Logger.Error($"Missing value for option: {args[i]}");
                             PrintUsage(parsedArguments["command"]);
                             return null;
                         }
@@ -168,8 +177,8 @@ namespace Maestro
                         {
                             if (i + 1 >= args.Length)
                             {
-                                Console.WriteLine($"Missing value for global option: {args[i]}");
-                                PrintUsage(null);
+                                Logger.Error($"Missing value for global option: {args[i]}");
+                                PrintUsage();
                                 return null;
                             }
                             parsedArguments[globalOption.LongName] = args[i + 1];
@@ -178,7 +187,7 @@ namespace Maestro
                     }
                     else
                     {
-                        Console.WriteLine($"Invalid option: {args[i]}");
+                        Logger.Error($"Invalid option: {args[i]}");
                         PrintUsage(parsedArguments["command"]);
                         return null;
                     }
@@ -191,6 +200,8 @@ namespace Maestro
         public static void PrintUsage(string commandName = "")
         {
             Console.WriteLine();
+
+            // Maestro.exe
             if (string.IsNullOrEmpty(commandName))
             {
                 Console.WriteLine("Usage: Maestro.exe <command> [options]");
@@ -216,6 +227,7 @@ namespace Maestro
 
             else
             {
+                // Maestro.exe <command>
                 var command = commands.FirstOrDefault(c => c.Name == commandName);
                 if (command != null)
                 {
@@ -240,16 +252,8 @@ namespace Maestro
                 }
                 else
                 {
-                    var parentCommand = commands.FirstOrDefault(c => c.Subcommands.Any(sc => sc.Name == commandName));
-                    var subCommand = parentCommand?.Subcommands.FirstOrDefault(sc => sc.Name == commandName);
-                    if (subCommand != null)
-                    {
-                        Console.WriteLine($"Usage: Maestro.exe {parentCommand.Name} {subCommand.Name} [options]");
-                        foreach (var option in subCommand.Options)
-                        {
-                            Console.WriteLine($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}".PadRight(30) + option.Description);
-                        }
-                    }
+                    // Maestro.exe <invalid-command>
+                    Logger.Error($"Unknown command: {commandName}");
                 }
             }
             Console.WriteLine();

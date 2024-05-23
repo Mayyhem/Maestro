@@ -33,7 +33,7 @@ namespace Maestro
             }
             else
             {
-                Console.WriteLine("Missing arguments for \"exec\" command.");
+                Console.WriteLine("Missing arguments for \"exec\" command");
                 //CommandLine.PrintExecUsage();
             }
         }
