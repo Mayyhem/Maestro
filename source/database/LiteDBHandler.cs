@@ -1,5 +1,7 @@
 ﻿using LiteDB;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Maestro
@@ -50,11 +52,6 @@ namespace Maestro
             return items;
         }
 
-        public ILiteCollection<T> GetCollection<T>(string key)
-        {
-            return _database.GetCollection<T>(key);
-        }
-
         public bool Exists<T>(string propertyName, object value) where T : class
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
@@ -62,18 +59,52 @@ namespace Maestro
             return collection.Exists(query);
         }
 
-        public void Upsert<T>(T item) where T : class
+        public void Upsert<T>(T item, string matchProperty) where T : class
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
             var doc = new BsonDocument();
 
-            foreach (PropertyInfo prop in typeof(T).GetProperties())
+            // Dictionary to hold all properties
+            var properties = new Dictionary<string, object>();
+
+            // If the item has a method to get dictionary properties (like GetProperties in IntuneDevice), call it
+            var getPropertiesMethod = item.GetType().GetMethod("GetProperties");
+            if (getPropertiesMethod != null)
             {
-                var value = prop.GetValue(item);
-                doc[prop.Name] = new BsonValue(value);
+                var dictProperties = (IDictionary<string, object>)getPropertiesMethod.Invoke(item, null);
+                foreach (var kvp in dictProperties)
+                {
+                    properties[kvp.Key] = kvp.Value;
+                }
             }
 
-            collection.Upsert(doc);
+            // Add properties to the document
+            foreach (var kvp in properties)
+            {
+                doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
+            }
+
+            // Get the value of the matching property
+            if (properties.TryGetValue(matchProperty, out object matchValue))
+            {
+                // Check if an item with the same matchProperty already exists
+                var existingItem = collection.FindOne(Query.EQ(matchProperty, new BsonValue(matchValue)));
+                if (existingItem != null)
+                {
+                    // Update the existing item
+                    doc["_id"] = existingItem["_id"];
+                    collection.Update(doc);
+                }
+                else
+                {
+                    // Insert a new item
+                    collection.Insert(doc);
+                }
+            }
+            else
+            {
+                throw new ArgumentException($"Property '{matchProperty}' not found in the item.");
+            }
         }
     }
 }

@@ -16,11 +16,7 @@ namespace Maestro
             try
             {
                 // Logging and debugging
-                Logger.LogLevel logLevel = Logger.LogLevel.Info;
-                if (args.Contains<string>("--debug"))
-                {
-                    logLevel = Logger.LogLevel.Debug;
-                }
+                Logger.LogLevel logLevel = Logger.LogLevel.Debug;
                 ILogger logger = new ConsoleLogger();
                 Logger.Initialize(logger, logLevel);
 

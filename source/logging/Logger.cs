@@ -58,10 +58,9 @@ namespace Maestro
             Logger.Error($"An exception occurred!\n");
             while (ex != null)
             {
-                Console.WriteLine($"  Exception type: {ex.GetType().Name}");
-                Console.WriteLine($"  Message: {ex.Message}");
-                Console.WriteLine($"  Stack Trace:\n {ex.StackTrace}");
-                Console.WriteLine();
+                Console.WriteLine($"  Exception type: {ex.GetType().Name}\n");
+                Console.WriteLine($"  Message: {ex.Message}\n");
+                Console.WriteLine($"  Stack Trace:\n {ex.StackTrace}\n");
                 ex = ex.InnerException;
             }
         }

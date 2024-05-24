@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Dynamic;
-using System.Text;
 using System.Web.Script.Serialization;
 
 namespace Maestro
@@ -15,10 +13,29 @@ namespace Maestro
             _properties[key] = value;
         }
 
-        // Get all properties as a dictionary
+        // Get all properties as a flattened dictionary
         public IDictionary<string, object> GetProperties()
         {
-            return _properties;
+            var flatProperties = new Dictionary<string, object>();
+            FlattenProperties(_properties, flatProperties, null);
+            return flatProperties;
+        }
+
+        // Helper method to flatten properties
+        private void FlattenProperties(IDictionary<string, object> source, IDictionary<string, object> target, string parentKey)
+        {
+            foreach (var kvp in source)
+            {
+                var key = parentKey == null ? kvp.Key : $"{parentKey}.{kvp.Key}";
+                if (kvp.Value is IDictionary<string, object> nestedDict)
+                {
+                    FlattenProperties(nestedDict, target, key);
+                }
+                else
+                {
+                    target[key] = kvp.Value;
+                }
+            }
         }
 
         // Serialize the object to JSON
@@ -26,23 +43,6 @@ namespace Maestro
         {
             var serializer = new JavaScriptSerializer();
             return serializer.Serialize(_properties);
-        }
-
-        // Override TryGetMember to access dynamic properties
-        public override bool TryGetMember(GetMemberBinder binder, out object result)
-        {
-            if (_properties.TryGetValue(binder.Name, out result))
-            {
-                return true;
-            }
-            return base.TryGetMember(binder, out result);
-        }
-
-        // Override TrySetMember to set dynamic properties
-        public override bool TrySetMember(SetMemberBinder binder, object value)
-        {
-            _properties[binder.Name] = value;
-            return true;
         }
     }
 

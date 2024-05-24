@@ -1,5 +1,6 @@
 ﻿using LiteDB;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -91,23 +92,28 @@ namespace Maestro
 
             // Deserialize the JSON response to a dictionary
             JavaScriptSerializer serializer = new JavaScriptSerializer();
-            var intuneDeviceResponse = serializer.Deserialize<Dictionary<string, object>>(devicesResponse);
+            var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponse);
+            var devices = (ArrayList)deviceResponseDict["value"];
 
-            if (intuneDeviceResponse != null)
+            if (devices != null)
             {
                 Console.WriteLine();
-
-                // Create an IntuneDevice object for each device in the response
-                var intuneDevice = new IntuneDevice();
-                foreach (var device in intuneDeviceResponse)
+                foreach (var device in devices)
                 {
-                    intuneDevice.AddProperty(device.Key, device.Value);
+                    // Create an IntuneDevice object for each device in the response
+                    var deviceDict = (Dictionary<string, object>)device;
+                    var intuneDevice = new IntuneDevice();
+
+                    foreach (var kvp in deviceDict)
+                    {
+                        intuneDevice.AddProperty(kvp.Key, kvp.Value);
+                    }
                     Console.WriteLine(intuneDevice);
-                    Console.WriteLine("-----------------------");
                     if (database != null)
                     {
-                        database.Upsert(intuneDevice);
+                        database.Upsert(intuneDevice, "id");
                     }
+                    Console.WriteLine("-----------------------");
                 }
                 Console.WriteLine();
             }
