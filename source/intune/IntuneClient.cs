@@ -75,10 +75,10 @@ namespace Maestro
             Logger.Info($"Querying information for: {query}");
             if (database != null)
             {
-                if (database.Exists<IntuneDevice>("Id", deviceId))
+                if (database.Exists<JsonObject>("Id", deviceId))
                 {
                     Logger.Info($"Found device in database");
-                    Console.WriteLine(database.GetByProperty<IntuneDevice>("Id", deviceId));
+                    Console.WriteLine(database.GetByProperty<JsonObject>("Id", deviceId));
                 }
                 else
                 {
@@ -111,6 +111,7 @@ namespace Maestro
                     Console.WriteLine(intuneDevice);
                     if (database != null)
                     {
+                        // Insert new device if matching id doesn't exist
                         database.Upsert(intuneDevice, "id");
                     }
                     Console.WriteLine("-----------------------");

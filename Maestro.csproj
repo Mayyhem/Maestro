@@ -66,6 +66,7 @@
     <Compile Include="source\interfaces\IAuthClient.cs" />
     <Compile Include="source\interfaces\IDatabaseHandler.cs" />
     <Compile Include="source\intune\IntuneDevice.cs" />
+    <Compile Include="source\JsonObject.cs" />
     <Compile Include="source\ROADToken.cs" />
     <Compile Include="source\Util.cs" />
     <Compile Include="source\logging\Logger.cs" />

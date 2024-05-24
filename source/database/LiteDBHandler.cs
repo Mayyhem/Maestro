@@ -1,8 +1,6 @@
 ﻿using LiteDB;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 
 namespace Maestro
 {
@@ -59,24 +57,14 @@ namespace Maestro
             return collection.Exists(query);
         }
 
-        public void Upsert<T>(T item, string matchProperty) where T : class
+        public void UpsertA<T>(T item, string matchProperty) where T : class
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
             var doc = new BsonDocument();
 
-            // Dictionary to hold all properties
-            var properties = new Dictionary<string, object>();
-
-            // If the item has a method to get dictionary properties (like GetProperties in IntuneDevice), call it
-            var getPropertiesMethod = item.GetType().GetMethod("GetProperties");
-            if (getPropertiesMethod != null)
-            {
-                var dictProperties = (IDictionary<string, object>)getPropertiesMethod.Invoke(item, null);
-                foreach (var kvp in dictProperties)
-                {
-                    properties[kvp.Key] = kvp.Value;
-                }
-            }
+            // Access the _properties field using reflection
+            var propertiesField = typeof(T).GetField("_properties", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var properties = propertiesField.GetValue(item) as Dictionary<string, object>;
 
             // Add properties to the document
             foreach (var kvp in properties)
@@ -87,6 +75,8 @@ namespace Maestro
             // Get the value of the matching property
             if (properties.TryGetValue(matchProperty, out object matchValue))
             {
+                collection.Upsert(doc);
+                /*
                 // Check if an item with the same matchProperty already exists
                 var existingItem = collection.FindOne(Query.EQ(matchProperty, new BsonValue(matchValue)));
                 if (existingItem != null)
@@ -100,11 +90,36 @@ namespace Maestro
                     // Insert a new item
                     collection.Insert(doc);
                 }
+                */
             }
-            else
+        }
+
+        // Specify the primary key property for upserting dynamic objects with unknown properties
+        public void Upsert<T>(T item, string primaryKeyProperty) where T : class
+        {
+            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
+            var doc = new BsonDocument();
+
+            // Directly call GetProperties method
+            var properties = item.GetType().GetMethod("GetProperties").Invoke(item, null) as IDictionary<string, object>;
+
+            if (properties == null || !properties.ContainsKey(primaryKeyProperty))
             {
-                throw new ArgumentException($"Property '{matchProperty}' not found in the item.");
+                throw new InvalidOperationException($"{typeof(T).Name} must have a '{primaryKeyProperty}' property.");
             }
+
+            var primaryKeyValue = properties[primaryKeyProperty].ToString();
+
+            foreach (var kvp in properties)
+            {
+                doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
+            }
+
+            // Use Upsert method to insert or update
+            // Ensure the primary key is set as _id in BsonDocument
+            doc["_id"] = new BsonValue(primaryKeyValue);  
+            collection.Upsert(doc);
+            Logger.Debug($"Upserted item in database: {typeof(T).Name}");
         }
     }
 }
