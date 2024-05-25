@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Maestro
+﻿namespace Maestro
 {
     public class IntuneDevice : JsonObject
     {
-
+        // Set primary key
+        public IntuneDevice() : base("id") { }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using LiteDB;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Maestro
 {
@@ -58,7 +59,7 @@ namespace Maestro
         }
 
         // Specify the primary key property for upserting dynamic objects with unknown properties
-        public void Upsert<T>(T item, string primaryKeyProperty) where T : class
+        public void UpsertA<T>(T item, string primaryKeyProperty) where T : class
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
             var doc = new BsonDocument();
@@ -81,6 +82,29 @@ namespace Maestro
             // Use Upsert method to insert or update
             // Ensure the primary key is set as _id in BsonDocument
             doc["_id"] = new BsonValue(primaryKeyValue);  
+            collection.Upsert(doc);
+            Logger.Debug($"Upserted item in database: {typeof(T).Name}");
+        }
+
+        public void Upsert<T>(T item) where T : JsonObject
+        {
+            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
+            var doc = new BsonDocument();
+
+            // Get the properties dynamically
+            var properties = item.GetProperties();
+
+            // Find the primary key property
+            string primaryKeyProperty = properties.Keys.FirstOrDefault(key => key.Equals("PrimaryKey"));
+            var primaryKeyValue = properties[primaryKeyProperty]?.ToString();
+
+            foreach (var kvp in properties)
+            {
+                doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
+            }
+
+            // Ensure the primary key is set as _id in BsonDocument
+            doc["_id"] = new BsonValue(primaryKeyValue);
             collection.Upsert(doc);
             Logger.Debug($"Upserted item in database: {typeof(T).Name}");
         }

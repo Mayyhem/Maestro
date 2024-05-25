@@ -4,9 +4,17 @@ using System.Web.Script.Serialization;
 
 namespace Maestro
 {
-    public class JsonObject : DynamicObject
+    // Instances of classes derived from JsonObject can store arbitrary JSON data returned from a REST API
+    // with an arbitrary number of properties (e.g., if the provider adds/removes properties).
+    // The primary key must be defined when the derived class is instantiated.
+    public abstract class JsonObject : DynamicObject
     {
         private readonly Dictionary<string, object> _properties = new Dictionary<string, object>();
+
+        protected JsonObject(string primaryKey) 
+        {
+            AddProperty("PrimaryKey", primaryKey);
+        }
 
         public void AddProperty(string key, object value)
         {
