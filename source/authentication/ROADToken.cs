@@ -9,7 +9,9 @@ namespace Maestro
     {
         public static string GetXMsRefreshtokencredential(string nonce = null)
         {
+            //RefreshToken xMsRefreshtokencredential = null;
             string xMsRefreshtokencredential = null;
+
             Logger.Info("Requesting PRT cookie" + (nonce != null ? " with nonce " : " ") + "for this user/device from LSA/CloudAP");
 
             string[] filelocs = {
@@ -88,9 +90,12 @@ namespace Maestro
 
                 if (!match.Success)
                 {
+                    //return Logger.NullError<RefreshToken>("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
                     return Logger.NullError<string>("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
                 }
+                //xMsRefreshtokencredential = new RefreshToken(match.Groups[1].Value);
                 xMsRefreshtokencredential = match.Groups[1].Value;
+
                 Logger.Info($"Obtained x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce" : " ") + $": {xMsRefreshtokencredential}");
                 return xMsRefreshtokencredential;
             }

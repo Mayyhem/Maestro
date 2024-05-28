@@ -98,17 +98,12 @@ namespace Maestro
             if (devices != null)
             {
                 Console.WriteLine();
-                foreach (var device in devices)
+                foreach (Dictionary<string, object> device in devices)
                 {
                     // Create an IntuneDevice object for each device in the response
-                    var deviceDict = (Dictionary<string, object>)device;
-                    var intuneDevice = new IntuneDevice();
-
-                    foreach (var kvp in deviceDict)
-                    {
-                        intuneDevice.AddProperty(kvp.Key, kvp.Value);
-                    }
+                    var intuneDevice = new IntuneDevice(device);
                     Console.WriteLine(intuneDevice);
+
                     if (database != null)
                     {
                         // Insert new device if matching id doesn't exist
@@ -160,7 +155,7 @@ namespace Maestro
             string response = await _httpHandler.PostAsync(url, content);
             if (response is null) return null;
 
-            string filterId = Util.GetMatch(response, "\"id\":\"([^\"]+)\"");
+            string filterId = Strings.GetMatch(response, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained filter ID: {filterId}");
             return filterId;
         }
@@ -250,7 +245,7 @@ namespace Maestro
             string response = await _httpHandler.PostAsync(url, content);
             if (response is null) return null;
 
-            string scriptId = Util.GetMatch(response, "\"id\":\"([^\"]+)\"");
+            string scriptId = Strings.GetMatch(response, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained script ID: {scriptId}");
             return scriptId;
         }

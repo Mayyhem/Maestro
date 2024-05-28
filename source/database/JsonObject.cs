@@ -11,9 +11,23 @@ namespace Maestro
     {
         private readonly Dictionary<string, object> _properties = new Dictionary<string, object>();
 
-        protected JsonObject(string primaryKey) 
+        protected JsonObject(string primaryKey, Dictionary<string, object> properties = null)
         {
-            AddProperty("PrimaryKey", primaryKey);
+            if (properties is null)
+            {
+                AddProperty("PrimaryKey", primaryKey);
+            }
+            else
+            {
+                foreach (var property in properties)
+                {
+                    AddProperty(property.Key, property.Value);
+                }
+                if (properties.ContainsKey(primaryKey))
+                {
+                    AddProperty("PrimaryKey", primaryKey);
+                }
+            }
         }
 
         public void AddProperty(string key, object value)

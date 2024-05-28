@@ -16,7 +16,6 @@ namespace Maestro
         public string RefreshToken { get; private set; }
         public string TenantId { get; private set; }
 
-
         public AuthClient(IHttpHandler httpHandler)
         {
             HttpHandler = httpHandler;
@@ -68,7 +67,7 @@ namespace Maestro
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             string response = await HttpHandler.PostAsync(url, content);
-            string authHeader = Util.GetMatch(response, "\"authHeader\":\"Bearer ([^\"]+)\"");
+            string authHeader = Strings.GetMatch(response, "\"authHeader\":\"Bearer ([^\"]+)\"");
             return authHeader;
         }
 
@@ -88,7 +87,7 @@ namespace Maestro
             Logger.Debug(idpRedirectResponse);
             string authorizeUrlPattern =
                 @"https://login\.microsoftonline\.com/organizations/oauth2/v2\.0/authorize\?.*?(?=\"")";
-            string authorizeUrl = Util.GetMatch(idpRedirectResponse, authorizeUrlPattern, false);
+            string authorizeUrl = Strings.GetMatch(idpRedirectResponse, authorizeUrlPattern, false);
             if (authorizeUrl is null) return null;
             Logger.Info($"Found authorize URL: {authorizeUrl}");
             return authorizeUrl;
@@ -168,7 +167,7 @@ namespace Maestro
             if (urlToCheckForNonce is null) return null;
 
             // Parse URL for nonce
-            string ssoNonce = Util.GetMatch(urlToCheckForNonce, "sso_nonce=([^&]+)");
+            string ssoNonce = Strings.GetMatch(urlToCheckForNonce, "sso_nonce=([^&]+)");
             if (ssoNonce is null)
                 return Logger.NullError<string>("No sso_nonce parameter was found in the URL");
             Logger.Info($"Found sso_nonce parameter in the URL: {ssoNonce}");
@@ -184,7 +183,7 @@ namespace Maestro
             if (authorizeWithSsoNonceResponse is null) return null;
 
             // Parse response for signin URL
-            string actionUrl = Util.GetMatch(authorizeWithSsoNonceResponse, "<form method=\"POST\" name=\"hiddenform\" action=\"(.*?)\"");
+            string actionUrl = Strings.GetMatch(authorizeWithSsoNonceResponse, "<form method=\"POST\" name=\"hiddenform\" action=\"(.*?)\"");
             if (actionUrl is null)
                 return Logger.NullError<string>("No hidden form action URLs were found in the response");
             Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
@@ -215,10 +214,10 @@ namespace Maestro
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             string response = await HttpHandler.PostAsync(url, content);
-            string portalAuthorization = Util.GetMatch(response, "\\\"portalAuthorization\\\":\\\"([^\\\"]+)\\\"");
+            string portalAuthorization = Strings.GetMatch(response, "\\\"portalAuthorization\\\":\\\"([^\\\"]+)\\\"");
             if (portalAuthorization is null)
                 return Logger.NullError<string>("No portalAuthorization was found in the DelegationToken response");
-            Logger.Info($"Found portalAuthorization in DelegationToken response: {Util.TruncateString(portalAuthorization)}");
+            Logger.Info($"Found portalAuthorization in DelegationToken response: {Strings.Truncate(portalAuthorization)}");
             Logger.Debug(portalAuthorization);
             return portalAuthorization;
         }
@@ -283,10 +282,10 @@ namespace Maestro
         private string ParseRefreshTokenFromJsonResponse(string jsonResponse)
         {
             // Parse response for refreshToken
-            string refreshToken = Util.GetMatch(jsonResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
+            string refreshToken = Strings.GetMatch(jsonResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
             if (refreshToken is null)
                 return Logger.NullError<string>("No refreshToken was found in the response");
-            Logger.Info($"Found refreshToken in response: {Util.TruncateString(refreshToken)}");
+            Logger.Info($"Found refreshToken in response: {Strings.Truncate(refreshToken)}");
             Logger.Debug(refreshToken);
             return refreshToken;
         }
@@ -294,7 +293,7 @@ namespace Maestro
         private string ParseTenantIdFromJsonResponse(string jsonResponse)
         {
             // Parse response for tenantId
-            string tenantId = Util.GetMatch(jsonResponse, "\\\"tenantId\\\":\\\"([^\\\"]+)\\\"");
+            string tenantId = Strings.GetMatch(jsonResponse, "\\\"tenantId\\\":\\\"([^\\\"]+)\\\"");
             if (tenantId is null)
                 return Logger.NullError<string>("No tenantId was found in the response");
             Logger.Info($"Found tenantId in the response: {tenantId}");

@@ -53,7 +53,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="source\AuthClient.cs" />
+    <Compile Include="source\authentication\AuthClient.cs" />
+    <Compile Include="source\authentication\AccessToken.cs" />
+    <Compile Include="source\authentication\RefreshToken.cs" />
     <Compile Include="source\commands\get\GetDevices.cs" />
     <Compile Include="source\commands\Option.cs" />
     <Compile Include="source\commands\Subcommand.cs" />
@@ -63,17 +65,17 @@
     <Compile Include="source\commands\CommandLine.cs" />
     <Compile Include="source\database\LiteDBHandler.cs" />
     <Compile Include="source\entra\EntraIDClient.cs" />
-    <Compile Include="source\interfaces\IAuthClient.cs" />
-    <Compile Include="source\interfaces\IDatabaseHandler.cs" />
+    <Compile Include="source\authentication\IAuthClient.cs" />
+    <Compile Include="source\database\IDatabaseHandler.cs" />
     <Compile Include="source\intune\IntuneDevice.cs" />
-    <Compile Include="source\JsonObject.cs" />
-    <Compile Include="source\ROADToken.cs" />
-    <Compile Include="source\Util.cs" />
+    <Compile Include="source\database\JsonObject.cs" />
+    <Compile Include="source\authentication\ROADToken.cs" />
+    <Compile Include="source\util\Strings.cs" />
     <Compile Include="source\logging\Logger.cs" />
     <Compile Include="source\logging\ConsoleLogger.cs" />
-    <Compile Include="source\HttpHandler.cs" />
-    <Compile Include="source\interfaces\IHttpHandler.cs" />
-    <Compile Include="source\interfaces\ILogger.cs" />
+    <Compile Include="source\http\HttpHandler.cs" />
+    <Compile Include="source\http\IHttpHandler.cs" />
+    <Compile Include="source\logging\ILogger.cs" />
     <Compile Include="source\intune\IntuneClient.cs" />
     <Compile Include="source\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

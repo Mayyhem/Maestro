@@ -1,9 +1,8 @@
-﻿using System;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace Maestro
 {
-    internal class Util
+    internal class Strings
     {
         public static string GetMatch(string input, string pattern, bool group = true)
         {
@@ -22,7 +21,7 @@ namespace Maestro
             return match.Value;
         }
 
-        public static string TruncateString(string str)
+        public static string Truncate(string str)
         {
             if (str.Length <= 12)
                 return str;

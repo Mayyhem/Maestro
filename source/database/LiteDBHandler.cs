@@ -1,7 +1,5 @@
 ﻿using LiteDB;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Maestro
 {
@@ -58,34 +56,7 @@ namespace Maestro
             return collection.Exists(query);
         }
 
-        // Specify the primary key property for upserting dynamic objects with unknown properties
-        public void UpsertA<T>(T item, string primaryKeyProperty) where T : class
-        {
-            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
-            var doc = new BsonDocument();
-
-            // Directly call GetProperties method
-            var properties = item.GetType().GetMethod("GetProperties").Invoke(item, null) as IDictionary<string, object>;
-
-            if (properties == null || !properties.ContainsKey(primaryKeyProperty))
-            {
-                throw new InvalidOperationException($"{typeof(T).Name} must have a '{primaryKeyProperty}' property.");
-            }
-
-            var primaryKeyValue = properties[primaryKeyProperty].ToString();
-
-            foreach (var kvp in properties)
-            {
-                doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
-            }
-
-            // Use Upsert method to insert or update
-            // Ensure the primary key is set as _id in BsonDocument
-            doc["_id"] = new BsonValue(primaryKeyValue);  
-            collection.Upsert(doc);
-            Logger.Debug($"Upserted item in database: {typeof(T).Name}");
-        }
-
+        // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id
         public void Upsert<T>(T item) where T : JsonObject
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
@@ -95,12 +66,16 @@ namespace Maestro
             var properties = item.GetProperties();
 
             // Find the primary key property
-            string primaryKeyProperty = properties.Keys.FirstOrDefault(key => key.Equals("PrimaryKey"));
-            var primaryKeyValue = properties[primaryKeyProperty]?.ToString();
+            var primaryKeyName = properties["PrimaryKey"]?.ToString();
+            string primaryKeyValue = "";
 
             foreach (var kvp in properties)
             {
                 doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
+                if (kvp.Key == primaryKeyName)
+                {
+                    primaryKeyValue = (string)kvp.Value;
+                }
             }
 
             // Ensure the primary key is set as _id in BsonDocument
