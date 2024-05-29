@@ -58,6 +58,7 @@
     <Compile Include="source\authentication\AuthClient.cs" />
     <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\RefreshToken.cs" />
+    <Compile Include="source\commands\ShowCommand.cs" />
     <Compile Include="source\commands\get\GetDevices.cs" />
     <Compile Include="source\commands\Option.cs" />
     <Compile Include="source\commands\Subcommand.cs" />

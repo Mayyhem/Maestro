@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class GetCommand
+    internal class ShowCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
@@ -11,13 +11,13 @@ namespace Maestro
             {
                 if (subcommandName == "devices")
                 {
-                     await GetDevices.Execute(arguments, database);
+                    await GetDevices.Execute(arguments, database, databaseOnly: true);
                 }
             }
             else
             {
-                Logger.Error("Missing subcommand for \"get\" command");
-                CommandLine.PrintUsage("get");
+                Logger.Error("Missing subcommand for \"show\" command");
+                CommandLine.PrintUsage("show");
             }
         }
     }

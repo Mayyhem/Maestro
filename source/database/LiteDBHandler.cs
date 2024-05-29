@@ -14,9 +14,13 @@ namespace Maestro
             _database = new LiteDatabase(databasePath);
         }
 
-        public IEnumerable<BsonDocument> FindInCollection<T>(string propertyName, BsonValue propertyValue)
+        public IEnumerable<BsonDocument> FindInCollection<T>(string propertyName = "", BsonValue propertyValue = null)
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
+            if (string.IsNullOrEmpty(propertyName))
+            {
+                return collection.FindAll();
+            }
             var query = Query.EQ(propertyName, propertyValue);
             return collection.Find(query);
         }

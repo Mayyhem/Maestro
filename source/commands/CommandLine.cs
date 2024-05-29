@@ -33,9 +33,29 @@ namespace Maestro
                         Options = new List<Option>
                         {
                             new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID", 
-                                Description = "ID of the device to get information from" },
+                                Description = "ID of the device to get information for" },
                             new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME", 
-                                Description = "Name of the device to get information from" }
+                                Description = "Name of the device to get information for" }
+                        }
+                    }
+                }
+            },
+            new Command
+            {
+                Name = "show",
+                Description = "Display information stored in the database",
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "devices",
+                        Description = "Show information about Intune enrolled devices",
+                        Options = new List<Option>
+                        {
+                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
+                                Description = "ID of the device to show information for" },
+                            new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME",
+                                Description = "Name of the device to show information for" }
                         }
                     }
                 }

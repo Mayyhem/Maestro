@@ -45,6 +45,9 @@ namespace Maestro
                     case "get":
                         await GetCommand.Execute(parsedArguments, database);
                         break;
+                    case "show":
+                        await ShowCommand.Execute(parsedArguments, database);
+                        break;
                     default:
                         Console.WriteLine("Unknown command");
                         CommandLine.PrintUsage();

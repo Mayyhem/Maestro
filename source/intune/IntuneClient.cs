@@ -58,7 +58,7 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task GetDevices(string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
+        public async Task GetDevices(string deviceId = "", string deviceName = "", IDatabaseHandler database = null, bool databaseOnly = false)
         {
             string intuneDevicesUrl = "";
 
@@ -91,6 +91,33 @@ namespace Maestro
                         return;
                     }
                 }
+            }
+            else
+            {
+                if (databaseOnly)
+                {
+                    var databaseDevices = database.FindInCollection<IntuneDevice>();
+                    if (databaseDevices.Count() == 0)
+                    {
+                        Logger.Info("No matching devices found in the database");
+                    }
+                    else
+                    {
+                        Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
+                        foreach (var device in databaseDevices)
+                        {
+                            Console.WriteLine(device.ToString());
+                        }
+                        return;
+                    }
+                }
+                intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
+            }
+
+            // Skip the API call for database only requests
+            if (databaseOnly)
+            {
+                return;
             }
 
             // Request devices from Intune
