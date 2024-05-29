@@ -1,9 +1,30 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System;
+using System.Text.RegularExpressions;
 
 namespace Maestro
 {
     internal class Strings
     {
+        public static string DecodeJwt(string jwt)
+        {
+            // Split the JWT into its parts
+            string[] parts = jwt.Split('.');
+            if (parts.Length != 3)
+            {
+                throw new ArgumentException("The JWT is not in a valid format.");
+            }
+
+            string base64 = parts[1].Replace('-', '+').Replace('_', '/');
+            switch (base64.Length % 4)
+            {
+                case 2: base64 += "=="; break;
+                case 3: base64 += "="; break;
+            }
+            var base64EncodedBytes = Convert.FromBase64String(base64);
+            return Encoding.UTF8.GetString(base64EncodedBytes);
+        }
+
         public static string GetMatch(string input, string pattern, bool group = true)
         {
             var match = Regex.Match(input, pattern);

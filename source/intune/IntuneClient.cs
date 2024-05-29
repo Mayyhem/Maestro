@@ -2,8 +2,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
@@ -15,7 +15,7 @@ namespace Maestro
 
         private readonly IAuthClient _authClient;
         private readonly IHttpHandler _httpHandler;
-        public string AccessToken;
+        public string BearerToken;
 
         public IntuneClient()
         {
@@ -54,40 +54,47 @@ namespace Maestro
 
             _httpHandler.SetAuthorizationHeader(intuneAccessToken);
 
-            AccessToken = intuneAccessToken;
+            BearerToken = intuneAccessToken;
             return intuneAccessToken;
         }
 
         public async Task GetDevices(string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
         {
-            string query = "";
             string intuneDevicesUrl = "";
+
             if (!string.IsNullOrEmpty(deviceId))
             {
-                query = deviceId;
                 intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceId%20eq%20%27{deviceId}%27";
+                if (database != null)
+                {
+                    Console.WriteLine(database.FindByPrimaryKey<IntuneDevice>(deviceId).ToString());
+                    return;
+                }
             }
             else if (!string.IsNullOrEmpty(deviceName))
             {
-                query = deviceName;
                 intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
-            }
-            Logger.Info($"Querying information for: {query}");
-            if (database != null)
-            {
-                if (database.Exists<IntuneDevice>("Id", deviceId))
+                if (database != null)
                 {
-                    Logger.Info($"Found device in database");
-                    Console.WriteLine(database.GetByProperty<IntuneDevice>("Id", deviceId));
-                }
-                else
-                {
-                    Logger.Info($"No matching device found in database, requesting from Intune");
+                    var databaseDevices = database.FindInCollection<IntuneDevice>("deviceName", deviceName);
+                    if (databaseDevices.Count() == 0)
+                    {
+                        Logger.Info("No matching devices found in the database");
+                    }
+                    else
+                    {
+                        Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
+                        foreach (var device in databaseDevices)
+                        {
+                            Console.WriteLine(device.ToString());
+                        }
+                        return;
+                    }
                 }
             }
 
             // Request devices from Intune
-            await SignInToIntuneAndGetAccessToken();
+            await SignInToIntuneAndGetAccessToken(database);
             string devicesResponse = await _httpHandler.GetAsync(intuneDevicesUrl);
 
             // Deserialize the JSON response to a dictionary
@@ -250,13 +257,33 @@ namespace Maestro
             return scriptId;
         }
 
-        public async 
-        Task
-SignInToIntuneAndGetAccessToken()
+        public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database = null)
         {
+            if (database != null)
+            {
+                var validJwtDoc = database.FindValidJwt<BsonDocument>();
+
+                if (validJwtDoc != null)
+                {
+                    Logger.Info($"Found JWT with the required scope in the database");
+                    BearerToken = validJwtDoc["bearerToken"];
+                    _httpHandler.SetAuthorizationHeader(BearerToken);
+                    return;
+                }
+                else
+                {
+                    Logger.Info("No JWTs with the required scope found in the database");
+                }
+            }
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             await _authClient.GetTenantIdAndRefreshToken();
-            await GetAccessToken(_authClient.TenantId, _authClient.RefreshToken);
+            string base64Token = await GetAccessToken(_authClient.TenantId, _authClient.RefreshToken);
+            BearerToken = base64Token;
+            if (database != null)
+            {
+                Jwt accessToken = new Jwt(base64Token);
+                database.Upsert(accessToken);
+            }
         }
 
         public async Task SyncDevice(string deviceId)

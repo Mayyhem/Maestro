@@ -40,9 +40,11 @@
     <Reference Include="LiteDB, Version=5.0.19.0, Culture=neutral, PublicKeyToken=4ee40123013c9f27, processorArchitecture=MSIL">
       <HintPath>packages\LiteDB.5.0.19\lib\net45\LiteDB.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.ValueTuple.4.5.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
     </Reference>
@@ -54,7 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="source\authentication\AuthClient.cs" />
-    <Compile Include="source\authentication\AccessToken.cs" />
+    <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\RefreshToken.cs" />
     <Compile Include="source\commands\get\GetDevices.cs" />
     <Compile Include="source\commands\Option.cs" />
@@ -63,6 +65,7 @@
     <Compile Include="source\commands\ExecCommand.cs" />
     <Compile Include="source\commands\GetCommand.cs" />
     <Compile Include="source\commands\CommandLine.cs" />
+    <Compile Include="source\database\BsonDocumentExtensions.cs" />
     <Compile Include="source\database\LiteDBHandler.cs" />
     <Compile Include="source\entra\EntraIDClient.cs" />
     <Compile Include="source\authentication\IAuthClient.cs" />
@@ -70,6 +73,7 @@
     <Compile Include="source\intune\IntuneDevice.cs" />
     <Compile Include="source\database\JsonObject.cs" />
     <Compile Include="source\authentication\ROADToken.cs" />
+    <Compile Include="source\util\DateTimes.cs" />
     <Compile Include="source\util\Strings.cs" />
     <Compile Include="source\logging\Logger.cs" />
     <Compile Include="source\logging\ConsoleLogger.cs" />

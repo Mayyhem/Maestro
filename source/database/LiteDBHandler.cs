@@ -1,5 +1,8 @@
 ﻿using LiteDB;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Maestro
 {
@@ -11,49 +14,45 @@ namespace Maestro
             _database = new LiteDatabase(databasePath);
         }
 
-        public List<T> GetAll<T>() where T : class, new()
+        public IEnumerable<BsonDocument> FindInCollection<T>(string propertyName, BsonValue propertyValue)
         {
             var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
-            var items = new List<T>();
-
-            foreach (var doc in collection.FindAll())
-            {
-                var item = new T();
-                foreach (var prop in typeof(T).GetProperties())
-                {
-                    if (doc.TryGetValue(prop.Name, out BsonValue value))
-                    {
-                        prop.SetValue(item, value.RawValue);
-                    }
-                }
-                items.Add(item);
-            }
-
-            return items;
+            var query = Query.EQ(propertyName, propertyValue);
+            return collection.Find(query);
         }
 
-        public List<T> GetByProperty<T>(string propertyName, object value) where T : class, new()
+        public BsonDocument FindByPrimaryKey<T>(string primaryKeyValue)
         {
-            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
-            var items = new List<T>();
-
-            var query = Query.EQ(propertyName, new BsonValue(value));
-            var results = collection.Find(query);
-
-            foreach (var doc in results)
-            {
-                var item = BsonMapper.Global.ToObject<T>(doc);
-                items.Add(item);
-            }
-
-            return items;
+            return _database.GetCollection<BsonDocument>(typeof(T).Name).FindById(new BsonValue(primaryKeyValue));
         }
 
-        public bool Exists<T>(string propertyName, object value) where T : class
+        public BsonDocument FindValidJwt<T>(string scope = "")
         {
-            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
-            var query = Query.EQ(propertyName, new BsonValue(value));
-            return collection.Exists(query);
+            // Get the Jwt collection (or create, if doesn't exist)
+            var collection = _database.GetCollection<BsonDocument>("Jwt");
+
+            // Define current Unix timestamp
+            var nowUnixTimestamp = DateTimes.ConvertToUnixTimestamp(DateTime.UtcNow);
+
+            // Use a single query to filter documents and find the matching JWT
+            var farthestExpJwt = collection.FindAll()
+                .Where(doc =>
+                    doc.ContainsKey("nbf") &&
+                    doc.ContainsKey("exp") &&
+                    doc["nbf"].IsInt32 &&
+                    doc["exp"].IsInt32 &&
+                    // Check if the JWT is currently valid
+                    doc["nbf"].AsInt32 <= nowUnixTimestamp && doc["exp"].AsInt32 >= nowUnixTimestamp &&
+                    // Check if the JWT has the required scope, if provided
+                    (string.IsNullOrEmpty(scope) ||
+                        (doc.ContainsKey("scp") &&
+                        doc["scp"].IsString &&
+                        doc["scp"].AsString.Split(' ').Contains(scope))))
+                // Find the JWT with the farthest expiration date
+                .OrderByDescending(doc => doc["exp"].AsInt32)
+                .FirstOrDefault();
+
+            return farthestExpJwt;
         }
 
         // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id
@@ -66,7 +65,7 @@ namespace Maestro
             var properties = item.GetProperties();
 
             // Find the primary key property
-            var primaryKeyName = properties["PrimaryKey"]?.ToString();
+            var primaryKeyName = properties["primaryKey"]?.ToString();
             string primaryKeyValue = "";
 
             foreach (var kvp in properties)

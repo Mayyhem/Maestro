@@ -1,12 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using LiteDB;
+using System.Collections.Generic;
 
 namespace Maestro
 {
     public interface IDatabaseHandler
     {
-        bool Exists<T>(string propertyName, object value) where T : class;
-        List<T> GetAll<T>() where T : class, new();
-        List<T> GetByProperty<T>(string propertyName, object value) where T : class, new();
+        BsonDocument FindByPrimaryKey<T>(string primaryKeyValue);
+        IEnumerable<BsonDocument> FindInCollection<T>(string propertyName, BsonValue propertyValue);
+        BsonDocument FindValidJwt<T>(string scope = "");
         void Upsert<T>(T item) where T : JsonObject;
     }
 }

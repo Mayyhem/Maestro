@@ -1,14 +1,11 @@
 ﻿using System.Collections.Generic;
-using System.Web.Script.Serialization;
 
 namespace Maestro
 {
     public class IntuneDevice : JsonObject
     {
-        // Set primary key, parameterless constructor required by IDatabaseHandler.GetByProperty
-        public IntuneDevice() : base("id") { }
-
-        // Constructor that accepts a device object as a dictionary
-        public IntuneDevice(Dictionary<string, object> device) : base("id", device) { }
+        // Class instances will be stored in the IntuneDevice collection in the database
+        // Primary key: id
+        public IntuneDevice(Dictionary<string, object> deviceProperties) : base("id", deviceProperties) { }
     }
 }

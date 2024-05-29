@@ -1,5 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using LiteDB;
+using System;
+using System.Collections.Generic;
 using System.Dynamic;
+using System.Linq;
+using System.Text;
 using System.Web.Script.Serialization;
 
 namespace Maestro
@@ -9,13 +13,14 @@ namespace Maestro
     // The primary key must be defined when the derived class is instantiated.
     public abstract class JsonObject : DynamicObject
     {
-        private readonly Dictionary<string, object> _properties = new Dictionary<string, object>();
+        public Dictionary<string, object> Properties = new Dictionary<string, object>();
 
+        // Instantiate object that has already been deserialized
         protected JsonObject(string primaryKey, Dictionary<string, object> properties = null)
         {
             if (properties is null)
             {
-                AddProperty("PrimaryKey", primaryKey);
+                AddProperty("primaryKey", primaryKey);
             }
             else
             {
@@ -25,38 +30,37 @@ namespace Maestro
                 }
                 if (properties.ContainsKey(primaryKey))
                 {
-                    AddProperty("PrimaryKey", primaryKey);
+                    AddProperty("primaryKey", primaryKey);
                 }
+            }
+        }
+
+        // Instantiate object from BsonDocument fetched from the database
+        protected JsonObject(BsonDocument bsonDocument)
+        {
+            var dict = BsonDocumentExtensions.ToDictionary(bsonDocument);
+
+            foreach (var property in dict)
+            {
+                AddProperty(property.Key, property.Value);
             }
         }
 
         public void AddProperty(string key, object value)
         {
-            _properties[key] = value;
+            Properties[key] = value;
         }
 
         public IDictionary<string, object> GetProperties()
         {
-            return _properties;
+            return Properties;
         }
 
         // Serialize the object to JSON
         public override string ToString()
         {
             var serializer = new JavaScriptSerializer();
-            return serializer.Serialize(_properties);
-        }
-    }
-
-    public class JsonObjectResponse
-    {
-        public List<JsonObject> Value { get; set; }
-
-        // Serialize the object to JSON
-        public override string ToString()
-        {
-            var serializer = new JavaScriptSerializer();
-            return serializer.Serialize(this);
+            return serializer.Serialize(Properties);
         }
     }
 }

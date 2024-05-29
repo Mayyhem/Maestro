@@ -105,39 +105,6 @@ namespace Maestro
             return entraIdPortalAuthorization;
         }
 
-        public async Task<string> GetIntuneAccessToken(string tenantId, string portalAuthorization)
-        {
-            Logger.Info("Requesting Intune access token");
-            string intuneAccessToken = await GetAccessToken(tenantId, portalAuthorization,
-                "https://intune.microsoft.com/api/DelegationToken",
-                "Microsoft_Intune_DeviceSettings", "microsoft.graph"); if (intuneAccessToken is null) return null;
-
-            HttpHandler.SetAuthorizationHeader(intuneAccessToken);
-            IntuneAccessToken = intuneAccessToken;
-            return intuneAccessToken;
-        }
-
-        public async Task<string> GetIntunePortalAuthorization()
-        {
-            string signInResponse = await SignInToIntune();
-            if (signInResponse is null) return null;
-
-            string tenantId = ParseTenantIdFromJsonResponse(signInResponse);
-            if (tenantId is null) return null;
-            TenantId = tenantId;
-
-            string refreshToken = ParseRefreshTokenFromJsonResponse(signInResponse);
-            if (refreshToken is null) return null;
-
-            string portalAuthorization = await GetPortalAuthorization(tenantId, refreshToken,
-                "https://intune.microsoft.com/api/DelegationToken",
-                "HubExtension", "");
-            if (portalAuthorization is null) return null;
-
-            RefreshToken = portalAuthorization;
-            return portalAuthorization;
-        }
-
         private async Task<string> GetIntuneSignInResponse(string actionUrl, HttpContent formData)
         {
             Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
