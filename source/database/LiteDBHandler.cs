@@ -36,7 +36,7 @@ namespace Maestro
             var collection = _database.GetCollection<BsonDocument>("Jwt");
 
             // Define current Unix timestamp
-            var nowUnixTimestamp = DateTimes.ConvertToUnixTimestamp(DateTime.UtcNow);
+            var nowUnixTimestamp = DateTimeHandler.ConvertToUnixTimestamp(DateTime.UtcNow);
 
             // Use a single query to filter documents and find the matching JWT
             var farthestExpJwt = collection.FindAll()

@@ -41,6 +41,9 @@
       <HintPath>packages\LiteDB.5.0.19\lib\net45\LiteDB.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Net.Http" />
@@ -66,7 +69,7 @@
     <Compile Include="source\commands\ExecCommand.cs" />
     <Compile Include="source\commands\GetCommand.cs" />
     <Compile Include="source\commands\CommandLine.cs" />
-    <Compile Include="source\database\BsonDocumentExtensions.cs" />
+    <Compile Include="source\database\BsonDocumentHandler.cs" />
     <Compile Include="source\database\LiteDBHandler.cs" />
     <Compile Include="source\entra\EntraIDClient.cs" />
     <Compile Include="source\authentication\IAuthClient.cs" />
@@ -74,13 +77,14 @@
     <Compile Include="source\intune\IntuneDevice.cs" />
     <Compile Include="source\database\JsonObject.cs" />
     <Compile Include="source\authentication\ROADToken.cs" />
-    <Compile Include="source\util\DateTimes.cs" />
-    <Compile Include="source\util\Strings.cs" />
-    <Compile Include="source\logging\Logger.cs" />
-    <Compile Include="source\logging\ConsoleLogger.cs" />
+    <Compile Include="source\output\JsonHandler.cs" />
+    <Compile Include="source\util\DateTimeHandler.cs" />
+    <Compile Include="source\util\StringHandler.cs" />
+    <Compile Include="source\output\Logger.cs" />
+    <Compile Include="source\output\ConsoleLogger.cs" />
     <Compile Include="source\http\HttpHandler.cs" />
     <Compile Include="source\http\IHttpHandler.cs" />
-    <Compile Include="source\logging\ILogger.cs" />
+    <Compile Include="source\output\ILogger.cs" />
     <Compile Include="source\intune\IntuneClient.cs" />
     <Compile Include="source\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

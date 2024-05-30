@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Maestro
 {
-    internal class Strings
+    internal class StringHandler
     {
         public static string DecodeJwt(string jwt)
         {

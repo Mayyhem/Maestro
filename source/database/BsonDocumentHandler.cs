@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Maestro
 {
-    public static class BsonDocumentExtensions
+    public static class BsonDocumentHandler
     {
         private static object ConvertBsonValue(BsonValue bsonValue)
         {

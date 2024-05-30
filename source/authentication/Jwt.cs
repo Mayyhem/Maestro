@@ -10,7 +10,7 @@ namespace Maestro
         // Primary key: oid
         public Jwt(string base64BearerToken) : base("oid") 
         {
-            string decodedJson = Strings.DecodeJwt(base64BearerToken);
+            string decodedJson = StringHandler.DecodeJwt(base64BearerToken);
             var serializer = new JavaScriptSerializer();
             var properties = serializer.Deserialize<Dictionary<string, object>>(decodedJson);
 

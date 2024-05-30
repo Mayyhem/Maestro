@@ -2,7 +2,7 @@
 
 namespace Maestro
 {
-    internal class DateTimes
+    internal class DateTimeHandler
     {
         internal static int ConvertToUnixTimestamp(DateTime dateTime)
         {

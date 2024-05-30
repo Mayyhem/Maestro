@@ -1,4 +1,5 @@
 ﻿using LiteDB;
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -58,66 +59,68 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task GetDevices(string deviceId = "", string deviceName = "", IDatabaseHandler database = null, bool databaseOnly = false)
+        public async Task GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, IDatabaseHandler database = null, bool databaseOnly = false)
         {
-            string intuneDevicesUrl = "";
+            string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
 
             if (!string.IsNullOrEmpty(deviceId))
             {
-                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceId%20eq%20%27{deviceId}%27";
                 if (database != null)
                 {
-                    Console.WriteLine(database.FindByPrimaryKey<IntuneDevice>(deviceId).ToString());
-                    return;
+                    var device = database.FindByPrimaryKey<IntuneDevice>(deviceId);
+                    if (device != null)
+                    {
+                        Logger.Info($"Found a matching device in the database");
+                        JsonHandler.PrintProperties(device.ToString(), properties);
+                        return;
+                    }
                 }
+                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceId%20eq%20%27{deviceId}%27";
             }
             else if (!string.IsNullOrEmpty(deviceName))
             {
-                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
                 if (database != null)
                 {
                     var databaseDevices = database.FindInCollection<IntuneDevice>("deviceName", deviceName);
-                    if (databaseDevices.Count() == 0)
-                    {
-                        Logger.Info("No matching devices found in the database");
-                    }
-                    else
+                    if (databaseDevices.Any())
                     {
                         Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
                         foreach (var device in databaseDevices)
                         {
-                            Console.WriteLine(device.ToString());
+                            JsonHandler.PrintProperties(device.ToString(), properties);
                         }
                         return;
                     }
+                    else
+                    {
+                        Logger.Info("No matching devices found in the database");
+                    }
                 }
+                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
             }
             else
             {
-                if (databaseOnly)
+                if (database != null)
                 {
                     var databaseDevices = database.FindInCollection<IntuneDevice>();
-                    if (databaseDevices.Count() == 0)
-                    {
-                        Logger.Info("No matching devices found in the database");
-                    }
-                    else
+                    if (databaseDevices.Any())
                     {
                         Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
                         foreach (var device in databaseDevices)
                         {
-                            Console.WriteLine(device.ToString());
+                            JsonHandler.PrintProperties(device.ToString(), properties);
                         }
                         return;
                     }
+                    else
+                    {
+                        Logger.Info("No matching devices found in the database");
+                    }
+                    if (databaseOnly)
+                    {
+                        return;
+                    }
                 }
-                intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
-            }
-
-            // Skip the API call for database only requests
-            if (databaseOnly)
-            {
-                return;
             }
 
             // Request devices from Intune
@@ -129,35 +132,29 @@ namespace Maestro
             var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponse);
             var devices = (ArrayList)deviceResponseDict["value"];
 
-            if (devices != null)
+            if (devices.Count > 0)
             {
-                Console.WriteLine();
+                Logger.Info($"Found {devices.Count} devices in Intune");
                 foreach (Dictionary<string, object> device in devices)
                 {
                     // Create an IntuneDevice object for each device in the response
                     var intuneDevice = new IntuneDevice(device);
-                    Console.WriteLine(intuneDevice);
-
                     if (database != null)
                     {
                         // Insert new device if matching id doesn't exist
                         database.Upsert(intuneDevice);
                     }
-                    Console.WriteLine("-----------------------");
                 }
-                Console.WriteLine();
+                // Convert the devices ArrayList to JSON blob string
+                string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
+
+                // Print the selected properties of the devices
+                JsonHandler.PrintProperties(devicesJson, properties);
             }
             else
             {
-                Logger.Info("No devices found.");
+                Logger.Info("No devices found");
             }
-        }
-
-        public async Task<string> ListEnrolledDevices()
-        {
-            Logger.Info("Requesting list of devices enrolled in Intune");
-            string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
-            return await _httpHandler.GetAsync(intuneDevicesUrl);
         }
 
         public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
@@ -189,7 +186,7 @@ namespace Maestro
             string response = await _httpHandler.PostAsync(url, content);
             if (response is null) return null;
 
-            string filterId = Strings.GetMatch(response, "\"id\":\"([^\"]+)\"");
+            string filterId = StringHandler.GetMatch(response, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained filter ID: {filterId}");
             return filterId;
         }
@@ -279,7 +276,7 @@ namespace Maestro
             string response = await _httpHandler.PostAsync(url, content);
             if (response is null) return null;
 
-            string scriptId = Strings.GetMatch(response, "\"id\":\"([^\"]+)\"");
+            string scriptId = StringHandler.GetMatch(response, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained script ID: {scriptId}");
             return scriptId;
         }

@@ -35,7 +35,9 @@ namespace Maestro
                             new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID", 
                                 Description = "ID of the device to get information for" },
                             new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME", 
-                                Description = "Name of the device to get information for" }
+                                Description = "Name of the device to get information for" },
+                            new Option { ShortName = "-p", LongName = "--properties", ValuePlaceholder = "PROP,PROP | ALL",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties" }
                         }
                     }
                 }
@@ -55,7 +57,9 @@ namespace Maestro
                             new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
                                 Description = "ID of the device to show information for" },
                             new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME",
-                                Description = "Name of the device to show information for" }
+                                Description = "Name of the device to show information for" },
+                            new Option { ShortName = "-p", LongName = "--properties", ValuePlaceholder = "PROP,PROP",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties" }
                         }
                     }
                 }

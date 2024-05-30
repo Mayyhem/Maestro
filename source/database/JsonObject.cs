@@ -38,7 +38,7 @@ namespace Maestro
         // Instantiate object from BsonDocument fetched from the database
         protected JsonObject(BsonDocument bsonDocument)
         {
-            var dict = BsonDocumentExtensions.ToDictionary(bsonDocument);
+            var dict = BsonDocumentHandler.ToDictionary(bsonDocument);
 
             foreach (var property in dict)
             {
