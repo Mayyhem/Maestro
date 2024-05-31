@@ -10,14 +10,41 @@ namespace Maestro
         {
             new Command
             {
+                Name = "devicequery",
+                Description = "Execute Intune device query on a target device",
+                Options = new List<Option>
+                {
+                    new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
+                        Description = "ID of the device to get information for" },
+                    new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME",
+                        Description = "Name of the device to get information for" },
+                    new Option { ShortName = "-q", LongName = "--query", ValuePlaceholder = "KQLQUERY",
+                        Description = "The Kusto Query Language (KQL) query to execute on the device" }
+                }
+            },
+            new Command
+            {
                 Name = "exec",
                 Description = "Execute a script on a target device",
                 Options = new List<Option>
                 {
-                    new Option { ShortName = "-t", LongName = "--target", ValuePlaceholder = "DEVICE",
-                        Description = "Target device to execute the script on" },
+                    new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
+                        Description = "ID of the device to execute the script on" },
                     new Option { ShortName = "-s", LongName = "--script", ValuePlaceholder = "B64_SCRIPT", 
                         Description = "Base64-encoded PowerShell script to execute" }
+                },
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "sync",
+                        Description = "Send notification to device requesting immediate sync to Intune",
+                        Options = new List<Option>
+                        {
+                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
+                                Description = "ID of the device to sync" }
+                        }
+                    }
                 }
             },
             new Command
@@ -88,9 +115,7 @@ namespace Maestro
             // Separate global options from the rest
             var parsedArguments = new Dictionary<string, string>();
             string[] remainingArgs = ParseGlobalOptions(args, parsedArguments);
-            if (remainingArgs is null) return null;
-
-            if (remainingArgs.Length == 0)
+            if (remainingArgs == null || remainingArgs.Length == 0)
             {
                 Logger.Error("No arguments provided");
                 PrintUsage();
@@ -109,26 +134,29 @@ namespace Maestro
 
             parsedArguments["command"] = commandName;
 
-            if (command.Subcommands.Count > 0 && remainingArgs.Length > 1)
+            if (remainingArgs.Length > 1)
             {
-                string subcommandName = remainingArgs[1];
-                var subcommand = command.Subcommands.FirstOrDefault(sc => sc.Name == subcommandName);
+                string potentialSubcommandOrOption = remainingArgs[1];
+                var subcommand = command.Subcommands.FirstOrDefault(sc => sc.Name == potentialSubcommandOrOption);
 
-                if (subcommand == null)
+                if (subcommand != null)
                 {
-                    Logger.Error($"Invalid subcommand: {subcommandName}");
-                    PrintUsage(command.Name);
-                    return null;
+                    parsedArguments["subcommand"] = potentialSubcommandOrOption;
+                    var parsedSubcommandArgs = ParseOptions(remainingArgs.Skip(2).ToArray(), subcommand.Options, parsedArguments);
+                    return parsedSubcommandArgs;
                 }
-
-                parsedArguments["subcommand"] = subcommandName;
-
-                var parsedSubcommandArgs = ParseOptions(remainingArgs.Skip(2).ToArray(), subcommand.Options, parsedArguments);
-                return parsedSubcommandArgs;
+                else
+                {
+                    var parsedCommandArgs = ParseOptions(remainingArgs.Skip(1).ToArray(), command.Options, parsedArguments);
+                    return parsedCommandArgs;
+                }
             }
-
-            var parsedCommandArgs = ParseOptions(remainingArgs.Skip(1).ToArray(), command.Options, parsedArguments);
-            return parsedCommandArgs;
+            else
+            {
+                Logger.Error("No arguments provided");
+                PrintUsage(commandName);
+            }
+            return null;
         }
 
         private static string[] ParseGlobalOptions(string[] args, Dictionary<string, string> parsedArguments)

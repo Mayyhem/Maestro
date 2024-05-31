@@ -11,7 +11,7 @@ namespace Maestro
             {
                 if (subcommandName == "devices")
                 {
-                     await GetDevices.Execute(arguments, database);
+                     await GetDevicesCommand.Execute(arguments, database);
                 }
             }
             else

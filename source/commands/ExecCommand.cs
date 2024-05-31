@@ -1,18 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace Maestro
 {
     internal class ExecCommand
     {
-        public static async void Execute(Dictionary<string, string> arguments)
+        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
-            // Implementation for exec command
-            Console.WriteLine("Executing \"exec\" command...");
-            if (arguments.TryGetValue("target", out string target) && arguments.TryGetValue("script", out string script))
+            if (arguments.TryGetValue("subcommand", out string subcommandName))
             {
-                Console.WriteLine($"Target: {target}, Script: {script}");
+                if (subcommandName == "sync")
+                {
+                    await ExecSyncCommand.Execute(arguments, database);
+                }
+            }
+            else if (arguments.TryGetValue("--id", out string deviceId) && arguments.TryGetValue("--script", out string script))
+            {
+                Console.WriteLine($"Target: {deviceId}, Script: {script}");
 
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var httpHandler = new HttpHandler();
@@ -22,19 +28,19 @@ namespace Maestro
                 var intuneClient = new IntuneClient(authClient);
                 await intuneClient.GetAccessToken(authClient.TenantId, authClient.RefreshToken);
 
-                string filterId = await intuneClient.NewDeviceAssignmentFilter(target);
+                string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);
                 if (filterId is null) return;
 
                 string scriptId = await intuneClient.NewScriptPackage("LiveDemoHoldMyBeer", script);
                 if (scriptId is null) return;
 
                 await intuneClient.NewDeviceManagementScriptAssignmentHourly(filterId, scriptId);
-                await intuneClient.SyncDevice(target);
+                await intuneClient.SyncDevice(deviceId, database);
             }
             else
             {
-                Console.WriteLine("Missing arguments for \"exec\" command");
-                //CommandLine.PrintExecUsage();
+                Logger.Error("Missing arguments for \"exec\" command");
+                CommandLine.PrintUsage("exec");
             }
         }
     }

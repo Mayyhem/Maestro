@@ -39,8 +39,11 @@ namespace Maestro
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
+                    case "devicequery":
+                        await DeviceQueryCommand.Execute(parsedArguments, database);
+                        break;
                     case "exec":
-                        ExecCommand.Execute(parsedArguments);
+                        await ExecCommand.Execute(parsedArguments, database);
                         break;
                     case "get":
                         await GetCommand.Execute(parsedArguments, database);

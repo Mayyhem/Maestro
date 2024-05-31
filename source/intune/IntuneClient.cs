@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
@@ -43,6 +44,25 @@ namespace Maestro
             Logger.Info($"Deleting detection script with scriptId: {scriptId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
             await _httpHandler.DeleteAsync(url);
+        }
+
+        public async Task DeviceQuery(string query, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
+        {
+            Logger.Info($"Executing device query: {query}");
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/createQuery";
+                string encodedQuery = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
+                var content = _httpHandler.CreateJsonContent(new
+                {
+                    query = encodedQuery
+                });
+                await _httpHandler.PostAsync(url, content);
+            }
+            else if (!string.IsNullOrEmpty(deviceName))
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public async Task<string> GetAccessToken(string tenantId, string portalAuthorization)
@@ -281,8 +301,13 @@ namespace Maestro
             return scriptId;
         }
 
-        public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database = null)
+        public bool FindStoredAccessToken(IDatabaseHandler database)
         {
+            if (!string.IsNullOrEmpty(BearerToken))
+            {
+                Logger.Info("Using bearer token from prior request");
+                return true;
+            }
             if (database != null)
             {
                 var validJwtDoc = database.FindValidJwt<BsonDocument>();
@@ -292,17 +317,34 @@ namespace Maestro
                     Logger.Info($"Found JWT with the required scope in the database");
                     BearerToken = validJwtDoc["bearerToken"];
                     _httpHandler.SetAuthorizationHeader(BearerToken);
-                    return;
+                    return true;
                 }
                 else
                 {
                     Logger.Info("No JWTs with the required scope found in the database");
                 }
             }
+            return false;
+        }
+
+        public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database = null)
+        {
+            // Check for stored access token before fetching from Intune
+            bool foundJwt = FindStoredAccessToken(database);
+            if (foundJwt)
+            {
+                return;
+            }
+
+            // Request access token from Intune if none found
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             await _authClient.GetTenantIdAndRefreshToken();
             string base64Token = await GetAccessToken(_authClient.TenantId, _authClient.RefreshToken);
+
+            // Store new JWT in the IntuneClient object
             BearerToken = base64Token;
+
+            // Store new JWT in the database
             if (database != null)
             {
                 Jwt accessToken = new Jwt(base64Token);
@@ -310,11 +352,12 @@ namespace Maestro
             }
         }
 
-        public async Task SyncDevice(string deviceId)
+        public async Task SyncDevice(string deviceId, IDatabaseHandler database)
         {
+            await SignInToIntuneAndGetAccessToken(database);
             Logger.Info($"Intune will attempt to check in and sync actions and policies to device with device {deviceId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
-            await _httpHandler.PostAsync(url);
+            string response = await _httpHandler.PostAsync(url);
         }
     }
 }
