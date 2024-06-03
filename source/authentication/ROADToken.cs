@@ -90,12 +90,10 @@ namespace Maestro
 
                 if (!match.Success)
                 {
-                    //return Logger.NullError<RefreshToken>("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
-                    return Logger.NullError<string>("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
+                    Logger.Error("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
+                    return null;
                 }
-                //xMsRefreshtokencredential = new RefreshToken(match.Groups[1].Value);
                 xMsRefreshtokencredential = match.Groups[1].Value;
-
                 Logger.Info($"Obtained x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce" : " ") + $": {xMsRefreshtokencredential}");
                 return xMsRefreshtokencredential;
             }

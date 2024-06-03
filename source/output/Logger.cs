@@ -6,17 +6,17 @@ namespace Maestro
     {
         public enum LogLevel
         {
-            // Most to least verbose
-            Debug,
-            Verbose,
-            Info,
+            // Least to most verbose
+            Error,
             Warning,
-            Error
+            Info,
+            Verbose,
+            Debug
         }
         private static LogLevel _logLevel;
         private static ILogger _logger;
 
-        public static void Initialize(ILogger logger, LogLevel logLevel)
+        public static void SetLogLevel(ILogger logger, LogLevel logLevel)
         {
             _logger = logger;
             _logLevel = logLevel;
@@ -24,7 +24,7 @@ namespace Maestro
 
         public static void Log(LogLevel level, string message)
         {
-            if (_logger == null || level < _logLevel) return;
+            if (_logger == null || level > _logLevel) return;
             _logger?.Log(level, message);
         }
 
@@ -63,16 +63,6 @@ namespace Maestro
                 Console.WriteLine($"  Stack Trace:\n {ex.StackTrace}\n");
                 ex = ex.InnerException;
             }
-        }
-        public static T NullError<T>(string message) where T : class
-        {
-            Logger.Error(message);
-            return null;
-        }
-        public static T? NullErrorValue<T>(string message) where T : struct
-        {
-            Logger.Error(message);
-            return null;
         }
     }
 }

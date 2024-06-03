@@ -21,9 +21,8 @@ namespace Maestro
             HttpHandler = httpHandler;
         }
 
-        private async Task<string> AuthorizeWithPrt(string url, string xMSRefreshtokencredential)
+        private async Task<HttpResponseMessage> AuthorizeWithPrt(string url, string xMSRefreshtokencredential)
         {
-            string authorizeResponse = string.Empty;
             Logger.Info("Using PRT cookie to authenticate to authorize URL");
 
             // Set the primary refresh token header
@@ -36,25 +35,34 @@ namespace Maestro
             };
 
             HttpHandler.CookiesContainer.Add(prtCookie);
-            authorizeResponse = await HttpHandler.GetAsync(url);
-            if (authorizeResponse is null)
-                return Logger.NullError<string>("No response was received from the authorize URL");
-            Logger.Info("Obtained response from authorize URL");
-            Logger.Debug(authorizeResponse);
+            HttpResponseMessage authorizeResponse = await HttpHandler.GetAsync(url);
+
+            if (!authorizeResponse.IsSuccessStatusCode)
+            {
+                Logger.Error("Failed to authenticate to authorize URL");
+                return null;
+            }
+
+            Logger.Debug(await authorizeResponse.Content.ReadAsStringAsync());
             return authorizeResponse;
         }
 
-        public async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string url, string extensionName, string resourceName)
+        public async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string url, string extensionName,
+            string resourceName)
         {
             Logger.Info("Requesting access token from DelegationToken endpoint with portalAuthorization");
             string accessToken = await GetAuthHeader(tenantId, portalAuthorization, url, extensionName, resourceName);
             if (accessToken is null)
-                return Logger.NullError<string>("No authHeader was found in the DelegationToken response");
+            {
+                Logger.Error("No authHeader was found in the DelegationToken response");
+                return null;
+            }
             Logger.Info($"Found access token in DelegationToken response: {accessToken}");
             return accessToken;
         }
 
-        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string url, string extensionName, string resourceName)
+        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string url, string extensionName, 
+            string resourceName)
         {
             var jsonObject = new
             {
@@ -66,28 +74,29 @@ namespace Maestro
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            string response = await HttpHandler.PostAsync(url, content);
-            string authHeader = StringHandler.GetMatch(response, "\"authHeader\":\"Bearer ([^\"]+)\"");
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string authHeader = StringHandler.GetMatch(responseContent, "\"authHeader\":\"Bearer ([^\"]+)\"");
             return authHeader;
         }
 
         private async Task<string> GetAuthorizeUrl()
         {
-            string url = "https://intune.microsoft.com/signin/idpRedirect.js";
-            Logger.Info($"Requesting authorize URL from: {url}");
+            string redirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
+            Logger.Info($"Requesting authorize URL from: {redirectUrl}");
 
-            string idpRedirectResponse = await HttpHandler.GetAsync(url);
+            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(redirectUrl);
+            idpRedirectResponse.EnsureSuccessStatusCode();
 
             if (idpRedirectResponse is null)
             {
                 Logger.Error("No response or empty response received for authorize URL request");
                 return null;
             }
+            string idpRedirectResponseContent = await idpRedirectResponse.Content.ReadAsStringAsync();
+            string authorizeUrlPattern = @"https://login\.microsoftonline\.com/organizations/oauth2/v2\.0/authorize\?.*?(?=\"")";
+            string authorizeUrl = StringHandler.GetMatch(idpRedirectResponseContent, authorizeUrlPattern, false);
 
-            Logger.Debug(idpRedirectResponse);
-            string authorizeUrlPattern =
-                @"https://login\.microsoftonline\.com/organizations/oauth2/v2\.0/authorize\?.*?(?=\"")";
-            string authorizeUrl = StringHandler.GetMatch(idpRedirectResponse, authorizeUrlPattern, false);
             if (authorizeUrl is null) return null;
             Logger.Info($"Found authorize URL: {authorizeUrl}");
             return authorizeUrl;
@@ -105,64 +114,74 @@ namespace Maestro
             return entraIdPortalAuthorization;
         }
 
-        private async Task<string> GetIntuneSignInResponse(string actionUrl, HttpContent formData)
-        {
-            Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
-            string signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
-            if (signinResponse is null)
-                return Logger.NullError<string>("No response was received from the signin URL");
-            Logger.Info("Obtained response from signin URL");
-            return signinResponse;
-        }
-
-        private async Task<string> SignInToIntune()
+        private async Task<HttpResponseMessage> SignInToIntune()
         {
             // HTTP request 1
             string authorizeUrl = await GetAuthorizeUrl();
-            if (authorizeUrl is null) return null;
+            if (authorizeUrl is null) 
+                return null;
 
             // Local request to mint PRT cookie 1
             string xMsRefreshtokencredential = ROADToken.GetXMsRefreshtokencredential();
-            if (xMsRefreshtokencredential is null) return null;
+            if (xMsRefreshtokencredential is null) 
+                return null;
 
             // HTTP request 2
-            string initialAuthorizeResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredential);
-            if (initialAuthorizeResponse is null) return null;
+            HttpResponseMessage initialAuthorizeResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredential);
+            if (initialAuthorizeResponse is null) 
+                return null;
+            string initialAuthorizeResponseContent = await initialAuthorizeResponse.Content.ReadAsStringAsync();
 
             // Parse response for authorize URL with nonce
-            string urlToCheckForNonce = ParseInitialAuthorizeResponseForAuthorizeUrl(initialAuthorizeResponse);
-            if (urlToCheckForNonce is null) return null;
+            string urlToCheckForNonce = ParseInitialAuthorizeResponseForAuthorizeUrl(initialAuthorizeResponseContent);
+            if (urlToCheckForNonce is null) 
+                return null;
 
             // Parse URL for nonce
             string ssoNonce = StringHandler.GetMatch(urlToCheckForNonce, "sso_nonce=([^&]+)");
             if (ssoNonce is null)
-                return Logger.NullError<string>("No sso_nonce parameter was found in the URL");
+            {
+                Logger.Error("No sso_nonce parameter was found in the URL");
+                return null;
+            }
             Logger.Info($"Found sso_nonce parameter in the URL: {ssoNonce}");
 
             // Local request to mint PRT cookie 2 with nonce
             string xMsRefreshtokencredentialWithNonce = ROADToken.GetXMsRefreshtokencredential(ssoNonce);
-            if (xMsRefreshtokencredentialWithNonce is null) return null;
+            if (xMsRefreshtokencredentialWithNonce is null) 
+                return null;
 
             // HTTP request 3
             Logger.Info("Using PRT with nonce to obtain code+id_token required for Intune signin");
-            string authorizeWithSsoNonceResponse =
-                await AuthorizeWithPrt(urlToCheckForNonce, xMsRefreshtokencredentialWithNonce);
-            if (authorizeWithSsoNonceResponse is null) return null;
+            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrt(urlToCheckForNonce, xMsRefreshtokencredentialWithNonce);
+            if (authorizeWithSsoNonceResponse is null) 
+                return null;
+            string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
 
             // Parse response for signin URL
-            string actionUrl = StringHandler.GetMatch(authorizeWithSsoNonceResponse, "<form method=\"POST\" name=\"hiddenform\" action=\"(.*?)\"");
+            string actionUrl = StringHandler.GetMatch(authorizeWithSsoNonceResponseContent, 
+                "<form method=\"POST\" name=\"hiddenform\" action=\"(.*?)\"");
             if (actionUrl is null)
-                return Logger.NullError<string>("No hidden form action URLs were found in the response");
+            {
+                Logger.Error("No hidden form action URLs were found in the response");
+                return null;
+            }
             Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
 
             // Parse response for POST body with code+id_token
-            FormUrlEncodedContent formData = ParseFormDataFromHtml(authorizeWithSsoNonceResponse);
-            if (formData is null) return null;
+            FormUrlEncodedContent formData = ParseFormDataFromHtml(authorizeWithSsoNonceResponseContent);
+            if (formData is null) 
+                return null;
 
-            string signInResponse = await GetIntuneSignInResponse(actionUrl, formData);
-            if (signInResponse is null)
-                return Logger.NullError<string>("Could not sign in to Intune");
-            return signInResponse;
+            Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
+            HttpResponseMessage signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
+            if (signinResponse is null)
+            {
+                Logger.Error("Could not sign in to Intune");
+                return null;
+            }
+            Logger.Info("Obtained response from signin URL");
+            return signinResponse;
         }
 
 
@@ -180,10 +199,14 @@ namespace Maestro
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            string response = await HttpHandler.PostAsync(url, content);
-            string portalAuthorization = StringHandler.GetMatch(response, "\\\"portalAuthorization\\\":\\\"([^\\\"]+)\\\"");
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string portalAuthorization = StringHandler.GetMatch(responseContent, "\\\"portalAuthorization\\\":\\\"([^\\\"]+)\\\"");
             if (portalAuthorization is null)
-                return Logger.NullError<string>("No portalAuthorization was found in the DelegationToken response");
+            {
+                Logger.Error("No portalAuthorization was found in the DelegationToken response");
+                return null;
+            }
             Logger.Info($"Found portalAuthorization in DelegationToken response: {StringHandler.Truncate(portalAuthorization)}");
             Logger.Debug(portalAuthorization);
             return portalAuthorization;
@@ -191,14 +214,15 @@ namespace Maestro
 
         public async Task<(string, string)> GetTenantIdAndRefreshToken()
         {
-            string signInResponse = await SignInToIntune();
-            if (signInResponse is null) return (null, null);
+            HttpResponseMessage signinResponse = await SignInToIntune();
+            if (signinResponse is null) return (null, null);
+            string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();
 
-            string tenantId = ParseTenantIdFromJsonResponse(signInResponse);
+            string tenantId = ParseTenantIdFromJsonResponse(signinResponseContent);
             if (tenantId is null) return (null, null);
             TenantId = tenantId;
 
-            string refreshToken = ParseRefreshTokenFromJsonResponse(signInResponse);
+            string refreshToken = ParseRefreshTokenFromJsonResponse(signinResponseContent);
             if (refreshToken is null) return (null, null);
             RefreshToken = refreshToken;
 
@@ -215,7 +239,8 @@ namespace Maestro
 
             if (inputs.Count == 0)
             {
-                return Logger.NullError<FormUrlEncodedContent>("No hidden input fields were found in the response");
+                Logger.Error("No hidden input fields were found in the response");
+                return null;
             }
             Logger.Info("Found hidden input fields in the response");
             var formDataPairs = new Dictionary<string, string>();
@@ -236,7 +261,8 @@ namespace Maestro
 
             if (!authorizeUrlWithSsoNonceMatch.Success)
             {
-                return Logger.NullError<string>("No authorize URL was found in the response");
+                Logger.Error("No authorize URL was found in the response");
+                return null;
             }
 
             // Replace Unicode in URL with corresponding characters and placeholder with "organizations"
@@ -251,7 +277,10 @@ namespace Maestro
             // Parse response for refreshToken
             string refreshToken = StringHandler.GetMatch(jsonResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
             if (refreshToken is null)
-                return Logger.NullError<string>("No refreshToken was found in the response");
+            {
+                Logger.Error("No refreshToken was found in the response");
+                return null;
+            }
             Logger.Info($"Found refreshToken in response: {StringHandler.Truncate(refreshToken)}");
             Logger.Debug(refreshToken);
             return refreshToken;
@@ -262,7 +291,10 @@ namespace Maestro
             // Parse response for tenantId
             string tenantId = StringHandler.GetMatch(jsonResponse, "\\\"tenantId\\\":\\\"([^\\\"]+)\\\"");
             if (tenantId is null)
-                return Logger.NullError<string>("No tenantId was found in the response");
+            {
+                Logger.Error("No tenantId was found in the response");
+                return null;
+            }
             Logger.Info($"Found tenantId in the response: {tenantId}");
             return tenantId;
         }

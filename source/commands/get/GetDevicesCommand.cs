@@ -15,28 +15,6 @@ namespace Maestro
                 properties = propertiesCsv.Split(',');
             }
 
-            // Use default properties if none were provided
-            if (properties == null || properties.Length == 0)
-            {
-                properties = new[] { 
-                    "id", 
-                    "deviceName", 
-                    "managementState",
-                    "lastSyncDateTime",
-                    "operatingSystem",
-                    "osVersion",
-                    "azureADRegistered",
-                    "deviceEnrollmentType",
-                    "azureActiveDirectoryDeviceId",
-                    "deviceRegistrationState",
-                    "model",
-                    "managedDeviceName",
-                    "joinType",
-                    "skuFamily",
-                    "usersLoggedOn"
-                };
-            }
-
             if (arguments.TryGetValue("--id", out string intuneDeviceId))
             {
                 await intuneClient.GetDevices(deviceId: intuneDeviceId, properties: properties, database: database, databaseOnly: databaseOnly);

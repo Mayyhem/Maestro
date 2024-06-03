@@ -15,11 +15,6 @@ namespace Maestro
 
             try
             {
-                // Logging and debugging
-                Logger.LogLevel logLevel = Logger.LogLevel.Info;
-                ILogger logger = new ConsoleLogger();
-                Logger.Initialize(logger, logLevel);
-
                 // Start timer and begin execution
                 timer.Start();
                 Logger.Info("Execution started");
@@ -27,6 +22,20 @@ namespace Maestro
                 // Parse arguments
                 Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
                 if (parsedArguments == null) return;
+
+                // Initialize the logger
+                ILogger logger = new ConsoleLogger();
+                if (parsedArguments.TryGetValue("--verbosity", out string logLevelString)
+                    && Enum.TryParse(logLevelString, true, out Logger.LogLevel logLevel))
+                {
+                    // Set log level if specified
+                    Logger.SetLogLevel(logger, logLevel);
+                } 
+                else
+                {
+                    // Log informational messages by default
+                    Logger.SetLogLevel(logger, Logger.LogLevel.Info);
+                }
 
                 // Use database file if option is specified
                 IDatabaseHandler database = null;

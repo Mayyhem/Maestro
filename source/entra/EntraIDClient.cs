@@ -33,7 +33,7 @@ namespace Maestro
             return entraIdAccessToken;
         }
 
-        public async Task<string> GetGroups()
+        public async Task<HttpResponseMessage> GetGroups()
         {
             string url = "https://graph.microsoft.com/v1.0/$batch";
             var jsonObject = new
@@ -55,7 +55,7 @@ namespace Maestro
             return await _httpHandler.PostAsync(url, content);
         }
 
-        public async Task<string> GetGroupMembers(string groupId)
+        public async Task<HttpResponseMessage> GetGroupMembers(string groupId)
         {
             string url = $"https://graph.microsoft.com/beta/groups/{groupId}/members?$select=id,displayName,userType,appId,mail,onPremisesSyncEnabled,deviceId&$orderby=displayName%20asc&$count=true";
             var request = new HttpRequestMessage(HttpMethod.Get, url);

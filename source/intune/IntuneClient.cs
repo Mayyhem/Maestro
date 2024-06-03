@@ -1,10 +1,12 @@
 ﻿using LiteDB;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -65,6 +67,32 @@ namespace Maestro
             }
         }
 
+        public bool FindStoredAccessToken(IDatabaseHandler database)
+        {
+            if (!string.IsNullOrEmpty(BearerToken))
+            {
+                Logger.Info("Using bearer token from prior request");
+                return true;
+            }
+            if (database != null)
+            {
+                var validJwtDoc = database.FindValidJwt<BsonDocument>();
+
+                if (validJwtDoc != null)
+                {
+                    Logger.Info($"Found JWT with the required scope in the database");
+                    BearerToken = validJwtDoc["bearerToken"];
+                    _httpHandler.SetAuthorizationHeader(BearerToken);
+                    return true;
+                }
+                else
+                {
+                    Logger.Info("No JWTs with the required scope found in the database");
+                }
+            }
+            return false;
+        }
+
         public async Task<string> GetAccessToken(string tenantId, string portalAuthorization)
         {
             Logger.Info("Requesting Intune access token");
@@ -79,9 +107,32 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, IDatabaseHandler database = null, bool databaseOnly = false)
+        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, IDatabaseHandler database = null, bool databaseOnly = false)
         {
+            List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
+
+            // Use default properties if none were provided
+            if (properties == null || properties.Length == 0)
+            {
+                properties = new[] {
+                    "id",
+                    "deviceName",
+                    "managementState",
+                    "lastSyncDateTime",
+                    "operatingSystem",
+                    "osVersion",
+                    "azureADRegistered",
+                    "deviceEnrollmentType",
+                    "azureActiveDirectoryDeviceId",
+                    "deviceRegistrationState",
+                    "model",
+                    "managedDeviceName",
+                    "joinType",
+                    "skuFamily",
+                    "usersLoggedOn"
+                };
+            }
 
             if (!string.IsNullOrEmpty(deviceId))
             {
@@ -92,10 +143,12 @@ namespace Maestro
                     {
                         Logger.Info($"Found a matching device in the database");
                         JsonHandler.PrintProperties(device.ToString(), properties);
-                        return;
+                        Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
+                        intuneDevices.Add(new IntuneDevice(deviceProperties));
+                        return intuneDevices;
                     }
                 }
-                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceId%20eq%20%27{deviceId}%27";
+                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=Id%20eq%20%27{deviceId}%27";
             }
             else if (!string.IsNullOrEmpty(deviceName))
             {
@@ -108,8 +161,10 @@ namespace Maestro
                         foreach (var device in databaseDevices)
                         {
                             JsonHandler.PrintProperties(device.ToString(), properties);
+                            Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
+                            intuneDevices.Add(new IntuneDevice(deviceProperties));
                         }
-                        return;
+                        return intuneDevices;
                     }
                     else
                     {
@@ -129,8 +184,10 @@ namespace Maestro
                         foreach (var device in databaseDevices)
                         {
                             JsonHandler.PrintProperties(device.ToString(), properties);
+                            Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
+                            intuneDevices.Add(new IntuneDevice(deviceProperties));
                         }
-                        return;
+                        return intuneDevices;
                     }
                     else
                     {
@@ -138,18 +195,24 @@ namespace Maestro
                     }
                     if (databaseOnly)
                     {
-                        return;
+                        return null;
                     }
                 }
             }
 
             // Request devices from Intune
             await SignInToIntuneAndGetAccessToken(database);
-            string devicesResponse = await _httpHandler.GetAsync(intuneDevicesUrl);
+            HttpResponseMessage devicesResponse = await _httpHandler.GetAsync(intuneDevicesUrl);
+            if (devicesResponse is null)
+            {
+                Logger.Error("Failed to get devices from Intune");
+                return null;
+            }
 
             // Deserialize the JSON response to a dictionary
+            string devicesResponseContent = await devicesResponse.Content.ReadAsStringAsync();
             JavaScriptSerializer serializer = new JavaScriptSerializer();
-            var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponse);
+            var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponseContent);
             var devices = (ArrayList)deviceResponseDict["value"];
 
             if (devices.Count > 0)
@@ -159,6 +222,7 @@ namespace Maestro
                 {
                     // Create an IntuneDevice object for each device in the response
                     var intuneDevice = new IntuneDevice(device);
+                    intuneDevices.Add(intuneDevice);
                     if (database != null)
                     {
                         // Insert new device if matching id doesn't exist
@@ -175,6 +239,7 @@ namespace Maestro
             {
                 Logger.Info("No devices found");
             }
+            return intuneDevices;
         }
 
         public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
@@ -203,10 +268,15 @@ namespace Maestro
                 rule = $"(device.deviceName -eq \"{deviceName}\")",
                 roleScopeTagIds = new List<string> { "0" }
             });
-            string response = await _httpHandler.PostAsync(url, content);
-            if (response is null) return null;
+            HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
+            if (response is null)
+            {
+                Logger.Error("Failed to create device assignment filter");
+                return null;
+            }
 
-            string filterId = StringHandler.GetMatch(response, "\"id\":\"([^\"]+)\"");
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string filterId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained filter ID: {filterId}");
             return filterId;
         }
@@ -293,38 +363,16 @@ namespace Maestro
                 remediationScriptContent,
                 roleScopeTagIds = new List<string> { "0" }
             });
-            string response = await _httpHandler.PostAsync(url, content);
-            if (response is null) return null;
-
-            string scriptId = StringHandler.GetMatch(response, "\"id\":\"([^\"]+)\"");
+            HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to create detection script");
+                return null;
+            }
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string scriptId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained script ID: {scriptId}");
             return scriptId;
-        }
-
-        public bool FindStoredAccessToken(IDatabaseHandler database)
-        {
-            if (!string.IsNullOrEmpty(BearerToken))
-            {
-                Logger.Info("Using bearer token from prior request");
-                return true;
-            }
-            if (database != null)
-            {
-                var validJwtDoc = database.FindValidJwt<BsonDocument>();
-
-                if (validJwtDoc != null)
-                {
-                    Logger.Info($"Found JWT with the required scope in the database");
-                    BearerToken = validJwtDoc["bearerToken"];
-                    _httpHandler.SetAuthorizationHeader(BearerToken);
-                    return true;
-                }
-                else
-                {
-                    Logger.Info("No JWTs with the required scope found in the database");
-                }
-            }
-            return false;
         }
 
         public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database = null)
@@ -354,10 +402,21 @@ namespace Maestro
 
         public async Task SyncDevice(string deviceId, IDatabaseHandler database)
         {
-            await SignInToIntuneAndGetAccessToken(database);
-            Logger.Info($"Intune will attempt to check in and sync actions and policies to device with device {deviceId}");
+            List<IntuneDevice> devices = await GetDevices(deviceId: deviceId, database: database);
+            if (devices.Count == 0)
+            {
+                Logger.Error($"Device {deviceId} not found in Intune");
+                return;
+            }
+            Logger.Info($"Sending notification to check in and sync actions and policies to device: {deviceId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
-            string response = await _httpHandler.PostAsync(url);
+            HttpResponseMessage response = await _httpHandler.PostAsync(url);
+            if (!(response.StatusCode == HttpStatusCode.NoContent))
+            {
+                Logger.Error($"Failed to send notification to device: {deviceId}");
+                return;
+            }
+            Logger.Info("Successfully sent notification to device");
         }
     }
 }

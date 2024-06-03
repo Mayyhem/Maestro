@@ -14,12 +14,27 @@ namespace Maestro
                 Description = "Execute Intune device query on a target device",
                 Options = new List<Option>
                 {
-                    new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
-                        Description = "ID of the device to get information for" },
-                    new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME",
-                        Description = "Name of the device to get information for" },
-                    new Option { ShortName = "-q", LongName = "--query", ValuePlaceholder = "KQLQUERY",
-                        Description = "The Kusto Query Language (KQL) query to execute on the device" }
+                    new Option
+                    {
+                        ShortName = "-i",
+                        LongName = "--id",
+                        ValuePlaceholder = "ID",
+                        Description = "ID of the device to get information for"
+                    },
+                    new Option
+                    {
+                        ShortName = "-n",
+                        LongName = "--name",
+                        ValuePlaceholder = "NAME",
+                        Description = "Name of the device to get information for"
+                    },
+                    new Option
+                    {
+                        ShortName = "-q",
+                        LongName = "--query",
+                        ValuePlaceholder = "KQLQUERY",
+                        Description = "The Kusto Query Language (KQL) query to execute on the device"
+                    }
                 }
             },
             new Command
@@ -28,10 +43,20 @@ namespace Maestro
                 Description = "Execute a script on a target device",
                 Options = new List<Option>
                 {
-                    new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
-                        Description = "ID of the device to execute the script on" },
-                    new Option { ShortName = "-s", LongName = "--script", ValuePlaceholder = "B64_SCRIPT", 
-                        Description = "Base64-encoded PowerShell script to execute" }
+                    new Option
+                    {
+                        ShortName = "-i",
+                        LongName = "--id",
+                        ValuePlaceholder = "ID",
+                        Description = "ID of the device to execute the script on"
+                    },
+                    new Option
+                    {
+                        ShortName = "-s",
+                        LongName = "--script",
+                        ValuePlaceholder = "B64_SCRIPT",
+                        Description = "Base64-encoded PowerShell script to execute"
+                    }
                 },
                 Subcommands = new List<Subcommand>
                 {
@@ -41,8 +66,13 @@ namespace Maestro
                         Description = "Send notification to device requesting immediate sync to Intune",
                         Options = new List<Option>
                         {
-                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
-                                Description = "ID of the device to sync" }
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the device to sync"
+                            }
                         }
                     }
                 }
@@ -59,12 +89,27 @@ namespace Maestro
                         Description = "Get information about Intune enrolled devices",
                         Options = new List<Option>
                         {
-                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID", 
-                                Description = "ID of the device to get information for" },
-                            new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME", 
-                                Description = "Name of the device to get information for" },
-                            new Option { ShortName = "-p", LongName = "--properties", ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties" }
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the device to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-n",
+                                LongName = "--name",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the device to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-p",
+                                LongName = "--properties",
+                                ValuePlaceholder = "PROP,PROP | ALL",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                            }
                         }
                     }
                 }
@@ -81,12 +126,27 @@ namespace Maestro
                         Description = "Show information about Intune enrolled devices",
                         Options = new List<Option>
                         {
-                            new Option { ShortName = "-i", LongName = "--id", ValuePlaceholder = "ID",
-                                Description = "ID of the device to show information for" },
-                            new Option { ShortName = "-n", LongName = "--name", ValuePlaceholder = "NAME",
-                                Description = "Name of the device to show information for" },
-                            new Option { ShortName = "-p", LongName = "--properties", ValuePlaceholder = "PROP,PROP",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties" }
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the device to show information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-n",
+                                LongName = "--name",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the device to show information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-p",
+                                LongName = "--properties",
+                                ValuePlaceholder = "PROP,PROP",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                            }
                         }
                     }
                 }
@@ -95,13 +155,38 @@ namespace Maestro
 
         private static readonly List<Option> GlobalOptions = new List<Option>
         {
-            new Option { ShortName = "-d", LongName = "--database", ValuePlaceholder = "PATH.db", 
-                Description = "Database file used to read/write data that has already been queried" },
-            new Option { ShortName = "-h", LongName = "--help", 
-                Description = "Display usage", IsFlag = true },
-            new Option { ShortName = "-v", LongName = "--verbosity", ValuePlaceholder = "LEVEL", 
-                Description = "Set the log verbosity level (1-5)" }
+            new Option
+            {
+                ShortName = "-d",
+                LongName = "--database",
+                ValuePlaceholder = "PATH.db",
+                Description = "Database file used to read/write data that has already been queried"
+            },
+            new Option
+            {
+                ShortName = "-h",
+                LongName = "--help",
+                Description = "Display usage",
+                IsFlag = true
+            },
+            new Option
+            {
+                ShortName = "-v",
+                LongName = "--verbosity",
+                ValuePlaceholder = "LEVEL",
+                Description = @"Set the log verbosity level (default: 3)
+                                1: Error
+                                2: Warning
+                                3: Info
+                                4: Verbose
+                                5: Debug"
+            }
         };
+
+        public static string PadDescription(string description)
+        {
+            return description.PadRight(30);
+        }
 
         public static Dictionary<string, string> Parse(string[] args)
         {
@@ -257,23 +342,23 @@ namespace Maestro
             if (string.IsNullOrEmpty(commandName))
             {
                 Console.WriteLine("Usage: Maestro.exe <command> [options]");
-                Console.WriteLine("\nCommands:");
+                Console.WriteLine("\nCommands:\n");
                 foreach (var command in commands)
                 {
-                    Console.WriteLine($"    {command.Name} - {command.Description}");
+                    Console.WriteLine(PadDescription($"  {command.Name}") + command.Description);
                     if (command.Subcommands.Any())
                     {
-                        Console.WriteLine($"          Subcommands:");
                         foreach (var subCommand in command.Subcommands)
                         {
-                            Console.WriteLine($"            {subCommand.Name} - {subCommand.Description}");
+                            Console.WriteLine(PadDescription($"    {subCommand.Name}") + subCommand.Description);
                         }
                     }
+                    Console.WriteLine();
                 }
-                Console.WriteLine("\nGlobal Options:");
+                Console.WriteLine("Global Options:");
                 foreach (var option in GlobalOptions)
                 {
-                    Console.WriteLine($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}".PadRight(30) + option.Description);
+                    Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                 }
             }
 
@@ -286,7 +371,7 @@ namespace Maestro
                     Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]");
                     foreach (var option in command.Options)
                     {
-                        Console.WriteLine($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}".PadRight(30) + option.Description);
+                        Console.WriteLine(PadDescription($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                     }
 
                     if (command.Subcommands.Any())
@@ -297,7 +382,7 @@ namespace Maestro
                             Console.WriteLine($"    {subCommand.Name} - {subCommand.Description}");
                             foreach (var option in subCommand.Options)
                             {
-                                Console.WriteLine($"        {option.ShortName}, {option.LongName} {option.ValuePlaceholder}".PadRight(30) + option.Description);
+                                Console.WriteLine(PadDescription($"        {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                             }
                         }
                     }

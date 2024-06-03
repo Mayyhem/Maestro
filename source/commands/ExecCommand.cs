@@ -20,13 +20,22 @@ namespace Maestro
             {
                 Console.WriteLine($"Target: {deviceId}, Script: {script}");
 
+                // Lookup device in database
+                var device = database.FindByPrimaryKey<IntuneDevice>(deviceId);
+                if (device is null)
+                {
+                    Logger.Error($"Device {deviceId} not found in database");   
+                    return;
+                }
+
+                // Lookup device in Intune
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 var httpHandler = new HttpHandler();
                 var authClient = new AuthClient(httpHandler);
                 await authClient.GetTenantIdAndRefreshToken();
-
                 var intuneClient = new IntuneClient(authClient);
                 await intuneClient.GetAccessToken(authClient.TenantId, authClient.RefreshToken);
+
 
                 string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);
                 if (filterId is null) return;
