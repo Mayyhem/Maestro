@@ -34,13 +34,27 @@ namespace Maestro
                         LongName = "--query",
                         ValuePlaceholder = "KQLQUERY",
                         Description = "The Kusto Query Language (KQL) query to execute on the device"
+                    },
+                    new Option 
+                    {
+                        ShortName = "-r",
+                        LongName = "--retries",
+                        ValuePlaceholder = "INT",
+                        Description = "Maximum number of attempts to fetch query results"
+                    },
+                    new Option
+                    {
+                        ShortName = "-w",
+                        LongName = "--wait",
+                        ValuePlaceholder = "INT",
+                        Description = "Number of seconds between each attempt to fetch query results"
                     }
                 }
             },
             new Command
             {
                 Name = "exec",
-                Description = "Execute a script on a target device",
+                Description = "Execute actions on a target Intune device",
                 Options = new List<Option>
                 {
                     new Option
@@ -368,21 +382,20 @@ namespace Maestro
                 var command = commands.FirstOrDefault(c => c.Name == commandName);
                 if (command != null)
                 {
-                    Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]");
+                    Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]\n");
                     foreach (var option in command.Options)
                     {
-                        Console.WriteLine(PadDescription($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+                        Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                     }
 
                     if (command.Subcommands.Any())
                     {
-                        Console.WriteLine($"\nSubcommands:");
                         foreach (var subCommand in command.Subcommands)
                         {
                             Console.WriteLine($"    {subCommand.Name} - {subCommand.Description}");
                             foreach (var option in subCommand.Options)
                             {
-                                Console.WriteLine(PadDescription($"        {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+                                Console.WriteLine(PadDescription($"      {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                             }
                         }
                     }

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -14,14 +11,26 @@ namespace Maestro
 
             if (arguments.TryGetValue("--query", out string kustoQuery))
             {
-                if (arguments.TryGetValue("--id", out string intuneDeviceId))
-                {
-                    await intuneClient.DeviceQuery(kustoQuery, deviceId: intuneDeviceId, database: database);
+                // Retry request for query results X times by default
+                int maxRetries = 10;
+                // Wait X seconds between retries by default
+                int retryDelay = 3;
 
-                }
-                else if (arguments.TryGetValue("--name", out string intuneDeviceName))
+                if (arguments.TryGetValue("--retries", out string retriesString))
                 {
-                    await intuneClient.DeviceQuery(kustoQuery, deviceName: intuneDeviceName, database: database);
+                    maxRetries = int.Parse(retriesString);
+                }
+                if (arguments.TryGetValue("--wait", out string retryDelayString))
+                {
+                    retryDelay = int.Parse(retryDelayString);
+                }
+                if (arguments.TryGetValue("--id", out string deviceId))
+                {
+                    await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceId: deviceId, database: database);
+                }
+                else if (arguments.TryGetValue("--name", out string deviceName))
+                {
+                    await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceName: deviceName, database: database);
                 }
                 else
                 {

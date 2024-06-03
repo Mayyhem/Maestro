@@ -48,23 +48,45 @@ namespace Maestro
             await _httpHandler.DeleteAsync(url);
         }
 
-        public async Task DeviceQuery(string query, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
+        public async Task ExecuteDeviceQuery(string kustoQuery, int maxRetries, int retryDelay, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
         {
-            Logger.Info($"Executing device query: {query}");
-            if (!string.IsNullOrEmpty(deviceId))
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, database: database);
+            if (devices.Count > 1) 
+            {                 
+                Logger.Error("Multiple devices found matching the specified device name");
+                return;
+            }
+            deviceId = devices.FirstOrDefault()?.Properties["id"].ToString();
+
+            if (devices.Count == 0)
             {
-                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/createQuery";
-                string encodedQuery = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
-                var content = _httpHandler.CreateJsonContent(new
+                Logger.Error($"Failed to find the specified device");
+                return;
+            }
+            else
+            {
+                if (BearerToken is null)
                 {
-                    query = encodedQuery
-                });
-                await _httpHandler.PostAsync(url, content);
+                    await SignInToIntuneAndGetAccessToken(database);
+                }
             }
-            else if (!string.IsNullOrEmpty(deviceName))
+            string queryId = await NewDeviceQuery(kustoQuery, deviceId: deviceId);
+            if (string.IsNullOrEmpty(queryId))
             {
-                throw new NotImplementedException();
+                Logger.Error("Failed to get query ID");
+                return;
             }
+
+            // Fetch query results with retries
+            string queryResults = await GetDeviceQueryResults(deviceId, queryId, maxRetries: maxRetries, retryDelay: retryDelay);
+            if (queryResults is null)
+            {
+                Logger.Error("Failed to get query results");
+                return;
+            }
+            
+            JsonHandler.PrintProperties(queryResults);
+            return;
         }
 
         public bool FindStoredAccessToken(IDatabaseHandler database)
@@ -242,6 +264,43 @@ namespace Maestro
             return intuneDevices;
         }
 
+        public async Task<string> GetDeviceQueryResults(string deviceId, string queryId, int maxRetries, int retryDelay)
+        {
+            string queryResults = "";
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/queryResults/{queryId}";
+            int attempts = 0;
+
+            while (attempts < maxRetries)
+            {
+                attempts++;
+                Logger.Info($"Attempt {attempts} of {maxRetries} to fetch query results");
+                HttpResponseMessage response = await _httpHandler.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    string responseContent = await response.Content.ReadAsStringAsync();
+                    if (responseContent.Contains("successful"))
+                    {
+                        Logger.Info($"Successfully fetched query results on attempt {attempts}:");
+                        string encodedQueryResults = StringHandler.GetMatch(responseContent, "\"results\":\"([^\"]+)\"");
+                        queryResults = Encoding.UTF8.GetString(Convert.FromBase64String(encodedQueryResults));
+                        break;
+                    }
+                    else
+                    {
+                        Logger.Info($"Query results not yet available, retrying in {retryDelay} seconds");
+                        await Task.Delay(retryDelay * 1000);
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(queryResults))
+            {
+                Logger.Error($"Failed to fetch query results after {maxRetries} attempts");
+            }
+
+            return queryResults;
+        }
+
         public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
         {
             Logger.Info($"Initiating on demand proactive remediation - execution script {scriptId} on device {deviceId}");
@@ -346,6 +405,35 @@ namespace Maestro
             await _httpHandler.PostAsync(url, content);
         }
 
+        public async Task<string> NewDeviceQuery(string query, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
+        {
+            string queryId = "";
+            Logger.Info($"Executing device query: {query}");
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/createQuery";
+                string encodedQuery = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
+                var content = _httpHandler.CreateJsonContent(new
+                {
+                    query = encodedQuery
+                });
+                HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.Error("Failed to execute query");
+                    return null;
+                }
+                string responseContent = await response.Content.ReadAsStringAsync();
+                queryId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
+                Logger.Info($"Obtained query ID: {queryId}");
+            }
+            else if (!string.IsNullOrEmpty(deviceName))
+            {
+                throw new NotImplementedException();
+            }
+            return queryId;
+        }
+
         public async Task<string> NewScriptPackage(string displayName, string detectionScriptContent, string description = "", string publisher = "", string remediationScriptContent = "", bool runAs32Bit = true, string runAsAccount = "system")
         {
             Logger.Info($"Creating new detection script with displayName: {displayName}");
@@ -375,7 +463,7 @@ namespace Maestro
             return scriptId;
         }
 
-        public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database = null)
+        public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database)
         {
             // Check for stored access token before fetching from Intune
             bool foundJwt = FindStoredAccessToken(database);

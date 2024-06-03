@@ -52,12 +52,12 @@ namespace Maestro
 
         public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request)
         {
-            Logger.Info($"Sending {request.Method} request to: {request.RequestUri}");
+            Logger.Verbose($"Sending {request.Method} request to: {request.RequestUri}");
             HttpResponseMessage response = await _httpClient.SendAsync(request);
 
             if (response != null)
             {
-                Logger.Info($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
+                Logger.Verbose($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
                 Logger.Debug($"Response:\n {await response.Content.ReadAsStringAsync()}");
             }
             else
