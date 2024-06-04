@@ -62,13 +62,14 @@
     <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\RefreshToken.cs" />
     <Compile Include="source\commands\DeviceQueryCommand.cs" />
-    <Compile Include="source\commands\exec\ExecSyncCommand.cs" />
+    <Compile Include="source\commands\intune\IntuneCommand.cs" />
+    <Compile Include="source\commands\intune\IntuneSyncCommand.cs" />
     <Compile Include="source\commands\ShowCommand.cs" />
     <Compile Include="source\commands\get\GetDevicesCommand.cs" />
     <Compile Include="source\commands\Option.cs" />
     <Compile Include="source\commands\Subcommand.cs" />
     <Compile Include="source\commands\Command.cs" />
-    <Compile Include="source\commands\ExecCommand.cs" />
+    <Compile Include="source\commands\intune\IntuneExecCommand.cs" />
     <Compile Include="source\commands\GetCommand.cs" />
     <Compile Include="source\commands\CommandLine.cs" />
     <Compile Include="source\database\BsonDocumentHandler.cs" />

@@ -523,7 +523,7 @@ namespace Maestro
                     return;
                 }
             }
-            Logger.Info($"Sending notification to {deviceId} to sync actions and policies with Intune");
+            Logger.Info($"Sending notification to {deviceId} to sync with Intune");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
             HttpResponseMessage response = await _httpHandler.PostAsync(url);
             if (!(response.StatusCode == HttpStatusCode.NoContent))

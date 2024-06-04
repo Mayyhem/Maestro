@@ -10,97 +10,14 @@ namespace Maestro
         {
             new Command
             {
-                Name = "devicequery",
-                Description = "Execute Intune device query on a target device",
-                Options = new List<Option>
-                {
-                    new Option
-                    {
-                        ShortName = "-i",
-                        LongName = "--id",
-                        ValuePlaceholder = "ID",
-                        Description = "ID of the device to get information for"
-                    },
-                    new Option
-                    {
-                        ShortName = "-n",
-                        LongName = "--name",
-                        ValuePlaceholder = "NAME",
-                        Description = "Name of the device to get information for"
-                    },
-                    new Option
-                    {
-                        ShortName = "-q",
-                        LongName = "--query",
-                        ValuePlaceholder = "KQLQUERY",
-                        Description = "The Kusto Query Language (KQL) query to execute on the device"
-                    },
-                    new Option 
-                    {
-                        ShortName = "-r",
-                        LongName = "--retries",
-                        ValuePlaceholder = "INT",
-                        Description = "Maximum number of attempts to fetch query results"
-                    },
-                    new Option
-                    {
-                        ShortName = "-w",
-                        LongName = "--wait",
-                        ValuePlaceholder = "INT",
-                        Description = "Number of seconds between each attempt to fetch query results"
-                    }
-                }
-            },
-            new Command
-            {
-                Name = "exec",
-                Description = "Execute actions on a target Intune device",
-                Options = new List<Option>
-                {
-                    new Option
-                    {
-                        ShortName = "-i",
-                        LongName = "--id",
-                        ValuePlaceholder = "ID",
-                        Description = "ID of the device to execute the script on"
-                    },
-                    new Option
-                    {
-                        ShortName = "-s",
-                        LongName = "--script",
-                        ValuePlaceholder = "B64_SCRIPT",
-                        Description = "Base64-encoded PowerShell script to execute"
-                    }
-                },
-                Subcommands = new List<Subcommand>
-                {
-                    new Subcommand
-                    {
-                        Name = "sync",
-                        Description = "Send notification to device requesting immediate sync to Intune",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the device to sync"
-                            }
-                        }
-                    }
-                }
-            },
-            new Command
-            {
-                Name = "get",
-                Description = "Get information from Azure services",
+                Name = "intune",
+                Description = "Execute actions in Intune and on Intune-enrolled devices",
                 Subcommands = new List<Subcommand>
                 {
                     new Subcommand
                     {
                         Name = "devices",
-                        Description = "Get information about Intune enrolled devices",
+                        Description = "Get information about enrolled devices",
                         Options = new List<Option>
                         {
                             new Option
@@ -124,6 +41,94 @@ namespace Maestro
                                 ValuePlaceholder = "PROP,PROP | ALL",
                                 Description = "Comma-separated list of properties to display or ALL to display all properties"
                             }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "sync",
+                        Description = "Send notification to device requesting immediate sync to Intune",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the device to sync"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "exec",
+                        Description = "Execute actions on a device",
+                        Subcommands = new List<Subcommand>
+                            {
+                            new Subcommand
+                            {
+                                Name = "query",
+                                Description = "Execute device query on a device",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the device to get information for"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-n",
+                                        LongName = "--name",
+                                        ValuePlaceholder = "NAME",
+                                        Description = "Name of the device to get information for"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-q",
+                                        LongName = "--query",
+                                        ValuePlaceholder = "KQLQUERY",
+                                        Description = "The Kusto Query Language (KQL) query to execute on the device"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-r",
+                                        LongName = "--retries",
+                                        ValuePlaceholder = "INT",
+                                        Description = "Maximum number of attempts to fetch query results"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-w",
+                                        LongName = "--wait",
+                                        ValuePlaceholder = "INT",
+                                        Description = "Number of seconds between each attempt to fetch query results"
+                                    }
+                                }
+                            },
+                            new Subcommand
+                            {
+                                Name = "script",
+                                Description = "Execute a PowerShell script on a device",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the device to execute the script on"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-s",
+                                        LongName = "--script",
+                                        ValuePlaceholder = "B64_SCRIPT",
+                                        Description = "Base64-encoded PowerShell script to execute"
+                                    }
+                                },
+                            },
                         }
                     }
                 }
@@ -197,12 +202,30 @@ namespace Maestro
             }
         };
 
-        public static string PadDescription(string description)
+        private static Subcommand FindSubcommand(List<Subcommand> subcommands, string subcommandName)
         {
-            return description.PadRight(30);
+            foreach (var subcommand in subcommands)
+            {
+                if (subcommand.Name == subcommandName)
+                {
+                    return subcommand;
+                }
+
+                var found = FindSubcommand(subcommand.Subcommands, subcommandName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+            return null;
         }
 
-        public static Dictionary<string, string> Parse(string[] args)
+        public static string PadDescription(string description)
+        {
+            return description.PadRight(40);
+        }
+
+        public static Dictionary<string, string> ParseCommands(string[] args, int depth = 0)
         {
             if (args.Length == 0)
             {
@@ -235,20 +258,7 @@ namespace Maestro
 
             if (remainingArgs.Length > 1)
             {
-                string potentialSubcommandOrOption = remainingArgs[1];
-                var subcommand = command.Subcommands.FirstOrDefault(sc => sc.Name == potentialSubcommandOrOption);
-
-                if (subcommand != null)
-                {
-                    parsedArguments["subcommand"] = potentialSubcommandOrOption;
-                    var parsedSubcommandArgs = ParseOptions(remainingArgs.Skip(2).ToArray(), subcommand.Options, parsedArguments);
-                    return parsedSubcommandArgs;
-                }
-                else
-                {
-                    var parsedCommandArgs = ParseOptions(remainingArgs.Skip(1).ToArray(), command.Options, parsedArguments);
-                    return parsedCommandArgs;
-                }
+                return ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1);
             }
             else
             {
@@ -348,12 +358,72 @@ namespace Maestro
             return parsedArguments;
         }
 
-        public static void PrintUsage(string commandName = "")
+        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth)
+        {
+            if (args.Length == 0)
+            {
+                return parsedArguments;
+            }
+
+            string subcommandName = args[0];
+            var subcommand = subcommands.FirstOrDefault(sc => sc.Name == subcommandName);
+
+            if (subcommand == null)
+            {
+                Console.WriteLine($"Invalid subcommand: {subcommandName}");
+                PrintUsage(parsedArguments["command"]);
+                return null;
+            }
+
+            parsedArguments[$"subcommand{depth}"] = subcommandName;
+
+            if (args.Length > 1)
+            {
+                return ParseSubcommands(subcommand.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1);
+            }
+            else
+            {
+                var parsedSubcommandArgs = ParseOptions(args.Skip(1).ToArray(), subcommand.Options, parsedArguments);
+                return parsedSubcommandArgs;
+            }
+        }
+
+        private static void PrintCommandUsage(Command command, int depth)
+        {
+            Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]");
+            foreach (var option in command.Options)
+            {
+                Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+            }
+
+            if (command.Subcommands.Any())
+            {
+                foreach (var subCommand in command.Subcommands)
+                {
+                    Console.WriteLine();
+                    PrintSubcommandUsage(subCommand, depth + 1);
+                }
+            }
+        }
+
+        private static void PrintSubcommandUsage(Subcommand subcommand, int depth)
+        {
+            Console.WriteLine(PadDescription($"{new string(' ', depth)}  {subcommand.Name}") + subcommand.Description);
+            foreach (var option in subcommand.Options)
+            {
+                Console.WriteLine(PadDescription($"{new string(' ', depth)}    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+            }
+            foreach (var subSubCommand in subcommand.Subcommands)
+            {
+                PrintSubcommandUsage(subSubCommand, depth + 2);
+            }
+        }
+
+        public static void PrintUsage(string commandOrSubcommandName = "", int depth = 0)
         {
             Console.WriteLine();
 
-            // Maestro.exe
-            if (string.IsNullOrEmpty(commandName))
+            if (string.IsNullOrEmpty(commandOrSubcommandName))
             {
                 Console.WriteLine("Usage: Maestro.exe <command> [options]");
                 Console.WriteLine("\nCommands:\n");
@@ -364,7 +434,7 @@ namespace Maestro
                     {
                         foreach (var subCommand in command.Subcommands)
                         {
-                            Console.WriteLine(PadDescription($"    {subCommand.Name}") + subCommand.Description);
+                            PrintSubcommandUsage(subCommand, depth + 1);
                         }
                     }
                     Console.WriteLine();
@@ -375,36 +445,27 @@ namespace Maestro
                     Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                 }
             }
-
             else
             {
-                // Maestro.exe <command>
-                var command = commands.FirstOrDefault(c => c.Name == commandName);
+                var command = commands.FirstOrDefault(c => c.Name == commandOrSubcommandName);
                 if (command != null)
                 {
-                    Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]\n");
-                    foreach (var option in command.Options)
-                    {
-                        Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
-                    }
-
-                    if (command.Subcommands.Any())
-                    {
-                        foreach (var subCommand in command.Subcommands)
-                        {
-                            Console.WriteLine();
-                            Console.WriteLine(PadDescription($"  {subCommand.Name}") + subCommand.Description);
-                            foreach (var option in subCommand.Options)
-                            {
-                                Console.WriteLine(PadDescription($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
-                            }
-                        }
-                    }
+                    PrintCommandUsage(command, depth);
                 }
                 else
                 {
-                    // Maestro.exe <invalid-command>
-                    Console.WriteLine($"Unknown command: {commandName}");
+                    foreach (var cmd in commands)
+                    {
+                        var subcommand = FindSubcommand(cmd.Subcommands, commandOrSubcommandName);
+                        if (subcommand != null)
+                        {
+                            PrintSubcommandUsage(subcommand, depth);
+                            Console.WriteLine();
+                            return;
+                        }
+                    }
+                    // If not found
+                    Console.WriteLine($"Unknown command or subcommand: {commandOrSubcommandName}");
                 }
             }
             Console.WriteLine();

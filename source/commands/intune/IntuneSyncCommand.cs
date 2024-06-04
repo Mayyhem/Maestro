@@ -3,20 +3,20 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class ExecSyncCommand
+    internal class IntuneSyncCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
             IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database);
 
-            if (arguments.TryGetValue("--id", out string intuneDeviceId))
+            if (arguments.TryGetValue("--id", out string deviceId))
             {
-                await intuneClient.SyncDevice(intuneDeviceId, database);
+                await intuneClient.SyncDevice(deviceId, database);
             }
             else
             {
                 Logger.Error("Missing target device ID for \"sync\" command");
-                CommandLine.PrintUsage("exec");
+                CommandLine.PrintUsage("intune");
             }
         }
     }

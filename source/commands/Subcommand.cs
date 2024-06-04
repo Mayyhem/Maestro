@@ -7,5 +7,6 @@ namespace Maestro
         public string Name { get; set; }
         public string Description { get; set; }
         public List<Option> Options { get; set; } = new List<Option>();
+        public List<Subcommand> Subcommands { get; set; } = new List<Subcommand>();
     }
 }

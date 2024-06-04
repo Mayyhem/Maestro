@@ -20,7 +20,7 @@ namespace Maestro
                 timer.Start();
 
                 // Parse arguments
-                Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
+                Dictionary<string, string> parsedArguments = CommandLine.ParseCommands(args);
                 if (parsedArguments == null) return;
 
                 // Initialize the logger
@@ -48,17 +48,8 @@ namespace Maestro
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
-                    case "devicequery":
-                        await DeviceQueryCommand.Execute(parsedArguments, database);
-                        break;
-                    case "exec":
-                        await ExecCommand.Execute(parsedArguments, database);
-                        break;
-                    case "get":
-                        await GetCommand.Execute(parsedArguments, database);
-                        break;
-                    case "show":
-                        await ShowCommand.Execute(parsedArguments, database);
+                    case "intune":
+                        await IntuneCommand.Execute(parsedArguments, database);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");
@@ -76,7 +67,7 @@ namespace Maestro
             {
                 // Stop timer, release resources, and complete execution
                 timer.Stop();
-                database.Dispose();
+                database?.Dispose();
                 Logger.Info($"Completed execution in {timer.Elapsed}");
 
                 // Delay exit when debugging
