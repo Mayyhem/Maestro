@@ -12,5 +12,7 @@ namespace Maestro
             string timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
             Console.WriteLine($"{timestamp} UTC - [{level.ToString().ToUpper()}]".PadRight(40) + message);
         }
+
+        public void WriteTextOnly(Logger.LogLevel level, string message) => Console.WriteLine(message);
     }
 }

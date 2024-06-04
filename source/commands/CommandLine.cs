@@ -188,12 +188,12 @@ namespace Maestro
                 ShortName = "-v",
                 LongName = "--verbosity",
                 ValuePlaceholder = "LEVEL",
-                Description = @"Set the log verbosity level (default: 3)
-                                1: Error
-                                2: Warning
-                                3: Info
-                                4: Verbose
-                                5: Debug"
+                Description = @"Set the log verbosity level (default: 2)
+                                0: Error
+                                1: Warning
+                                2: Info
+                                3: Verbose
+                                4: Debug"
             }
         };
 
@@ -206,7 +206,7 @@ namespace Maestro
         {
             if (args.Length == 0)
             {
-                Logger.Error("No arguments provided");
+                Console.WriteLine("No arguments provided");
                 PrintUsage();
                 return null;
             }
@@ -216,7 +216,7 @@ namespace Maestro
             string[] remainingArgs = ParseGlobalOptions(args, parsedArguments);
             if (remainingArgs == null || remainingArgs.Length == 0)
             {
-                Logger.Error("No arguments provided");
+                Console.WriteLine("No arguments provided");
                 PrintUsage();
                 return parsedArguments;
             }
@@ -226,7 +226,7 @@ namespace Maestro
 
             if (command == null)
             {
-                Logger.Error($"Invalid command: {commandName}");
+                Console.WriteLine($"Invalid command: {commandName}");
                 PrintUsage();
                 return null;
             }
@@ -252,7 +252,7 @@ namespace Maestro
             }
             else
             {
-                Logger.Error("No arguments provided");
+                Console.WriteLine("No arguments provided");
                 PrintUsage(commandName);
             }
             return null;
@@ -275,7 +275,7 @@ namespace Maestro
                     {
                         if (i + 1 >= args.Length)
                         {
-                            Logger.Error($"Missing value for global option: {args[i]}");
+                            Console.WriteLine($"Missing value for global option: {args[i]}");
                             PrintUsage();
                             return null;
                         }
@@ -307,7 +307,7 @@ namespace Maestro
                     {
                         if (i + 1 >= args.Length)
                         {
-                            Logger.Error($"Missing value for option: {args[i]}");
+                            Console.WriteLine($"Missing value for option: {args[i]}");
                             PrintUsage(parsedArguments["command"]);
                             return null;
                         }
@@ -328,7 +328,7 @@ namespace Maestro
                         {
                             if (i + 1 >= args.Length)
                             {
-                                Logger.Error($"Missing value for global option: {args[i]}");
+                                Console.WriteLine($"Missing value for global option: {args[i]}");
                                 PrintUsage();
                                 return null;
                             }
@@ -338,7 +338,7 @@ namespace Maestro
                     }
                     else
                     {
-                        Logger.Error($"Invalid option: {args[i]}");
+                        Console.WriteLine($"Invalid option: {args[i]}");
                         PrintUsage(parsedArguments["command"]);
                         return null;
                     }
@@ -392,10 +392,11 @@ namespace Maestro
                     {
                         foreach (var subCommand in command.Subcommands)
                         {
-                            Console.WriteLine($"    {subCommand.Name} - {subCommand.Description}");
+                            Console.WriteLine();
+                            Console.WriteLine(PadDescription($"  {subCommand.Name}") + subCommand.Description);
                             foreach (var option in subCommand.Options)
                             {
-                                Console.WriteLine(PadDescription($"      {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+                                Console.WriteLine(PadDescription($"    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
                             }
                         }
                     }
@@ -403,7 +404,7 @@ namespace Maestro
                 else
                 {
                     // Maestro.exe <invalid-command>
-                    Logger.Error($"Unknown command: {commandName}");
+                    Console.WriteLine($"Unknown command: {commandName}");
                 }
             }
             Console.WriteLine();

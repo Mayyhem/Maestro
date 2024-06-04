@@ -22,10 +22,16 @@ namespace Maestro
             _logLevel = logLevel;
         }
 
-        public static void Log(LogLevel level, string message)
+        public static void Log(LogLevel logLevel, string message)
         {
-            if (_logger == null || level > _logLevel) return;
-            _logger?.Log(level, message);
+            if (logLevel > _logLevel) return;
+            _logger?.Log(logLevel, message);
+        }
+
+        public static void WriteTextOnly(LogLevel logLevel, string message)
+        {
+            if (logLevel > _logLevel) return;
+            _logger?.WriteTextOnly(logLevel, message);
         }
 
         public static void Debug(string message)
@@ -33,9 +39,19 @@ namespace Maestro
             Log(LogLevel.Debug, message);
         }
 
+        public static void DebugTextOnly(string message)
+        {
+            WriteTextOnly(LogLevel.Debug, message);
+        }
+
         public static void Verbose(string message)
         {
             Log(LogLevel.Verbose, message);
+        }
+
+        public static void VerboseTextOnly(string message)
+        {
+            WriteTextOnly(LogLevel.Verbose, message);
         }
 
         public static void Info(string message)
@@ -43,9 +59,19 @@ namespace Maestro
             Log(LogLevel.Info, message);
         }
 
+        public static void InfoTextOnly(string message)
+        {
+            WriteTextOnly(LogLevel.Info, message);
+        }
+
         public static void Warning(string message)
         {
             Log(LogLevel.Warning, message);
+        }
+
+        public static void WarningTextOnly(string message)
+        {
+            WriteTextOnly(LogLevel.Warning, message);
         }
 
         public static void Error(string message)
@@ -53,9 +79,14 @@ namespace Maestro
             Log(LogLevel.Error, message);
         }
 
+        public static void ErrorTextOnly(string message)
+        {
+            WriteTextOnly(LogLevel.Error, message);
+        }
+
         public static void ExceptionDetails(Exception ex)
         {
-            Logger.Error($"An exception occurred!\n");
+            Error($"An exception occurred!\n");
             while (ex != null)
             {
                 Console.WriteLine($"  Exception type: {ex.GetType().Name}\n");

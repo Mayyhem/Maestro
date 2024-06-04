@@ -7,7 +7,7 @@ namespace Maestro
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
-            var intuneClient = new IntuneClient();
+            var intuneClient = await IntuneClient.CreateAndGetToken(database);
 
             if (arguments.TryGetValue("--query", out string kustoQuery))
             {

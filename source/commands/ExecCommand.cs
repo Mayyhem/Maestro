@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -18,24 +20,8 @@ namespace Maestro
             }
             else if (arguments.TryGetValue("--id", out string deviceId) && arguments.TryGetValue("--script", out string script))
             {
-                Console.WriteLine($"Target: {deviceId}, Script: {script}");
-
-                // Lookup device in database
-                var device = database.FindByPrimaryKey<IntuneDevice>(deviceId);
-                if (device is null)
-                {
-                    Logger.Error($"Device {deviceId} not found in database");   
-                    return;
-                }
-
-                // Lookup device in Intune
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-                var httpHandler = new HttpHandler();
-                var authClient = new AuthClient(httpHandler);
-                await authClient.GetTenantIdAndRefreshToken();
-                var intuneClient = new IntuneClient(authClient);
-                await intuneClient.GetAccessToken(authClient.TenantId, authClient.RefreshToken);
-
+                IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database);
+                IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
 
                 string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);
                 if (filterId is null) return;
@@ -44,7 +30,7 @@ namespace Maestro
                 if (scriptId is null) return;
 
                 await intuneClient.NewDeviceManagementScriptAssignmentHourly(filterId, scriptId);
-                await intuneClient.SyncDevice(deviceId, database);
+                await intuneClient.SyncDevice(deviceId, database, skipDeviceLookup: true);
             }
             else
             {

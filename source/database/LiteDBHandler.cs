@@ -1,7 +1,6 @@
 ﻿using LiteDB;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Maestro
@@ -12,6 +11,11 @@ namespace Maestro
         public LiteDBHandler(string databasePath)
         {
             _database = new LiteDatabase(databasePath);
+        }
+
+        public void Dispose() 
+        {             
+            _database.Dispose();
         }
 
         public IEnumerable<BsonDocument> FindInCollection<T>(string propertyName = "", BsonValue propertyValue = null)

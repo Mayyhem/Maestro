@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -12,12 +12,12 @@ namespace Maestro
         {
             // Execution timer
             var timer = new Stopwatch();
+            IDatabaseHandler database = null;
 
             try
             {
                 // Start timer and begin execution
                 timer.Start();
-                Logger.Info("Execution started");
 
                 // Parse arguments
                 Dictionary<string, string> parsedArguments = CommandLine.Parse(args);
@@ -36,13 +36,13 @@ namespace Maestro
                     // Log informational messages by default
                     Logger.SetLogLevel(logger, Logger.LogLevel.Info);
                 }
+                Logger.Info("Execution started");
 
                 // Use database file if option is specified
-                IDatabaseHandler database = null;
                 if (parsedArguments.TryGetValue("--database", out string databasePath))
                 {
                     database = new LiteDBHandler(databasePath);
-                    Logger.Info($"Using database file: {databasePath}");
+                    Logger.Info($"Using database file: {Path.GetFullPath(databasePath)}");
                 }
 
                 // Direct execution flow based on the command
@@ -61,7 +61,7 @@ namespace Maestro
                         await ShowCommand.Execute(parsedArguments, database);
                         break;
                     default:
-                        Console.WriteLine("Unknown command");
+                        Logger.Error($"Unknown command: {parsedArguments["command"]}");
                         CommandLine.PrintUsage();
                         break;
                 }
@@ -74,8 +74,9 @@ namespace Maestro
 
             finally
             {
-                // Stop timer and complete execution
+                // Stop timer, release resources, and complete execution
                 timer.Stop();
+                database.Dispose();
                 Logger.Info($"Completed execution in {timer.Elapsed}");
 
                 // Delay exit when debugging

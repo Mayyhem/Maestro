@@ -98,7 +98,8 @@ namespace Maestro
             string authorizeUrl = StringHandler.GetMatch(idpRedirectResponseContent, authorizeUrlPattern, false);
 
             if (authorizeUrl is null) return null;
-            Logger.Info($"Found authorize URL: {authorizeUrl}");
+            Logger.Info("Found authorize URL");
+            Logger.DebugTextOnly(authorizeUrl);
             return authorizeUrl;
         }
 

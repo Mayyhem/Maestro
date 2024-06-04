@@ -5,6 +5,7 @@ namespace Maestro
 {
     public interface IDatabaseHandler
     {
+        void Dispose();
         BsonDocument FindByPrimaryKey<T>(string primaryKeyValue);
         IEnumerable<BsonDocument> FindInCollection<T>(string propertyName = "", BsonValue propertyValue = null);
         BsonDocument FindValidJwt<T>(string scope = "");

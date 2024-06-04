@@ -1,6 +1,5 @@
 ﻿using LiteDB;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -13,7 +12,6 @@ using System.Web.Script.Serialization;
 
 namespace Maestro
 {
-    // Intune Microsoft Graph client
     public class IntuneClient
     {
 
@@ -21,16 +19,31 @@ namespace Maestro
         private readonly IHttpHandler _httpHandler;
         public string BearerToken;
 
-        public IntuneClient()
+        private IntuneClient() 
         {
             _httpHandler = new HttpHandler();
             _authClient = new AuthClient(_httpHandler);
         }
 
-        public IntuneClient(IAuthClient authClient)
+        // Check the database for a stored access token before fetching from Intune
+        public static async Task<IntuneClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "")
         {
-            _authClient = authClient;
-            _httpHandler = authClient.HttpHandler;
+
+            var intuneClient = new IntuneClient();
+            if (!string.IsNullOrEmpty(bearerToken))
+            {
+                intuneClient.BearerToken = bearerToken;
+                return intuneClient;
+            }
+            if (database != null)
+            {
+                intuneClient.FindStoredAccessToken(database);
+            }
+            if (intuneClient.BearerToken is null)
+            {
+                await intuneClient.SignInToIntuneAndGetAccessToken(database);
+            }
+            return intuneClient;
         }
 
         public async Task DeleteDeviceAssignmentFilter(string filterId)
@@ -104,6 +117,7 @@ namespace Maestro
                 {
                     Logger.Info($"Found JWT with the required scope in the database");
                     BearerToken = validJwtDoc["bearerToken"];
+                    Logger.DebugTextOnly(BearerToken);
                     _httpHandler.SetAuthorizationHeader(BearerToken);
                     return true;
                 }
@@ -129,7 +143,26 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, IDatabaseHandler database = null, bool databaseOnly = false)
+        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
+            IDatabaseHandler database = null, bool databaseOnly = false)
+        {
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, properties, database, databaseOnly);
+            if (devices.Count > 1)
+            {
+                Logger.Error("Multiple devices found matching the specified device name");
+                return null;
+            }
+            else if (devices.Count == 0)
+            {
+                Logger.Error($"Failed to find the specified device");
+                return null;
+            }
+            deviceId = devices.FirstOrDefault()?.Properties["id"].ToString();
+            return devices.FirstOrDefault();
+        }   
+
+        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, 
+            IDatabaseHandler database = null, bool databaseOnly = false)
         {
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
@@ -223,7 +256,6 @@ namespace Maestro
             }
 
             // Request devices from Intune
-            await SignInToIntuneAndGetAccessToken(database);
             HttpResponseMessage devicesResponse = await _httpHandler.GetAsync(intuneDevicesUrl);
             if (devicesResponse is null)
             {
@@ -328,7 +360,7 @@ namespace Maestro
                 roleScopeTagIds = new List<string> { "0" }
             });
             HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
-            if (response is null)
+            if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to create device assignment filter");
                 return null;
@@ -452,7 +484,7 @@ namespace Maestro
                 roleScopeTagIds = new List<string> { "0" }
             });
             HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
-            if (response.StatusCode != HttpStatusCode.OK)
+            if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to create detection script");
                 return null;
@@ -465,13 +497,6 @@ namespace Maestro
 
         public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database)
         {
-            // Check for stored access token before fetching from Intune
-            bool foundJwt = FindStoredAccessToken(database);
-            if (foundJwt)
-            {
-                return;
-            }
-
             // Request access token from Intune if none found
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             await _authClient.GetTenantIdAndRefreshToken();
@@ -488,15 +513,17 @@ namespace Maestro
             }
         }
 
-        public async Task SyncDevice(string deviceId, IDatabaseHandler database)
+        public async Task SyncDevice(string deviceId, IDatabaseHandler database, bool skipDeviceLookup = false)
         {
-            List<IntuneDevice> devices = await GetDevices(deviceId: deviceId, database: database);
-            if (devices.Count == 0)
+            if (!skipDeviceLookup)
             {
-                Logger.Error($"Device {deviceId} not found in Intune");
-                return;
+                IntuneDevice device = await GetDevice(deviceId: deviceId, database: database);
+                if (device is null)
+                {
+                    return;
+                }
             }
-            Logger.Info($"Sending notification to check in and sync actions and policies to device: {deviceId}");
+            Logger.Info($"Sending notification to {deviceId} to sync actions and policies with Intune");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
             HttpResponseMessage response = await _httpHandler.PostAsync(url);
             if (!(response.StatusCode == HttpStatusCode.NoContent))
