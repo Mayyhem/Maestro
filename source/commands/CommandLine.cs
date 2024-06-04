@@ -6,6 +6,8 @@ namespace Maestro
 {
     internal static class CommandLine
     {
+        private const int DescriptionPadding = 40;
+
         private static List<Command> commands = new List<Command>
         {
             new Command
@@ -51,6 +53,7 @@ namespace Maestro
                         {
                             new Option
                             {
+                                Required = true,
                                 ShortName = "-i",
                                 LongName = "--id",
                                 ValuePlaceholder = "ID",
@@ -86,6 +89,7 @@ namespace Maestro
                                     },
                                     new Option
                                     {
+                                        Required = true,
                                         ShortName = "-q",
                                         LongName = "--query",
                                         ValuePlaceholder = "KQLQUERY",
@@ -96,6 +100,7 @@ namespace Maestro
                                         ShortName = "-r",
                                         LongName = "--retries",
                                         ValuePlaceholder = "INT",
+                                        Default = "10",
                                         Description = "Maximum number of attempts to fetch query results"
                                     },
                                     new Option
@@ -103,6 +108,7 @@ namespace Maestro
                                         ShortName = "-w",
                                         LongName = "--wait",
                                         ValuePlaceholder = "INT",
+                                        Default = "3",  
                                         Description = "Number of seconds between each attempt to fetch query results"
                                     }
                                 }
@@ -115,6 +121,7 @@ namespace Maestro
                                 {
                                     new Option
                                     {
+                                        Required = true,
                                         ShortName = "-i",
                                         LongName = "--id",
                                         ValuePlaceholder = "ID",
@@ -122,6 +129,7 @@ namespace Maestro
                                     },
                                     new Option
                                     {
+                                        Required = true,
                                         ShortName = "-s",
                                         LongName = "--script",
                                         ValuePlaceholder = "B64_SCRIPT",
@@ -142,7 +150,7 @@ namespace Maestro
                     new Subcommand
                     {
                         Name = "devices",
-                        Description = "Show information about Intune enrolled devices",
+                        Description = "Show information about Intune enrolled devices (default: all devices)",
                         Options = new List<Option>
                         {
                             new Option
@@ -193,12 +201,13 @@ namespace Maestro
                 ShortName = "-v",
                 LongName = "--verbosity",
                 ValuePlaceholder = "LEVEL",
-                Description = @"Set the log verbosity level (default: 2)
-                                0: Error
-                                1: Warning
-                                2: Info
-                                3: Verbose
-                                4: Debug"
+                Description = 
+                    "Set the log verbosity level (default: 2)\n" +
+                    new string(' ', DescriptionPadding) + "  0: Error\n" +
+                    new string(' ', DescriptionPadding) + "  1: Warning\n" +
+                    new string(' ', DescriptionPadding) + "  2: Info\n" +
+                    new string(' ', DescriptionPadding) + "  3: Verbose\n" +  
+                    new string(' ', DescriptionPadding) + "  4: Debug"
             }
         };
 
@@ -222,7 +231,7 @@ namespace Maestro
 
         public static string PadDescription(string description)
         {
-            return description.PadRight(40);
+            return description.PadRight(DescriptionPadding);
         }
 
         public static Dictionary<string, string> ParseCommands(string[] args, int depth = 0)
@@ -393,7 +402,7 @@ namespace Maestro
             Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]");
             foreach (var option in command.Options)
             {
-                Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+                PrintOptionUsage(option, depth);
             }
 
             if (command.Subcommands.Any())
@@ -411,12 +420,28 @@ namespace Maestro
             Console.WriteLine(PadDescription($"{new string(' ', depth)}  {subcommand.Name}") + subcommand.Description);
             foreach (var option in subcommand.Options)
             {
-                Console.WriteLine(PadDescription($"{new string(' ', depth)}    {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+                PrintOptionUsage(option, depth);
             }
             foreach (var subSubCommand in subcommand.Subcommands)
             {
                 PrintSubcommandUsage(subSubCommand, depth + 2);
             }
+        }
+
+        private static void PrintOptionUsage(Option option, int depth)
+        {
+            string shortName = option.ShortName;
+            string description = option.Description;
+            if (option.Required)
+            {
+                description = $"(REQUIRED) {option.Description}";
+            }
+            if (!string.IsNullOrEmpty(option.Default))
+            {
+                description += $" (default: {option.Default})";
+            }
+
+            Console.WriteLine(PadDescription($"{new string(' ', depth)}    {shortName}, {option.LongName} {option.ValuePlaceholder}") + description);
         }
 
         public static void PrintUsage(string commandOrSubcommandName = "", int depth = 0)
@@ -439,7 +464,7 @@ namespace Maestro
                     }
                     Console.WriteLine();
                 }
-                Console.WriteLine("Global Options:");
+                Console.WriteLine("Global Options:\n");
                 foreach (var option in GlobalOptions)
                 {
                     Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);

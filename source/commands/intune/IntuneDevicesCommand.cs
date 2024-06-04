@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal static class GetDevicesCommand
+    internal static class IntuneDevicesCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false)
         {
@@ -25,7 +25,7 @@ namespace Maestro
             }  
             else
             {
-               // Get information from all devices by default
+               // Get information from all devices by default when no options are provided
                await intuneClient.GetDevices(properties: properties, database: database, databaseOnly: databaseOnly);
             }
         }

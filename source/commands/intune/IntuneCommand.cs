@@ -7,15 +7,11 @@ namespace Maestro
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
-            if (arguments.TryGetValue("subcommand", out string subcommandName))
+            if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
                 if (subcommandName == "devices")
                 {
-                    await GetDevicesCommand.Execute(arguments, database);
-                }
-                else if (subcommandName == "devicequery")
-                {
-                    await DeviceQueryCommand.Execute(arguments, database);
+                    await IntuneDevicesCommand.Execute(arguments, database);
                 }
                 else if (subcommandName == "exec")
                 {
@@ -28,8 +24,8 @@ namespace Maestro
             }
             else
             {
-                Logger.Error("Missing arguments for \"exec\" command");
-                CommandLine.PrintUsage("exec");
+                Logger.Error("Missing arguments for \"intune\" command");
+                CommandLine.PrintUsage("intune");
             }
         }
     }

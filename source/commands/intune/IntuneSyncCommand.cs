@@ -16,7 +16,7 @@ namespace Maestro
             else
             {
                 Logger.Error("Missing target device ID for \"sync\" command");
-                CommandLine.PrintUsage("intune");
+                CommandLine.PrintUsage("sync");
             }
         }
     }

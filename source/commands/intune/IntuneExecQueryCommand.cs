@@ -3,11 +3,10 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class DeviceQueryCommand
+    internal class IntuneExecQueryCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
-            var intuneClient = await IntuneClient.CreateAndGetToken(database);
 
             if (arguments.TryGetValue("--query", out string kustoQuery))
             {
@@ -26,22 +25,24 @@ namespace Maestro
                 }
                 if (arguments.TryGetValue("--id", out string deviceId))
                 {
+                    var intuneClient = await IntuneClient.CreateAndGetToken(database);
                     await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceId: deviceId, database: database);
                 }
                 else if (arguments.TryGetValue("--name", out string deviceName))
                 {
+                    var intuneClient = await IntuneClient.CreateAndGetToken(database);
                     await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceName: deviceName, database: database);
                 }
                 else
                 {
-                    Logger.Error("Missing target for \"devicequery\" command");
-                    CommandLine.PrintUsage("devicequery");
+                    Logger.Error("Missing target for \"query\" command");
+                    CommandLine.PrintUsage("query");
                 }
             }
             else 
             {
-                Logger.Error("Missing query for \"devicequery\" command");
-                CommandLine.PrintUsage("devicequery");
+                Logger.Error("Missing KQL query for \"query\" command");
+                CommandLine.PrintUsage("query");
             }
         }
     }

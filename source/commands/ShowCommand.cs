@@ -11,7 +11,7 @@ namespace Maestro
             {
                 if (subcommandName == "devices")
                 {
-                    await GetDevicesCommand.Execute(arguments, database, databaseOnly: true);
+                    await IntuneDevicesCommand.Execute(arguments, database, databaseOnly: true);
                 }
             }
             else
