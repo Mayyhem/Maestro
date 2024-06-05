@@ -8,7 +8,7 @@ namespace Maestro
         void Dispose();
         BsonDocument FindByPrimaryKey<T>(string primaryKeyValue);
         IEnumerable<BsonDocument> FindInCollection<T>(string propertyName = "", BsonValue propertyValue = null);
-        BsonDocument FindValidJwt<T>(string scope = "");
+        string FindValidJwt(string scope = "");
         void Upsert<T>(T item) where T : JsonObject;
     }
 }

@@ -19,7 +19,7 @@ namespace Maestro
         private readonly IHttpHandler _httpHandler;
         public string BearerToken;
 
-        private IntuneClient() 
+        public IntuneClient()
         {
             _httpHandler = new HttpHandler();
             _authClient = new AuthClient(_httpHandler);
@@ -28,7 +28,6 @@ namespace Maestro
         // Check the database for a stored access token before fetching from Intune
         public static async Task<IntuneClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "")
         {
-
             var intuneClient = new IntuneClient();
             if (!string.IsNullOrEmpty(bearerToken))
             {
@@ -39,7 +38,7 @@ namespace Maestro
             {
                 intuneClient.FindStoredAccessToken(database);
             }
-            if (intuneClient.BearerToken is null)
+            if (string.IsNullOrEmpty(intuneClient.BearerToken))
             {
                 await intuneClient.SignInToIntuneAndGetAccessToken(database);
             }
@@ -63,7 +62,7 @@ namespace Maestro
 
         public async Task ExecuteDeviceQuery(string kustoQuery, int maxRetries, int retryDelay, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
         {
-            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, database: database);
+            List<IntuneDevice> devices = await GetIntuneDevices(deviceId, deviceName, database: database);
             if (devices.Count > 1) 
             {                 
                 Logger.Error("Multiple devices found matching the specified device name");
@@ -111,19 +110,12 @@ namespace Maestro
             }
             if (database != null)
             {
-                var validJwtDoc = database.FindValidJwt<BsonDocument>();
+                BearerToken = database.FindValidJwt();
 
-                if (validJwtDoc != null)
+                if (!string.IsNullOrEmpty(BearerToken))
                 {
-                    Logger.Info($"Found JWT with the required scope in the database");
-                    BearerToken = validJwtDoc["bearerToken"];
-                    Logger.DebugTextOnly(BearerToken);
                     _httpHandler.SetAuthorizationHeader(BearerToken);
                     return true;
-                }
-                else
-                {
-                    Logger.Info("No JWTs with the required scope found in the database");
                 }
             }
             return false;
@@ -143,10 +135,10 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
-            IDatabaseHandler database = null, bool databaseOnly = false)
+        public async Task<IntuneDevice> GetIntuneDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
+            IDatabaseHandler database = null)
         {
-            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, properties, database, databaseOnly);
+            List<IntuneDevice> devices = await GetIntuneDevices(deviceId, deviceName, properties, database);
             if (devices.Count > 1)
             {
                 Logger.Error("Multiple devices found matching the specified device name");
@@ -159,100 +151,24 @@ namespace Maestro
             }
             deviceId = devices.FirstOrDefault()?.Properties["id"].ToString();
             return devices.FirstOrDefault();
-        }   
+        }
 
-        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, 
-            IDatabaseHandler database = null, bool databaseOnly = false)
+        public async Task<List<IntuneDevice>> GetIntuneDevices(string deviceId = "", string deviceName = "", string[] properties = null, 
+            IDatabaseHandler database = null)
         {
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
+
+            // Get all devices by default
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
 
-            // Use default properties if none were provided
-            if (properties == null || properties.Length == 0)
-            {
-                properties = new[] {
-                    "id",
-                    "deviceName",
-                    "managementState",
-                    "lastSyncDateTime",
-                    "operatingSystem",
-                    "osVersion",
-                    "azureADRegistered",
-                    "deviceEnrollmentType",
-                    "azureActiveDirectoryDeviceId",
-                    "deviceRegistrationState",
-                    "model",
-                    "managedDeviceName",
-                    "joinType",
-                    "skuFamily",
-                    "usersLoggedOn"
-                };
-            }
-
+            // Filter to specific devices
             if (!string.IsNullOrEmpty(deviceId))
             {
-                if (database != null)
-                {
-                    var device = database.FindByPrimaryKey<IntuneDevice>(deviceId);
-                    if (device != null)
-                    {
-                        Logger.Info($"Found a matching device in the database");
-                        JsonHandler.PrintProperties(device.ToString(), properties);
-                        Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
-                        intuneDevices.Add(new IntuneDevice(deviceProperties));
-                        return intuneDevices;
-                    }
-                }
                 intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=Id%20eq%20%27{deviceId}%27";
             }
             else if (!string.IsNullOrEmpty(deviceName))
             {
-                if (database != null)
-                {
-                    var databaseDevices = database.FindInCollection<IntuneDevice>("deviceName", deviceName);
-                    if (databaseDevices.Any())
-                    {
-                        Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
-                        foreach (var device in databaseDevices)
-                        {
-                            JsonHandler.PrintProperties(device.ToString(), properties);
-                            Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
-                            intuneDevices.Add(new IntuneDevice(deviceProperties));
-                        }
-                        return intuneDevices;
-                    }
-                    else
-                    {
-                        Logger.Info("No matching devices found in the database");
-                    }
-                }
                 intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
-            }
-            else
-            {
-                if (database != null)
-                {
-                    var databaseDevices = database.FindInCollection<IntuneDevice>();
-                    if (databaseDevices.Any())
-                    {
-                        Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
-                        foreach (var device in databaseDevices)
-                        {
-                            JsonHandler.PrintProperties(device.ToString(), properties);
-                            Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
-                            intuneDevices.Add(new IntuneDevice(deviceProperties));
-                        }
-                        return intuneDevices;
-                    }
-                    else
-                    {
-                        Logger.Info("No matching devices found in the database");
-                    }
-                    if (databaseOnly)
-                    {
-                        return null;
-                    }
-                }
             }
 
             // Request devices from Intune
@@ -495,6 +411,62 @@ namespace Maestro
             return scriptId;
         }
 
+        public List<IntuneDevice> ShowIntuneDevices(IDatabaseHandler database, string[] properties, string deviceId = "",
+            string deviceName = "")
+        {
+            List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
+
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                var device = database.FindByPrimaryKey<IntuneDevice>(deviceId);
+                if (device != null)
+                {
+                    Logger.Info($"Found a matching device in the database");
+                    JsonHandler.PrintProperties(device.ToString(), properties);
+                    Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
+                    intuneDevices.Add(new IntuneDevice(deviceProperties));
+                }
+            }
+            else if (!string.IsNullOrEmpty(deviceName))
+            {
+
+                var databaseDevices = database.FindInCollection<IntuneDevice>("deviceName", deviceName);
+                if (databaseDevices.Any())
+                {
+                    Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
+                    foreach (var device in databaseDevices)
+                    {
+                        JsonHandler.PrintProperties(device.ToString(), properties);
+                        Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
+                        intuneDevices.Add(new IntuneDevice(deviceProperties));
+                    }
+                }
+                else
+                {
+                    Logger.Info("No matching devices found in the database");
+                }
+            }
+            else
+            {
+                var databaseDevices = database.FindInCollection<IntuneDevice>();
+                if (databaseDevices.Any())
+                {
+                    Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
+                    foreach (var device in databaseDevices)
+                    {
+                        JsonHandler.PrintProperties(device.ToString(), properties);
+                        Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
+                        intuneDevices.Add(new IntuneDevice(deviceProperties));
+                    }
+                }
+                else
+                {
+                    Logger.Info("No matching devices found in the database");
+                }
+            }
+            return intuneDevices;
+        }
+
         public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database)
         {
             // Request access token from Intune if none found
@@ -517,7 +489,7 @@ namespace Maestro
         {
             if (!skipDeviceLookup)
             {
-                IntuneDevice device = await GetDevice(deviceId: deviceId, database: database);
+                IntuneDevice device = await GetIntuneDevice(deviceId: deviceId, database: database);
                 if (device is null)
                 {
                     return;

@@ -34,8 +34,9 @@ namespace Maestro
             return _database.GetCollection<BsonDocument>(typeof(T).Name).FindById(new BsonValue(primaryKeyValue));
         }
 
-        public BsonDocument FindValidJwt<T>(string scope = "")
+        public string FindValidJwt(string scope = "")
         {
+            string bearerToken = "";
             // Get the Jwt collection (or create, if doesn't exist)
             var collection = _database.GetCollection<BsonDocument>("Jwt");
 
@@ -60,7 +61,17 @@ namespace Maestro
                 .OrderByDescending(doc => doc["exp"].AsInt32)
                 .FirstOrDefault();
 
-            return farthestExpJwt;
+            if (farthestExpJwt != null)
+            {
+                Logger.Info($"Found JWT with the required scope in the database");
+                bearerToken = farthestExpJwt["bearerToken"];
+                Logger.DebugTextOnly(bearerToken);
+            }
+            else
+            {
+                Logger.Info("No JWTs with the required scope found in the database");
+            }
+            return bearerToken;
         }
 
         // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id

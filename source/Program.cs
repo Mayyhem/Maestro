@@ -45,11 +45,21 @@ namespace Maestro
                     Logger.Info($"Using database file: {Path.GetFullPath(databasePath)}");
                 }
 
+                // Specify whether to only show database information (no API calls)
+                bool databaseOnly = false;
+                if (parsedArguments.TryGetValue("--show", out string databaseOnlyString))
+                {
+                    databaseOnly = bool.Parse(databaseOnlyString);
+                }
+
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
                     case "intune":
-                        await IntuneCommand.Execute(parsedArguments, database);
+                        await IntuneCmdHandler.Execute(parsedArguments, database, databaseOnly);
+                        break;
+                    case "entra":
+                        await EntraCmdHandler.Execute(parsedArguments, database, databaseOnly);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

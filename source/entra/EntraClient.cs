@@ -7,16 +7,37 @@ using System.Web.Script.Serialization;
 namespace Maestro
 {
     // EntraID Microsoft Graph client
-    public class EntraIDClient
+    public class EntraClient
     {
         private readonly IAuthClient _authClient;
         private readonly IHttpHandler _httpHandler;
-        public string AccessToken;
+        public string BearerToken;
 
-        public EntraIDClient(IAuthClient authClient)
+        private EntraClient()
         {
-            _authClient = authClient;
-            _httpHandler = authClient.HttpHandler;
+            _httpHandler = new HttpHandler();
+            _authClient = new AuthClient(_httpHandler);
+        }
+
+        // Check the database for a stored access token before fetching from Intune
+        public static async Task<EntraClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "")
+        {
+
+            var entraClient = new EntraClient();
+            if (!string.IsNullOrEmpty(bearerToken))
+            {
+                entraClient.BearerToken = bearerToken;
+                return entraClient;
+            }
+            if (database != null)
+            {
+                //entraClient.FindStoredAccessToken(database);
+            }
+            if (entraClient.BearerToken is null)
+            {
+                //await entraClient.SignInToIntuneAndGetAccessToken(database);
+            }
+            return entraClient;
         }
 
         public async Task<string> GetAccessToken(string tenantId, string portalAuthorization)
@@ -29,7 +50,7 @@ namespace Maestro
 
             _httpHandler.SetAuthorizationHeader(entraIdAccessToken);
 
-            AccessToken = entraIdAccessToken;
+            BearerToken = entraIdAccessToken;
             return entraIdAccessToken;
         }
 

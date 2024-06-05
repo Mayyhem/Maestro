@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneExecQueryCommand
+    internal class IntuneExecQueryCmdHandler
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {

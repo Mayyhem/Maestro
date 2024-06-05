@@ -3,10 +3,12 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal static class IntuneDevicesCommand
+    internal static class EntraGroupsCmdHandler
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false)
         {
+            EntraClient entraClient = await EntraClient.CreateAndGetToken(database);
+
             IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database);
             string[] properties = null;
 
@@ -17,16 +19,16 @@ namespace Maestro
 
             if (arguments.TryGetValue("--id", out string intuneDeviceId))
             {
-                await intuneClient.GetDevices(deviceId: intuneDeviceId, properties: properties, database: database, databaseOnly: databaseOnly);
+                await intuneClient.GetIntuneDevices(deviceId: intuneDeviceId, properties: properties, database: database);
             }
             else if (arguments.TryGetValue("--name", out string intuneDeviceName))
             {
-                await intuneClient.GetDevices(deviceName: intuneDeviceName, properties: properties, database: database, databaseOnly: databaseOnly);
+                await intuneClient.GetIntuneDevices(deviceName: intuneDeviceName, properties: properties, database: database);
             }  
             else
             {
                // Get information from all devices by default when no options are provided
-               await intuneClient.GetDevices(properties: properties, database: database, databaseOnly: databaseOnly);
+               await intuneClient.GetIntuneDevices(properties: properties, database: database);
             }
         }
     }

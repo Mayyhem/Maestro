@@ -12,6 +12,43 @@ namespace Maestro
         {
             new Command
             {
+                Name = "entra",
+                Description = "Execute actions in EntraID",
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "groups",
+                        Description = "Get information about EntraID groups",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the device to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-n",
+                                LongName = "--name",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the device to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-p",
+                                LongName = "--properties",
+                                ValuePlaceholder = "PROP,PROP | ALL",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                            }
+                        }
+                    }
+                }
+            },
+            new Command
+            {
                 Name = "intune",
                 Description = "Execute actions in Intune and on Intune-enrolled devices",
                 Subcommands = new List<Subcommand>
@@ -169,6 +206,7 @@ namespace Maestro
                             },
                             new Option
                             {
+
                                 ShortName = "-p",
                                 LongName = "--properties",
                                 ValuePlaceholder = "PROP,PROP",
@@ -194,6 +232,12 @@ namespace Maestro
                 ShortName = "-h",
                 LongName = "--help",
                 Description = "Display usage",
+                IsFlag = true
+            },
+            new Option
+            {
+                LongName = "--show",
+                Description = "Display only information stored in the database (offline)",
                 IsFlag = true
             },
             new Option

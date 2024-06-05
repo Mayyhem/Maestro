@@ -3,23 +3,23 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneCommand
+    internal class IntuneCmdHandler
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
+        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
                 if (subcommandName == "devices")
                 {
-                    await IntuneDevicesCommand.Execute(arguments, database);
+                    await IntuneDevicesCmdHandler.Execute(arguments, database, databaseOnly);
                 }
                 else if (subcommandName == "exec")
                 {
-                    await IntuneExecCommand.Execute(arguments, database);
+                    await IntuneExecCmdHandler.Execute(arguments, database);
                 }
                 else if (subcommandName == "sync")
                 {
-                    await IntuneSyncCommand.Execute(arguments, database);
+                    await IntuneSyncCmdHandler.Execute(arguments, database);
                 }
             }
             else
