@@ -66,7 +66,7 @@ namespace Maestro
                         Name = "exec",
                         Description = "Execute actions on a device",
                         Subcommands = new List<Subcommand>
-                            {
+                        {
                             new Subcommand
                             {
                                 Name = "query",
@@ -100,16 +100,16 @@ namespace Maestro
                                         ShortName = "-r",
                                         LongName = "--retries",
                                         ValuePlaceholder = "INT",
-                                        Default = "10",
-                                        Description = "Maximum number of attempts to fetch query results"
+                                        Description = "Maximum number of attempts to fetch query results",
+                                        Default = "10"
                                     },
                                     new Option
                                     {
                                         ShortName = "-w",
                                         LongName = "--wait",
                                         ValuePlaceholder = "INT",
-                                        Default = "3",  
-                                        Description = "Number of seconds between each attempt to fetch query results"
+                                        Description = "Number of seconds between each attempt to fetch query results",
+                                        Default = "3"
                                     }
                                 }
                             },
@@ -201,13 +201,14 @@ namespace Maestro
                 ShortName = "-v",
                 LongName = "--verbosity",
                 ValuePlaceholder = "LEVEL",
-                Description = 
+                Description =
                     "Set the log verbosity level (default: 2)\n" +
                     new string(' ', DescriptionPadding) + "  0: Error\n" +
                     new string(' ', DescriptionPadding) + "  1: Warning\n" +
                     new string(' ', DescriptionPadding) + "  2: Info\n" +
-                    new string(' ', DescriptionPadding) + "  3: Verbose\n" +  
-                    new string(' ', DescriptionPadding) + "  4: Debug"
+                    new string(' ', DescriptionPadding) + "  3: Verbose\n" +
+                    new string(' ', DescriptionPadding) + "  4: Debug",
+                Default = "2"
             }
         };
 
@@ -308,6 +309,15 @@ namespace Maestro
                 }
             }
 
+            // Set default values for global options not provided by the user
+            foreach (var option in GlobalOptions)
+            {
+                if (!parsedArguments.ContainsKey(option.LongName) && !string.IsNullOrEmpty(option.Default))
+                {
+                    parsedArguments[option.LongName] = option.Default;
+                }
+            }
+
             return remainingArgsList.ToArray();
         }
 
@@ -361,6 +371,15 @@ namespace Maestro
                         PrintUsage(parsedArguments["command"]);
                         return null;
                     }
+                }
+            }
+
+            // Set default values for options not provided by the user
+            foreach (var option in options)
+            {
+                if (!parsedArguments.ContainsKey(option.LongName) && !string.IsNullOrEmpty(option.Default))
+                {
+                    parsedArguments[option.LongName] = option.Default;
                 }
             }
 
