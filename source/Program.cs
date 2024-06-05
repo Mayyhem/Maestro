@@ -21,7 +21,7 @@ namespace Maestro
 
                 // Parse arguments
                 Dictionary<string, string> parsedArguments = CommandLine.ParseCommands(args);
-                if (parsedArguments == null) return;
+                if (parsedArguments == null || !parsedArguments.ContainsKey("command")) return;
 
                 // Initialize the logger
                 ILogger logger = new ConsoleLogger();

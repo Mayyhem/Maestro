@@ -249,9 +249,15 @@ namespace Maestro
             string[] remainingArgs = ParseGlobalOptions(args, parsedArguments);
             if (remainingArgs == null || remainingArgs.Length == 0)
             {
-                Console.WriteLine("No arguments provided");
+                Console.WriteLine("No command provided");
                 PrintUsage();
                 return parsedArguments;
+            }
+
+            if (parsedArguments.ContainsKey("--help"))
+            {
+                PrintUsage();
+                return null;
             }
 
             string commandName = remainingArgs[0];
@@ -268,10 +274,21 @@ namespace Maestro
 
             if (remainingArgs.Length > 1)
             {
-                return ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1);
+                var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1);
+                if (result == null && parsedArguments.ContainsKey("--help"))
+                {
+                    PrintCommandUsage(command, depth);
+                    return null;
+                }
+                return result;
             }
             else
             {
+                if (parsedArguments.ContainsKey("--help"))
+                {
+                    PrintCommandUsage(command, depth);
+                    return null;
+                }
                 Console.WriteLine("No arguments provided");
                 PrintUsage(commandName);
             }
@@ -407,12 +424,22 @@ namespace Maestro
 
             if (args.Length > 1)
             {
-                return ParseSubcommands(subcommand.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1);
+                var result = ParseSubcommands(subcommand.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1);
+                if (result == null && parsedArguments.ContainsKey("--help"))
+                {
+                    PrintSubcommandUsage(subcommand, depth);
+                    return null;
+                }
+                return result;
             }
             else
             {
-                var parsedSubcommandArgs = ParseOptions(args.Skip(1).ToArray(), subcommand.Options, parsedArguments);
-                return parsedSubcommandArgs;
+                if (parsedArguments.ContainsKey("--help"))
+                {
+                    PrintSubcommandUsage(subcommand, depth);
+                    return null;
+                }
+                return ParseOptions(args.Skip(1).ToArray(), subcommand.Options, parsedArguments);
             }
         }
 
