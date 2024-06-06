@@ -5,7 +5,7 @@ namespace Maestro
 {
     internal class IntuneExecQueryCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
+        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool reauth)
         {
 
             if (arguments.TryGetValue("--query", out string kustoQuery))
@@ -26,12 +26,12 @@ namespace Maestro
 
                 if (arguments.TryGetValue("--id", out string deviceId))
                 {
-                    var intuneClient = await IntuneClient.CreateAndGetToken(database);
+                    var intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
                     await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceId: deviceId, database: database);
                 }
                 else if (arguments.TryGetValue("--name", out string deviceName))
                 {
-                    var intuneClient = await IntuneClient.CreateAndGetToken(database);
+                    var intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
                     await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceName: deviceName, database: database);
                 }
                 else

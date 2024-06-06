@@ -6,11 +6,11 @@ namespace Maestro
 {
     internal class IntuneExecScriptCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
+        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool reauth)
         {
             if (arguments.TryGetValue("--id", out string deviceId) && arguments.TryGetValue("--script", out string script))
             {
-                IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database);
+                IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
                 IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
 
                 string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);

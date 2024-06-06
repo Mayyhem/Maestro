@@ -264,6 +264,12 @@ namespace Maestro
             },
             new Option
             {
+                LongName = "--reauth",
+                Description = "Skip database credential lookup and force reauthentication",
+                IsFlag = true
+            },
+            new Option
+            {
                 LongName = "--show",
                 Description = "Display only information stored in the database (offline)",
                 IsFlag = true

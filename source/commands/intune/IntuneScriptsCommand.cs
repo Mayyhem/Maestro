@@ -5,12 +5,12 @@ namespace Maestro
 {
     internal class IntuneScriptsCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly)
+        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly, bool reauth)
         {
             IntuneClient intuneClient = new IntuneClient();
             if (!databaseOnly)
             {
-                intuneClient = await IntuneClient.CreateAndGetToken(database);
+                intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
             }
 
             // User-specified properties

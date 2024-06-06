@@ -74,6 +74,31 @@ namespace Maestro
             return bearerToken;
         }
 
+        public string FindValidOAuthToken()
+        {
+            string refreshToken = "";
+            // Get the Jwt collection (or create, if doesn't exist)
+            var collection = _database.GetCollection<BsonDocument>("OAuthToken");
+
+            // Define current Unix timestamp
+            var nowUnixTimestamp = DateTimeHandler.ConvertToUnixTimestamp(DateTime.UtcNow);
+
+            // Use a single query to filter documents and find the matching JWT
+            var oAuthTokens = collection.FindAll();
+
+            if (oAuthTokens != null)
+            {
+                Logger.Info($"Found OAuth token in the database");
+                refreshToken = oAuthTokens.FirstOrDefault()["refreshToken"];
+                Logger.DebugTextOnly(refreshToken);
+            }
+            else
+            {
+                Logger.Info("No OAuth tokens found in the database");
+            }
+            return refreshToken;
+        }
+
         // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id
         public void Upsert<T>(T item) where T : JsonObject
         {

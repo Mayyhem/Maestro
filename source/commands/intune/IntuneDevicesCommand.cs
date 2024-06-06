@@ -5,12 +5,12 @@ namespace Maestro
 {
     internal static class IntuneDevicesCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false)
+        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false, bool reauth = false)
         {
             IntuneClient intuneClient = new IntuneClient();
             if (!databaseOnly)
             {
-                intuneClient = await IntuneClient.CreateAndGetToken(database);
+                intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
             }
 
             // Set default properties to print

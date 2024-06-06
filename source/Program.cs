@@ -38,11 +38,18 @@ namespace Maestro
                 }
                 Logger.Info("Execution started");
 
+                // Lookup credentials in database or force reauthentication
+                bool reauth = false;
                 // Use database file if option is specified
                 if (parsedArguments.TryGetValue("--database", out string databasePath))
                 {
                     database = new LiteDBHandler(databasePath);
                     Logger.Info($"Using database file: {Path.GetFullPath(databasePath)}");
+
+                    if (parsedArguments.TryGetValue("--reauth", out string reauthString))
+                    {
+                        reauth = bool.Parse(reauthString);
+                    }
                 }
 
                 // Specify whether to only show database information (no API calls)
@@ -56,10 +63,10 @@ namespace Maestro
                 switch (parsedArguments["command"])
                 {
                     case "intune":
-                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly);
+                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth);
                         break;
                     case "entra":
-                        await EntraCommand.Execute(parsedArguments, database, databaseOnly);
+                        await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

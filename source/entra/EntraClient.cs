@@ -20,7 +20,7 @@ namespace Maestro
         }
 
         // Check the database for a stored access token before fetching from Intune
-        public static async Task<EntraClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "")
+        public static async Task<EntraClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "", bool reauth = false)
         {
             var entraClient = new EntraClient();
 
@@ -32,7 +32,7 @@ namespace Maestro
             }
 
             // Check the database for a stored access token before fetching from Intune
-            if (database != null)
+            if (database != null && !reauth)
             {
                 //entraClient.FindStoredAccessToken(database);
             }

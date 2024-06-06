@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using System.Xml;
 
 namespace Maestro
 {
@@ -222,6 +223,10 @@ namespace Maestro
             if (tenantId is null) return (null, null);
             TenantId = tenantId;
 
+            OAuthToken oAuthToken = ParseOAuthTokenFromJsonResponse(signinResponseContent, database);
+            if (oAuthToken is null) return (null, null);
+            var test = database.FindValidOAuthToken();
+
             string refreshToken = ParseRefreshTokenFromJsonResponse(signinResponseContent);
             if (refreshToken is null) return (null, null);
             RefreshToken = refreshToken;
@@ -275,7 +280,7 @@ namespace Maestro
         private OAuthToken ParseOAuthTokenFromJsonResponse(string jsonResponse, IDatabaseHandler database = null)
         {
             // Parse response for OAuthToken
-            string oAuthTokenBlob = StringHandler.GetMatch(jsonResponse, @"\{""oAuthToken"":\{.*?\}\}");
+            string oAuthTokenBlob = StringHandler.GetMatch(jsonResponse, @"\{""oAuthToken"":\{.*?\}\}", false);
             if (oAuthTokenBlob is null)
             {
                 Logger.Error("No oAuthToken was found in the response");
