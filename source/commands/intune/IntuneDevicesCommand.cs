@@ -10,7 +10,7 @@ namespace Maestro
             IntuneClient intuneClient = new IntuneClient();
             if (!databaseOnly)
             {
-                intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
+                intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
             }
 
             // Set default properties to print

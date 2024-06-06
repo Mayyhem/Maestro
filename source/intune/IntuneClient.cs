@@ -15,45 +15,20 @@ namespace Maestro
     public class IntuneClient
     {
 
-        private readonly IAuthClient _authClient;
-        private readonly IHttpHandler _httpHandler;
-        public string BearerToken;
-
-        public IntuneClient()
-        {
-            _httpHandler = new HttpHandler();
-            _authClient = new AuthClient(_httpHandler);
+        private GraphClient _graphClient;
+        public IntuneClient() 
+        { 
+            _graphClient = new GraphClient();
         }
 
-        // Check the database for a stored access token before fetching from Intune
-        public static async Task<IntuneClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "", bool reauth = false)
+        public static async Task<IntuneClient> InitAndGetAccessToken(IDatabaseHandler database, string bearerToken = "", bool reauth = false)
         {
             var intuneClient = new IntuneClient();
-
-            // Use the provided bearer token if available
-            if (!string.IsNullOrEmpty(bearerToken))
-            {
-                intuneClient.BearerToken = bearerToken;
-                if (database != null)
-                {
-                    Jwt accessToken = new Jwt(bearerToken);
-                    database.Upsert(accessToken);
-                    Logger.Info("Upserted JWT in the database");
-                }
-                return intuneClient;
-            }
-
-            // Check the database for a stored access token before fetching from Intune
-            if (database != null && !reauth)
-            {
-                intuneClient.FindStoredAccessToken(database);
-            }
-
-            // Get a new access token if none found
-            if (string.IsNullOrEmpty(intuneClient.BearerToken))
-            {
-                await intuneClient.SignInToIntuneAndGetAccessToken(database);
-            }
+            string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
+            string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
+            string extensionName = "Microsoft_Intune_DeviceSettings";
+            intuneClient._graphClient = await GraphClient.InitAndGetAccessToken<GraphClient>(authRedirectUrl, delegationTokenUrl, extensionName, 
+                database, bearerToken, reauth);
             return intuneClient;
         }
 
@@ -62,14 +37,14 @@ namespace Maestro
 
             Logger.Info($"Deleting device assignment filter with ID: {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/assignmentFilters/{filterId}";
-            await _httpHandler.DeleteAsync(url);
+            await _graphClient._httpHandler.DeleteAsync(url);
         }
 
         public async Task DeleteScriptPackage(string scriptId)
         {
             Logger.Info($"Deleting detection script with scriptId: {scriptId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
-            HttpResponseMessage response = await _httpHandler.DeleteAsync(url);
+            HttpResponseMessage response = await _graphClient._httpHandler.DeleteAsync(url);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to delete detection script");
@@ -101,40 +76,6 @@ namespace Maestro
             
             JsonHandler.PrintProperties(queryResults);
             return;
-        }
-
-        public bool FindStoredAccessToken(IDatabaseHandler database)
-        {
-            if (!string.IsNullOrEmpty(BearerToken))
-            {
-                Logger.Info("Using bearer token from prior request");
-                return true;
-            }
-            if (database != null)
-            {
-              BearerToken = database.FindValidJwt();
-
-                if (!string.IsNullOrEmpty(BearerToken))
-                {
-                    _httpHandler.SetAuthorizationHeader(BearerToken);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        public async Task<string> GetAccessToken(string tenantId, string portalAuthorization)
-        {
-            Logger.Info("Requesting Intune access token");
-            string intuneAccessToken = await _authClient.GetAccessToken(_authClient.TenantId, _authClient.RefreshToken,
-                "https://intune.microsoft.com/api/DelegationToken",
-                "Microsoft_Intune_DeviceSettings", "microsoft.graph");
-            if (intuneAccessToken is null) return null;
-
-            _httpHandler.SetAuthorizationHeader(intuneAccessToken);
-
-            BearerToken = intuneAccessToken;
-            return intuneAccessToken;
         }
 
         public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
@@ -174,7 +115,7 @@ namespace Maestro
             }
 
             // Request devices from Intune
-            HttpResponseMessage devicesResponse = await _httpHandler.GetAsync(intuneDevicesUrl);
+            HttpResponseMessage devicesResponse = await _graphClient._httpHandler.GetAsync(intuneDevicesUrl);
             if (devicesResponse is null)
             {
                 Logger.Error("Failed to get devices from Intune");
@@ -185,6 +126,8 @@ namespace Maestro
             string devicesResponseContent = await devicesResponse.Content.ReadAsStringAsync();
             JavaScriptSerializer serializer = new JavaScriptSerializer();
             var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponseContent);
+            if (deviceResponseDict is null) return null;
+
             var devices = (ArrayList)deviceResponseDict["value"];
 
             if (devices.Count > 0)
@@ -228,7 +171,7 @@ namespace Maestro
             {
                 attempts++;
                 Logger.Info($"Attempt {attempts} of {maxRetries} to fetch query results");
-                HttpResponseMessage response = await _httpHandler.GetAsync(url);
+                HttpResponseMessage response = await _graphClient._httpHandler.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     string responseContent = await response.Content.ReadAsStringAsync();
@@ -265,7 +208,7 @@ namespace Maestro
             {
                 url += $"/{scriptId}";
             }
-            HttpResponseMessage scriptsResponse = await _httpHandler.GetAsync(url);
+            HttpResponseMessage scriptsResponse = await _graphClient._httpHandler.GetAsync(url);
             if (scriptsResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get scripts from Intune");
@@ -276,6 +219,8 @@ namespace Maestro
             string scriptsResponseContent = await scriptsResponse.Content.ReadAsStringAsync();
             JavaScriptSerializer serializer = new JavaScriptSerializer();
             var scriptsResponseDict = serializer.Deserialize<Dictionary<string, object>>(scriptsResponseContent);
+            if (scriptsResponseDict is null) return null;
+
             var scripts = (ArrayList)scriptsResponseDict["value"];
 
             if (scripts.Count > 0)
@@ -314,11 +259,11 @@ namespace Maestro
             Logger.Info($"Initiating on demand proactive remediation - execution script {scriptId} on device {deviceId}");
             string url =
                 $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/initiateOnDemandProactiveRemediation";
-            var content = _httpHandler.CreateJsonContent(new
+            var content = _graphClient._httpHandler.CreateJsonContent(new
             {
                 ScriptPolicyId = scriptId,
             });
-            await _httpHandler.PostAsync(url);
+            await _graphClient._httpHandler.PostAsync(url);
         }
 
         public async Task<string> NewDeviceAssignmentFilter(string deviceName)
@@ -327,7 +272,7 @@ namespace Maestro
             Logger.Info($"Creating new device assignment filter with displayName: {displayName}");
 
             string url = "https://graph.microsoft.com/beta/deviceManagement/assignmentFilters";
-            var content = _httpHandler.CreateJsonContent(new
+            var content = _graphClient._httpHandler.CreateJsonContent(new
             {
                 displayName,
                 description = "",
@@ -335,7 +280,7 @@ namespace Maestro
                 rule = $"(device.deviceName -eq \"{deviceName}\")",
                 roleScopeTagIds = new List<string> { "0" }
             });
-            HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
             if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to create device assignment filter");
@@ -355,7 +300,7 @@ namespace Maestro
             Logger.Info($"Assigning script {scriptId} to filter {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}/assign";
 
-            var content = _httpHandler.CreateJsonContent(new
+            var content = _graphClient._httpHandler.CreateJsonContent(new
             {
                 deviceHealthScriptAssignments = new[]
                 {
@@ -379,7 +324,7 @@ namespace Maestro
                     }
                 }
             });
-            await _httpHandler.PostAsync(url, content);
+            await _graphClient._httpHandler.PostAsync(url, content);
         }
 
         public async Task NewDeviceManagementScriptAssignmentHourly(string filterId, string scriptId)
@@ -389,7 +334,7 @@ namespace Maestro
             Logger.Info($"Assigning script {scriptId} to filter {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}/assign";
 
-            var content = _httpHandler.CreateJsonContent(new
+            var content = _graphClient._httpHandler.CreateJsonContent(new
             {
                 deviceHealthScriptAssignments = new[]
                 {
@@ -410,7 +355,7 @@ namespace Maestro
                     }
                 }
             });
-            await _httpHandler.PostAsync(url, content);
+            await _graphClient._httpHandler.PostAsync(url, content);
         }
 
         public async Task<string> NewDeviceQuery(string query, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
@@ -421,11 +366,11 @@ namespace Maestro
             {
                 string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/createQuery";
                 string encodedQuery = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
-                var content = _httpHandler.CreateJsonContent(new
+                var content = _graphClient._httpHandler.CreateJsonContent(new
                 {
                     query = encodedQuery
                 });
-                HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
+                HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.Error("Failed to execute query");
@@ -447,7 +392,7 @@ namespace Maestro
             Logger.Info($"Creating new detection script with displayName: {displayName}");
             string url = "https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
 
-            var content = _httpHandler.CreateJsonContent(new
+            var content = _graphClient._httpHandler.CreateJsonContent(new
             {
                 displayName,
                 description,
@@ -459,7 +404,7 @@ namespace Maestro
                 remediationScriptContent,
                 roleScopeTagIds = new List<string> { "0" }
             });
-            HttpResponseMessage response = await _httpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
             if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to create detection script");
@@ -485,6 +430,10 @@ namespace Maestro
                     JsonHandler.PrintProperties(device.ToString(), properties);
                     Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
                     intuneDevices.Add(new IntuneDevice(deviceProperties));
+                }
+                else
+                {
+                    Logger.Info("No matching device found in the database");
                 }
             }
             else if (!string.IsNullOrEmpty(deviceName))
@@ -541,6 +490,10 @@ namespace Maestro
                     Dictionary<string, object> scriptProperties = BsonDocumentHandler.ToDictionary(script);
                     intuneScripts.Add(new IntuneScript(scriptProperties));
                 }
+                else
+                {
+                    Logger.Info("No matching script found in the database");
+                }
             }
             else
             {
@@ -563,25 +516,6 @@ namespace Maestro
             return intuneScripts;
         }
 
-        public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database)
-        {
-            // Request access token from Intune if none found
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            await _authClient.GetTenantIdAndRefreshToken(database);
-            string base64Token = await GetAccessToken(_authClient.TenantId, _authClient.RefreshToken);
-
-            // Store new JWT in the IntuneClient object
-            BearerToken = base64Token;
-
-            // Store new JWT in the database
-            if (database != null)
-            {
-                Jwt accessToken = new Jwt(base64Token);
-                database.Upsert(accessToken);
-                Logger.Info("Upserted JWT in the database");
-            }
-        }
-
         public async Task SyncDevice(string deviceId, IDatabaseHandler database, bool skipDeviceLookup = false)
         {
             if (!skipDeviceLookup)
@@ -594,7 +528,7 @@ namespace Maestro
             }
             Logger.Info($"Sending request for Intune to notify to {deviceId} sync");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
-            HttpResponseMessage response = await _httpHandler.PostAsync(url);
+            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url);
             if (!(response.StatusCode == HttpStatusCode.NoContent))
             {
                 Logger.Error($"Failed to send request for device sync notification");

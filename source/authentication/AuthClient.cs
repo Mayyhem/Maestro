@@ -46,21 +46,29 @@ namespace Maestro
             return authorizeResponse;
         }
 
-        public async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string url, string extensionName,
-            string resourceName)
+        public async Task<string> GetAccessToken(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName,
+            string resourceName, IDatabaseHandler database)
         {
             Logger.Info("Requesting access token from DelegationToken endpoint with portalAuthorization");
-            string accessToken = await GetAuthHeader(tenantId, portalAuthorization, url, extensionName, resourceName);
+            string accessToken = await GetAuthHeader(tenantId, portalAuthorization, delegationTokenUrl, extensionName, resourceName);
             if (accessToken is null)
             {
                 Logger.Error("No authHeader was found in the DelegationToken response");
                 return null;
             }
             Logger.Info($"Found access token in DelegationToken response: {accessToken}");
+
+            // Store new JWT in the database
+            if (database != null)
+            {
+                var jwt = new Jwt(accessToken);
+                database.Upsert(jwt);
+                Logger.Info("Upserted JWT in the database");
+            }
             return accessToken;
         }
 
-        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string url, string extensionName, 
+        private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName, 
             string resourceName)
         {
             var jsonObject = new
@@ -73,18 +81,17 @@ namespace Maestro
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await HttpHandler.PostAsync(delegationTokenUrl, content);
             string responseContent = await response.Content.ReadAsStringAsync();
             string authHeader = StringHandler.GetMatch(responseContent, "\"authHeader\":\"Bearer ([^\"]+)\"");
             return authHeader;
         }
 
-        private async Task<string> GetAuthorizeUrl()
+        private async Task<string> GetAuthorizeUrl(string authRedirectUrl)
         {
-            string redirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
-            Logger.Info($"Requesting authorize URL from: {redirectUrl}");
+            Logger.Info($"Requesting authorize URL from: {authRedirectUrl}");
 
-            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(redirectUrl);
+            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(authRedirectUrl);
             idpRedirectResponse.EnsureSuccessStatusCode();
 
             if (idpRedirectResponse is null)
@@ -102,23 +109,10 @@ namespace Maestro
             return authorizeUrl;
         }
 
-        public async Task<string> GetEntraIdPortalAuthorization(string tenantId, string portalAuthorization)
-        {
-            Logger.Info("Requesting EntraID portal authorization");
-            string entraIdPortalAuthorization = await GetPortalAuthorization(tenantId, portalAuthorization,
-                "https://intune.microsoft.com/api/DelegationToken",
-                "Microsoft_AAD_IAM", "microsoft.graph");
-            if (entraIdPortalAuthorization is null) return null;
-
-            Logger.Info("Received EntraID portal authorization");
-            RefreshToken = entraIdPortalAuthorization;
-            return entraIdPortalAuthorization;
-        }
-
-        private async Task<HttpResponseMessage> SignInToIntune()
+        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, IDatabaseHandler database)
         {
             // HTTP request 1
-            string authorizeUrl = await GetAuthorizeUrl();
+            string authorizeUrl = await GetAuthorizeUrl(redirectUrl);
             if (authorizeUrl is null) 
                 return null;
 
@@ -178,7 +172,7 @@ namespace Maestro
             HttpResponseMessage signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
             if (signinResponse is null)
             {
-                Logger.Error("Could not sign in to Intune");
+                Logger.Error("Could not sign in");
                 return null;
             }
             Logger.Info("Obtained response from signin URL");
@@ -213,25 +207,23 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task<(string, string)> GetTenantIdAndRefreshToken(IDatabaseHandler database = null)
+        public async Task Authenticate(string redirectUrl, IDatabaseHandler database = null)
         {
-            HttpResponseMessage signinResponse = await SignInToIntune();
-            if (signinResponse is null) return (null, null);
-            string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database);
+            if (signinResponse is null) return;
 
+            string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();
             string tenantId = ParseTenantIdFromJsonResponse(signinResponseContent);
-            if (tenantId is null) return (null, null);
+            if (tenantId is null) return;
             TenantId = tenantId;
 
             OAuthToken oAuthToken = ParseOAuthTokenFromJsonResponse(signinResponseContent, database);
-            if (oAuthToken is null) return (null, null);
-            var test = database.FindValidOAuthToken();
+            if (oAuthToken is null) return;
 
             string refreshToken = ParseRefreshTokenFromJsonResponse(signinResponseContent);
-            if (refreshToken is null) return (null, null);
+            if (refreshToken is null) return;
             RefreshToken = refreshToken;
-
-            return (tenantId, refreshToken);
         }
 
         private FormUrlEncodedContent ParseFormDataFromHtml(string htmlContent)

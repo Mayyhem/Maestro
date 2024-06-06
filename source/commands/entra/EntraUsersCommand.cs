@@ -10,7 +10,7 @@ namespace Maestro
             EntraClient entraClient = new EntraClient();
             if (!databaseOnly)
             {
-                entraClient = await EntraClient.CreateAndGetToken(database, reauth: reauth);
+                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth);
             }
 
             // Set default properties to print
@@ -27,20 +27,20 @@ namespace Maestro
             {
                 if (databaseOnly)
                 {
-                    //entraClient.ShowUsers(database, properties, userId: userId);
+                    entraClient.ShowUsers(database, properties, userId: userId);
                     return;
                 }
-                //await entraClient.GetUsers(userId: userId, properties: properties, database: database);
+                await entraClient.GetUsers(userId: userId, properties: properties, database: database);
             }
             else
             {
-                // Get information from all devices by default when no options are provided
+                // Get information for all items by default when no options are provided
                 if (databaseOnly)
                 {
-                    //entraClient.ShowUsers(database, properties);
+                    entraClient.ShowUsers(database, properties);
                     return;
                 }
-                //await entraClient.GetUsers(properties: properties, database: database);
+                await entraClient.GetUsers(properties: properties, database: database);
             }
         }
     }

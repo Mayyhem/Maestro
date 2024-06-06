@@ -10,7 +10,9 @@ namespace Maestro
         {
             if (arguments.TryGetValue("--id", out string deviceId) && arguments.TryGetValue("--script", out string script))
             {
-                IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
+                var intuneClient = new IntuneClient();
+                intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
+
                 IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
 
                 string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);

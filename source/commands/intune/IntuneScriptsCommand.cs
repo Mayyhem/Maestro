@@ -7,10 +7,10 @@ namespace Maestro
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly, bool reauth)
         {
-            IntuneClient intuneClient = new IntuneClient();
+            var intuneClient = new IntuneClient();
             if (!databaseOnly)
             {
-                intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
+                intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
             }
 
             // User-specified properties

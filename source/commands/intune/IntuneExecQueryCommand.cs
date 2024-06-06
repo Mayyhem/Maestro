@@ -26,12 +26,14 @@ namespace Maestro
 
                 if (arguments.TryGetValue("--id", out string deviceId))
                 {
-                    var intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
+                    var intuneClient = new IntuneClient();
+                    intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
                     await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceId: deviceId, database: database);
                 }
                 else if (arguments.TryGetValue("--name", out string deviceName))
                 {
-                    var intuneClient = await IntuneClient.CreateAndGetToken(database, reauth: reauth);
+                    var intuneClient = new IntuneClient();
+                    intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
                     await intuneClient.ExecuteDeviceQuery(kustoQuery, maxRetries, retryDelay, deviceName: deviceName, database: database);
                 }
                 else
