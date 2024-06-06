@@ -29,15 +29,19 @@ namespace Maestro
         public static async Task<IntuneClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "")
         {
             var intuneClient = new IntuneClient();
+
+            // Use the provided bearer token if available
             if (!string.IsNullOrEmpty(bearerToken))
             {
                 intuneClient.BearerToken = bearerToken;
                 return intuneClient;
             }
+            // Check the database for a stored access token before fetching from Intune
             if (database != null)
             {
                 intuneClient.FindStoredAccessToken(database);
             }
+            // Get a new access token if none found
             if (string.IsNullOrEmpty(intuneClient.BearerToken))
             {
                 await intuneClient.SignInToIntuneAndGetAccessToken(database);
@@ -62,26 +66,10 @@ namespace Maestro
 
         public async Task ExecuteDeviceQuery(string kustoQuery, int maxRetries, int retryDelay, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
         {
-            List<IntuneDevice> devices = await GetIntuneDevices(deviceId, deviceName, database: database);
-            if (devices.Count > 1) 
-            {                 
-                Logger.Error("Multiple devices found matching the specified device name");
-                return;
-            }
-            deviceId = devices.FirstOrDefault()?.Properties["id"].ToString();
+            // Check whether the device exists in Intune
+            IntuneDevice device = await GetIntuneDevice(deviceId, deviceName, database: database);
 
-            if (devices.Count == 0)
-            {
-                Logger.Error($"Failed to find the specified device");
-                return;
-            }
-            else
-            {
-                if (BearerToken is null)
-                {
-                    await SignInToIntuneAndGetAccessToken(database);
-                }
-            }
+            // Submit the query to Intune
             string queryId = await NewDeviceQuery(kustoQuery, deviceId: deviceId);
             if (string.IsNullOrEmpty(queryId))
             {
@@ -89,7 +77,7 @@ namespace Maestro
                 return;
             }
 
-            // Fetch query results with retries
+            // Request query results until successful or max retries reached
             string queryResults = await GetDeviceQueryResults(deviceId, queryId, maxRetries: maxRetries, retryDelay: retryDelay);
             if (queryResults is null)
             {
@@ -138,7 +126,7 @@ namespace Maestro
         public async Task<IntuneDevice> GetIntuneDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
             IDatabaseHandler database = null)
         {
-            List<IntuneDevice> devices = await GetIntuneDevices(deviceId, deviceName, properties, database);
+            List<IntuneDevice> devices = await GetIntuneDevices(deviceId, deviceName, properties, database, printJson: false);
             if (devices.Count > 1)
             {
                 Logger.Error("Multiple devices found matching the specified device name");
@@ -154,7 +142,7 @@ namespace Maestro
         }
 
         public async Task<List<IntuneDevice>> GetIntuneDevices(string deviceId = "", string deviceName = "", string[] properties = null, 
-            IDatabaseHandler database = null)
+            IDatabaseHandler database = null, bool printJson = true)
         {
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
 
@@ -187,7 +175,7 @@ namespace Maestro
 
             if (devices.Count > 0)
             {
-                Logger.Info($"Found {devices.Count} devices in Intune");
+                Logger.Info($"Found {devices.Count} {(devices.Count == 1 ? "device" : "devices")} in Intune");
                 foreach (Dictionary<string, object> device in devices)
                 {
                     // Create an IntuneDevice object for each device in the response
@@ -203,7 +191,7 @@ namespace Maestro
                 string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
 
                 // Print the selected properties of the devices
-                JsonHandler.PrintProperties(devicesJson, properties);
+                if (printJson) JsonHandler.PrintProperties(devicesJson, properties);
             }
             else
             {

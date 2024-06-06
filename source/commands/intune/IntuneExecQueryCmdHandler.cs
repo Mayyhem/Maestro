@@ -23,6 +23,7 @@ namespace Maestro
                 {
                     retryDelay = int.Parse(retryDelayString);
                 }
+
                 if (arguments.TryGetValue("--id", out string deviceId))
                 {
                     var intuneClient = await IntuneClient.CreateAndGetToken(database);

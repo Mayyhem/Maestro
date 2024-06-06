@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -18,7 +19,9 @@ namespace Maestro
                 string scriptId = await intuneClient.NewScriptPackage("LiveDemoHoldMyBeer", script);
                 if (scriptId is null) return;
 
-                await intuneClient.NewDeviceManagementScriptAssignmentHourly(filterId, scriptId);
+                await intuneClient.NewDeviceManagementScriptAssignment(filterId, scriptId);
+                Logger.Info("Script assignment created, waiting 10 seconds before requesting device sync");
+                Thread.Sleep(10000);
                 await intuneClient.SyncDevice(deviceId, database, skipDeviceLookup: true);
             }
             else

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 
 namespace Maestro
 {
@@ -256,6 +257,7 @@ namespace Maestro
             }
         };
 
+        // Check whether a subcommand exists in a list of subcommands
         private static Subcommand FindSubcommand(List<Subcommand> subcommands, string subcommandName)
         {
             foreach (var subcommand in subcommands)
@@ -291,6 +293,7 @@ namespace Maestro
             // Separate global options from the rest
             var parsedArguments = new Dictionary<string, string>();
             string[] remainingArgs = ParseGlobalOptions(args, parsedArguments);
+
             if (remainingArgs == null || remainingArgs.Length == 0)
             {
                 Console.WriteLine("No command provided");
@@ -318,7 +321,7 @@ namespace Maestro
 
             if (remainingArgs.Length > 1)
             {
-                var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1);
+                var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1, null);
                 if (result == null && parsedArguments.ContainsKey("--help"))
                 {
                     PrintCommandUsage(command, depth);
@@ -447,44 +450,39 @@ namespace Maestro
             return parsedArguments;
         }
 
-        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth)
+        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth, string parentSubcommandName)
         {
             if (args.Length == 0)
             {
                 return parsedArguments;
             }
 
-            string subcommandName = args[0];
-            var subcommand = subcommands.FirstOrDefault(sc => sc.Name == subcommandName);
+            string subcommandOrOptionName = args[0];
+            
+            // Check if the argument is an subcommand
+            var subcommand = subcommands.FirstOrDefault(sc => sc.Name == subcommandOrOptionName);
 
-            if (subcommand == null)
+            if (subcommand != null)
             {
-                Console.WriteLine($"Invalid subcommand: {subcommandName}");
-                PrintUsage(parsedArguments["command"]);
-                return null;
-            }
+                string subcommandName = subcommand.Name;
+                parsedArguments[$"subcommand{depth}"] = subcommandName;
 
-            parsedArguments[$"subcommand{depth}"] = subcommandName;
-
-            if (args.Length > 1)
-            {
-                var result = ParseSubcommands(subcommand.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1);
-                if (result == null && parsedArguments.ContainsKey("--help"))
+                if (args.Length > 1)
                 {
-                    PrintSubcommandUsage(subcommand, depth);
-                    return null;
+                    // See if there are nested subcommands
+                    if (subcommand.Subcommands.Any())
+                    {
+                        var matchedSubcommand = FindSubcommand(subcommand.Subcommands, args[1]);
+                        if (matchedSubcommand != null)
+                        {
+                            return ParseSubcommands(subcommand.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1, subcommandName);
+                        }
+                    }
                 }
-                return result;
             }
-            else
-            {
-                if (parsedArguments.ContainsKey("--help"))
-                {
-                    PrintSubcommandUsage(subcommand, depth);
-                    return null;
-                }
-                return ParseOptions(args.Skip(1).ToArray(), subcommand.Options, parsedArguments);
-            }
+
+            // If the argument is not a subcommand, it must be an option
+            return ParseOptions(args.Skip(1).ToArray(), subcommand.Options, parsedArguments);
         }
 
         private static void PrintCommandUsage(Command command, int depth)
