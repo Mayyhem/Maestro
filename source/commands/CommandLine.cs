@@ -539,7 +539,6 @@ namespace Maestro
 
         private static void PrintOptionUsage(Option option, int depth)
         {
-            string shortName = option.ShortName;
             string description = option.Description;
             if (option.Required)
             {
@@ -549,8 +548,8 @@ namespace Maestro
             {
                 description += $" (default: {option.Default})";
             }
-
-            Console.WriteLine(PadDescription($"{new string(' ', depth)}    {shortName}, {option.LongName} {option.ValuePlaceholder}") + description);
+            string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+            Console.WriteLine(PadDescription($"{new string(' ', depth)}    {shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + description);
         }
 
         public static void PrintUsage(string commandOrSubcommandName = "", int depth = 0)
