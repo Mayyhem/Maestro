@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class EntraCmdHandler
+    internal class EntraCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly)
         {
@@ -15,7 +15,7 @@ namespace Maestro
                 }
                 else if (subcommandName == "groups")
                 {
-                    await EntraGroupsCmdHandler.Execute(arguments, database, databaseOnly);
+                    await EntraGroupsCommand.Execute(arguments, database, databaseOnly);
                 }
                 else if (subcommandName == "users")
                 {

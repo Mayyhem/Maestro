@@ -56,10 +56,10 @@ namespace Maestro
                 switch (parsedArguments["command"])
                 {
                     case "intune":
-                        await IntuneCmdHandler.Execute(parsedArguments, database, databaseOnly);
+                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly);
                         break;
                     case "entra":
-                        await EntraCmdHandler.Execute(parsedArguments, database, databaseOnly);
+                        await EntraCommand.Execute(parsedArguments, database, databaseOnly);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

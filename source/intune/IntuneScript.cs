@@ -2,10 +2,10 @@
 
 namespace Maestro
 {
-    public class IntuneDevice : JsonObject
+    public class IntuneScript : JsonObject
     {
         // Class instances will be stored in the collection in the database
         // Primary key: id
-        public IntuneDevice(Dictionary<string, object> deviceProperties) : base("id", deviceProperties) { }
+        public IntuneScript(Dictionary<string, object> properties) : base("id", properties) { }
     }
 }

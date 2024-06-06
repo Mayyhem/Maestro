@@ -63,13 +63,19 @@ namespace Maestro
         {
             Logger.Info($"Deleting detection script with scriptId: {scriptId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
-            await _httpHandler.DeleteAsync(url);
+            HttpResponseMessage response = await _httpHandler.DeleteAsync(url);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to delete detection script");
+                return;
+            }
+            Logger.Info("Successfully deleted detection script");
         }
 
         public async Task ExecuteDeviceQuery(string kustoQuery, int maxRetries, int retryDelay, string deviceId = "", string deviceName = "", IDatabaseHandler database = null)
         {
             // Check whether the device exists in Intune
-            IntuneDevice device = await GetIntuneDevice(deviceId, deviceName, database: database);
+            IntuneDevice device = await GetDevice(deviceId, deviceName, database: database);
 
             // Submit the query to Intune
             string queryId = await NewDeviceQuery(kustoQuery, deviceId: deviceId);
@@ -125,10 +131,10 @@ namespace Maestro
             return intuneAccessToken;
         }
 
-        public async Task<IntuneDevice> GetIntuneDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
+        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null, 
             IDatabaseHandler database = null)
         {
-            List<IntuneDevice> devices = await GetIntuneDevices(deviceId, deviceName, properties, database, printJson: false);
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, properties, database, printJson: false);
             if (devices.Count > 1)
             {
                 Logger.Error("Multiple devices found matching the specified device name");
@@ -143,7 +149,7 @@ namespace Maestro
             return devices.FirstOrDefault();
         }
 
-        public async Task<List<IntuneDevice>> GetIntuneDevices(string deviceId = "", string deviceName = "", string[] properties = null, 
+        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null, 
             IDatabaseHandler database = null, bool printJson = true)
         {
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
@@ -180,12 +186,12 @@ namespace Maestro
                 Logger.Info($"Found {devices.Count} {(devices.Count == 1 ? "device" : "devices")} in Intune");
                 foreach (Dictionary<string, object> device in devices)
                 {
-                    // Create an IntuneDevice object for each device in the response
+                    // Create an object for each item in the response
                     var intuneDevice = new IntuneDevice(device);
                     intuneDevices.Add(intuneDevice);
                     if (database != null)
                     {
-                        // Insert new device if matching id doesn't exist
+                        // Insert new record if matching id doesn't exist
                         database.Upsert(intuneDevice);
                     }
                 }
@@ -237,6 +243,56 @@ namespace Maestro
             }
 
             return queryResults;
+        }
+
+        public async Task<List<IntuneScript>> GetScripts(string scriptId = "", string[] properties = null, IDatabaseHandler database = null, bool printJson = true)
+        {
+            List<IntuneScript> intuneScripts = new List<IntuneScript>();
+
+            Logger.Info($"Requesting scripts from Intune");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
+            if (!string.IsNullOrEmpty(scriptId))
+            {
+                url += $"/{scriptId}";
+            }
+            HttpResponseMessage scriptsResponse = await _httpHandler.GetAsync(url);
+            if (scriptsResponse.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to get scripts from Intune");
+                return intuneScripts;
+            }
+
+            // Deserialize the JSON response to a dictionary
+            string scriptsResponseContent = await scriptsResponse.Content.ReadAsStringAsync();
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var scriptsResponseDict = serializer.Deserialize<Dictionary<string, object>>(scriptsResponseContent);
+            var scripts = (ArrayList)scriptsResponseDict["value"];
+
+            if (scripts.Count > 0)
+            {
+                Logger.Info($"Found {scripts.Count} {(scripts.Count == 1 ? "script" : "scripts")} in Intune");
+                foreach (Dictionary<string, object> script in scripts)
+                {
+                    // Create an object for each item in the response
+                    var intuneScript = new IntuneScript(script);
+                    intuneScripts.Add(intuneScript);
+                    if (database != null)
+                    {
+                        // Insert new record if matching id doesn't exist
+                        database.Upsert(intuneScript);
+                    }
+                }
+                // Convert the devices ArrayList to JSON blob string
+                string scriptsJson = JsonConvert.SerializeObject(scripts, Formatting.Indented);
+
+                // Print the selected properties of the devices
+                if (printJson) JsonHandler.PrintProperties(scriptsJson, properties);
+            }
+            else
+            {
+                Logger.Info("No scripts found");
+            }
+            return intuneScripts;
         }
 
         public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
@@ -457,6 +513,42 @@ namespace Maestro
             return intuneDevices;
         }
 
+        public List<IntuneScript> ShowIntuneScripts(IDatabaseHandler database, string[] properties, string scriptId = "")
+        {
+            List<IntuneScript> intuneScripts = new List<IntuneScript>();
+
+            if (!string.IsNullOrEmpty(scriptId))
+            {
+                var script = database.FindByPrimaryKey<IntuneScript>(scriptId);
+                if (script != null)
+                {
+                    Logger.Info($"Found a matching script in the database");
+                    JsonHandler.PrintProperties(script.ToString(), properties);
+                    Dictionary<string, object> scriptProperties = BsonDocumentHandler.ToDictionary(script);
+                    intuneScripts.Add(new IntuneScript(scriptProperties));
+                }
+            }
+            else
+            {
+                var databaseScripts = database.FindInCollection<IntuneScript>();
+                if (databaseScripts.Any())
+                {
+                    Logger.Info($"Found {databaseScripts.Count()} matching scripts in the database");
+                    foreach (var script in databaseScripts)
+                    {
+                        JsonHandler.PrintProperties(script.ToString(), properties);
+                        Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(script);
+                        intuneScripts.Add(new IntuneScript(deviceProperties));
+                    }
+                }
+                else
+                {
+                    Logger.Info("No matching scripts found in the database");
+                }
+            }
+            return intuneScripts;
+        }
+
         public async Task SignInToIntuneAndGetAccessToken(IDatabaseHandler database)
         {
             // Request access token from Intune if none found
@@ -479,7 +571,7 @@ namespace Maestro
         {
             if (!skipDeviceLookup)
             {
-                IntuneDevice device = await GetIntuneDevice(deviceId: deviceId, database: database);
+                IntuneDevice device = await GetDevice(deviceId: deviceId, database: database);
                 if (device is null)
                 {
                     return;

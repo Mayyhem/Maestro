@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneExecCmdHandler
+    internal class IntuneExecCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
@@ -11,12 +11,12 @@ namespace Maestro
             {
                 if (subcommandName == "query")
                 {
-                    await IntuneExecQueryCmdHandler.Execute(arguments, database);
+                    await IntuneExecQueryCommand.Execute(arguments, database);
                     return;
                 }
                 else if (subcommandName == "script")
                 {
-                    await IntuneExecScriptCmdHandler.Execute(arguments, database);
+                    await IntuneExecScriptCommand.Execute(arguments, database);
                     return;
                 }
             }

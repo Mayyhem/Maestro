@@ -1,4 +1,5 @@
 ﻿using LiteDB;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Dynamic;
@@ -56,11 +57,27 @@ namespace Maestro
             return Properties;
         }
 
+        /*
         // Serialize the object to JSON
         public override string ToString()
         {
             var serializer = new JavaScriptSerializer();
             return serializer.Serialize(Properties);
+        }*/
+
+        public BsonDocument ToBsonDocument()
+        {
+            string jsonBlob = ToJsonBlob();
+            return BsonMapper.Global.Deserialize<BsonDocument>(jsonBlob);
+        }
+
+        public string ToJsonBlob()
+        {
+            return JsonConvert.SerializeObject(this, Formatting.None);
+        }
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
     }
 }

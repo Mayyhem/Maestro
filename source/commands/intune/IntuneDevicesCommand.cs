@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal static class IntuneDevicesCmdHandler
+    internal static class IntuneDevicesCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false)
         {
@@ -46,7 +46,7 @@ namespace Maestro
                     intuneClient.ShowIntuneDevices(database, properties, intuneDeviceId);
                     return;
                 }
-                await intuneClient.GetIntuneDevices(deviceId: intuneDeviceId, properties: properties, database: database);
+                await intuneClient.GetDevices(deviceId: intuneDeviceId, properties: properties, database: database);
             }
             else if (arguments.TryGetValue("--name", out string intuneDeviceName))
             {
@@ -55,7 +55,7 @@ namespace Maestro
                     intuneClient.ShowIntuneDevices(database, properties, deviceName: intuneDeviceName);
                     return;
                 }
-                await intuneClient.GetIntuneDevices(deviceName: intuneDeviceName, properties: properties, database: database);
+                await intuneClient.GetDevices(deviceName: intuneDeviceName, properties: properties, database: database);
             }
             // Get information from all devices by default
             else
@@ -65,7 +65,7 @@ namespace Maestro
                     intuneClient.ShowIntuneDevices(database, properties);
                     return;
                 }
-                await intuneClient.GetIntuneDevices(database: database, properties: properties);
+                await intuneClient.GetDevices(database: database, properties: properties);
             }
         }
     }

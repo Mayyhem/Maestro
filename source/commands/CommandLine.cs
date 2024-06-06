@@ -94,7 +94,7 @@ namespace Maestro
                                 ShortName = "-i",
                                 LongName = "--id",
                                 ValuePlaceholder = "ID",
-                                Description = "ID of the device to get information for"
+                                Description = "ID of the script to interact with"
                             },
                             new Option
                             {
@@ -102,6 +102,13 @@ namespace Maestro
                                 Description = "Delete the specified script from Intune",
                                 IsFlag = true
                             },
+                            new Option
+                            {
+                                ShortName = "-p",
+                                LongName = "--properties",
+                                ValuePlaceholder = "PROP,PROP | ALL",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                            }
                         }
                     },
                     new Subcommand

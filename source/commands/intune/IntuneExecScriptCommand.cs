@@ -4,14 +4,14 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneExecScriptCmdHandler
+    internal class IntuneExecScriptCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database)
         {
             if (arguments.TryGetValue("--id", out string deviceId) && arguments.TryGetValue("--script", out string script))
             {
                 IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database);
-                IntuneDevice device = await intuneClient.GetIntuneDevice(deviceId, database: database);
+                IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
 
                 string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);
                 if (filterId is null) return;
