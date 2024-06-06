@@ -102,19 +102,20 @@ namespace Maestro
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
 
             // Get all devices by default
-            string intuneDevicesUrl = "https://graph.microsoft.com/beta/me/managedDevices";
+            string intuneDevicesUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
 
             // Filter to specific devices
             if (!string.IsNullOrEmpty(deviceId))
             {
-                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=Id%20eq%20%27{deviceId}%27";
+                intuneDevicesUrl += $"('{deviceId}')";
             }
             else if (!string.IsNullOrEmpty(deviceName))
             {
-                intuneDevicesUrl = $"https://graph.microsoft.com/beta/me/managedDevices?filter=deviceName%20eq%20%27{deviceName}%27";
+                intuneDevicesUrl += $"?filter=deviceName%20eq%20%27{deviceName}%27";
             }
 
             // Request devices from Intune
+            Logger.Info("Requesting devices from Intune");
             HttpResponseMessage devicesResponse = await _graphClient._httpHandler.GetAsync(intuneDevicesUrl);
             if (devicesResponse is null)
             {
@@ -132,7 +133,7 @@ namespace Maestro
 
             if (devices.Count > 0)
             {
-                Logger.Info($"Found {devices.Count} {(devices.Count == 1 ? "device" : "devices")} in Intune");
+                Logger.Info($"Found {devices.Count} matching {(devices.Count == 1 ? "device" : "devices")} in Intune");
                 foreach (Dictionary<string, object> device in devices)
                 {
                     // Create an object for each item in the response
@@ -146,7 +147,7 @@ namespace Maestro
                 }
                 if (database != null)
                 {
-                    Logger.Info("Upserted devices in the database");
+                    Logger.Info($"Upserted {(devices.Count == 1 ? "device" : "devices")} in the database");
                 }
                 // Convert the devices ArrayList to JSON blob string
                 string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
