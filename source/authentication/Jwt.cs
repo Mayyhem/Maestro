@@ -1,4 +1,6 @@
 ﻿using LiteDB;
+using System.Collections.Generic;
+using System.Web.Script.Serialization;
 
 namespace Maestro
 {
@@ -6,7 +8,18 @@ namespace Maestro
     {
         // Class instances will be stored in the collection in the database
         // Primary key: oid
-        public Jwt(string base64BearerToken) : base("oid", base64BearerToken) { }
+        public Jwt(string base64BearerToken) : base("oid")
+        {
+            string decodedJson = StringHandler.DecodeJwt(base64BearerToken);
+            var serializer = new JavaScriptSerializer();
+            var properties = serializer.Deserialize<Dictionary<string, object>>(decodedJson);
+            foreach (var property in properties)
+            {
+                AddProperty(property.Key, property.Value);
+            }
+            AddProperty("bearerToken", base64BearerToken);
+        }
+
         public Jwt(BsonDocument bsonDocument) : base(bsonDocument) { }
     }
 }

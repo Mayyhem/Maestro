@@ -34,6 +34,12 @@ namespace Maestro
             if (!string.IsNullOrEmpty(bearerToken))
             {
                 intuneClient.BearerToken = bearerToken;
+                if (database != null)
+                {
+                    Jwt accessToken = new Jwt(bearerToken);
+                    database.Upsert(accessToken);
+                    Logger.Info("Upserted JWT in the database");
+                }
                 return intuneClient;
             }
 
@@ -106,7 +112,7 @@ namespace Maestro
             }
             if (database != null)
             {
-                BearerToken = database.FindValidJwt();
+              BearerToken = database.FindValidJwt();
 
                 if (!string.IsNullOrEmpty(BearerToken))
                 {
@@ -195,6 +201,10 @@ namespace Maestro
                         database.Upsert(intuneDevice);
                     }
                 }
+                if (database != null)
+                {
+                    Logger.Info("Upserted devices in the database");
+                }
                 // Convert the devices ArrayList to JSON blob string
                 string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
 
@@ -281,6 +291,10 @@ namespace Maestro
                         // Insert new record if matching id doesn't exist
                         database.Upsert(intuneScript);
                     }
+                }
+                if (database != null)
+                {
+                    Logger.Info("Upserted scripts in the database");
                 }
                 // Convert the devices ArrayList to JSON blob string
                 string scriptsJson = JsonConvert.SerializeObject(scripts, Formatting.Indented);
@@ -553,7 +567,7 @@ namespace Maestro
         {
             // Request access token from Intune if none found
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            await _authClient.GetTenantIdAndRefreshToken();
+            await _authClient.GetTenantIdAndRefreshToken(database);
             string base64Token = await GetAccessToken(_authClient.TenantId, _authClient.RefreshToken);
 
             // Store new JWT in the IntuneClient object
@@ -564,6 +578,7 @@ namespace Maestro
             {
                 Jwt accessToken = new Jwt(base64Token);
                 database.Upsert(accessToken);
+                Logger.Info("Upserted JWT in the database");
             }
         }
 

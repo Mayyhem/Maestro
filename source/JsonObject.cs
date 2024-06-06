@@ -13,11 +13,9 @@ namespace Maestro
         public Dictionary<string, object> Properties = new Dictionary<string, object>();
 
         // Instantiate object from JSON string
-        protected JsonObject(string primaryKey, string encodedJsonBlob)
+        protected JsonObject(string primaryKey, string jsonBlob)
         {
-            string decodedJson = StringHandler.DecodeJwt(encodedJsonBlob);
-
-            var properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(decodedJson);
+            var properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonBlob);
 
             foreach (var property in properties)
             {
@@ -29,7 +27,7 @@ namespace Maestro
                 AddProperty("primaryKey", primaryKey);
             }
 
-            AddProperty("jsonBlob", encodedJsonBlob);
+            AddProperty("jsonBlob", jsonBlob);
         }
 
         // Instantiate object that has already been deserialized

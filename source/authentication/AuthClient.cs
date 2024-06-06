@@ -109,6 +109,7 @@ namespace Maestro
                 "Microsoft_AAD_IAM", "microsoft.graph");
             if (entraIdPortalAuthorization is null) return null;
 
+            Logger.Info("Received EntraID portal authorization");
             RefreshToken = entraIdPortalAuthorization;
             return entraIdPortalAuthorization;
         }
@@ -211,7 +212,7 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task<(string, string)> GetTenantIdAndRefreshToken()
+        public async Task<(string, string)> GetTenantIdAndRefreshToken(IDatabaseHandler database = null)
         {
             HttpResponseMessage signinResponse = await SignInToIntune();
             if (signinResponse is null) return (null, null);
@@ -269,6 +270,26 @@ namespace Maestro
                 "{0}", "organizations");
             Logger.Info($"Found authorize URL in the response: {ssoNonceUrl}");
             return ssoNonceUrl;
+        }
+
+        private OAuthToken ParseOAuthTokenFromJsonResponse(string jsonResponse, IDatabaseHandler database = null)
+        {
+            // Parse response for OAuthToken
+            string oAuthTokenBlob = StringHandler.GetMatch(jsonResponse, @"\{""oAuthToken"":\{.*?\}\}");
+            if (oAuthTokenBlob is null)
+            {
+                Logger.Error("No oAuthToken was found in the response");
+                return null;
+            }
+            Logger.Info($"Found oAuthToken in response");
+            Logger.Debug(oAuthTokenBlob);
+            OAuthToken oAuthToken = new OAuthToken(oAuthTokenBlob);
+            if (database != null)
+            {
+                database.Upsert(oAuthToken);
+                Logger.Info("Upserted OAuthToken in the database");
+            }
+            return oAuthToken;
         }
 
         private string ParseRefreshTokenFromJsonResponse(string jsonResponse)

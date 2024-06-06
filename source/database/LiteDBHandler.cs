@@ -64,7 +64,7 @@ namespace Maestro
             if (farthestExpJwt != null)
             {
                 Logger.Info($"Found JWT with the required scope in the database");
-                bearerToken = farthestExpJwt["jsonBlob"];
+                bearerToken = farthestExpJwt["bearerToken"];
                 Logger.DebugTextOnly(bearerToken);
             }
             else
