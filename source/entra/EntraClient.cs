@@ -13,7 +13,7 @@ namespace Maestro
         private readonly IHttpHandler _httpHandler;
         public string BearerToken;
 
-        private EntraClient()
+        public EntraClient()
         {
             _httpHandler = new HttpHandler();
             _authClient = new AuthClient(_httpHandler);
@@ -22,17 +22,22 @@ namespace Maestro
         // Check the database for a stored access token before fetching from Intune
         public static async Task<EntraClient> CreateAndGetToken(IDatabaseHandler database = null, string bearerToken = "")
         {
-
             var entraClient = new EntraClient();
+
+            // Use the provided bearer token if available
             if (!string.IsNullOrEmpty(bearerToken))
             {
                 entraClient.BearerToken = bearerToken;
                 return entraClient;
             }
+
+            // Check the database for a stored access token before fetching from Intune
             if (database != null)
             {
                 //entraClient.FindStoredAccessToken(database);
             }
+
+            // Get a new access token if none found
             if (entraClient.BearerToken is null)
             {
                 //await entraClient.SignInToIntuneAndGetAccessToken(database);

@@ -16,7 +16,7 @@ namespace Maestro
                 }
                 else if (subcommandName == "script")
                 {
-                    await IntuneExecCmdHandler.Execute(arguments, database);
+                    await IntuneExecScriptCmdHandler.Execute(arguments, database);
                     return;
                 }
             }

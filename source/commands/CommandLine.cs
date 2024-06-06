@@ -85,6 +85,27 @@ namespace Maestro
                     },
                     new Subcommand
                     {
+                        Name = "scripts",
+                        Description = "Interact with scripts and remediations",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the device to get information for"
+                            },
+                            new Option
+                            {
+                                LongName = "--delete",
+                                Description = "Delete the specified script from Intune",
+                                IsFlag = true
+                            },
+                        }
+                    },
+                    new Subcommand
+                    {
                         Name = "sync",
                         Description = "Send notification to device requesting immediate sync to Intune",
                         Options = new List<Option>
@@ -555,7 +576,8 @@ namespace Maestro
                 Console.WriteLine("Global Options:\n");
                 foreach (var option in GlobalOptions)
                 {
-                    Console.WriteLine(PadDescription($"  {option.ShortName}, {option.LongName} {option.ValuePlaceholder}") + option.Description);
+                    string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+                    Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
                 }
             }
             else

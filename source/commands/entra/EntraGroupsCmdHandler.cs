@@ -7,7 +7,7 @@ namespace Maestro
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false)
         {
-            EntraClient entraClient = await EntraClient.CreateAndGetToken(database);
+            EntraClient entraClient = new EntraClient();
 
             IntuneClient intuneClient = await IntuneClient.CreateAndGetToken(database);
             string[] properties = null;

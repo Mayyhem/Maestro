@@ -15,7 +15,7 @@ namespace Maestro
                 }
                 else if (subcommandName == "groups")
                 {
-                    await EntraGroupsCmdHandler.Execute(arguments, database);
+                    await EntraGroupsCmdHandler.Execute(arguments, database, databaseOnly);
                 }
                 else if (subcommandName == "users")
                 {

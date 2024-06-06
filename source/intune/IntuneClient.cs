@@ -36,11 +36,13 @@ namespace Maestro
                 intuneClient.BearerToken = bearerToken;
                 return intuneClient;
             }
+
             // Check the database for a stored access token before fetching from Intune
             if (database != null)
             {
                 intuneClient.FindStoredAccessToken(database);
             }
+
             // Get a new access token if none found
             if (string.IsNullOrEmpty(intuneClient.BearerToken))
             {
@@ -483,15 +485,15 @@ namespace Maestro
                     return;
                 }
             }
-            Logger.Info($"Sending notification to {deviceId} to sync with Intune");
+            Logger.Info($"Sending request for Intune to notify to {deviceId} sync");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
             HttpResponseMessage response = await _httpHandler.PostAsync(url);
             if (!(response.StatusCode == HttpStatusCode.NoContent))
             {
-                Logger.Error($"Failed to send notification to device: {deviceId}");
+                Logger.Error($"Failed to send request for device sync notification");
                 return;
             }
-            Logger.Info("Successfully sent notification to device");
+            Logger.Info("Successfully sent request for device sync notification");
         }
     }
 }
