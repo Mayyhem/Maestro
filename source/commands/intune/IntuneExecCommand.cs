@@ -9,7 +9,12 @@ namespace Maestro
         {
             if (arguments.TryGetValue("subcommand2", out string subcommandName))
             {
-                if (subcommandName == "query")
+                if (subcommandName == "app")
+                {
+                    await IntuneExecAppCommand.Execute(arguments, database, reauth);
+                    return;
+                }
+                else if (subcommandName == "query")
                 {
                     await IntuneExecQueryCommand.Execute(arguments, database, reauth);
                     return;

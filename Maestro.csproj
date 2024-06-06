@@ -61,6 +61,8 @@
     <Compile Include="source\authentication\AuthClient.cs" />
     <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\OAuthToken.cs" />
+    <Compile Include="source\commands\intune\IntuneExecAppCommand.cs" />
+    <Compile Include="source\GraphRequest.cs" />
     <Compile Include="source\commands\entra\EntraCommand.cs" />
     <Compile Include="source\commands\entra\EntraUsersCommand.cs" />
     <Compile Include="source\commands\intune\IntuneScriptsCommand.cs" />
@@ -80,7 +82,6 @@
     <Compile Include="source\entra\EntraClient.cs" />
     <Compile Include="source\authentication\IAuthClient.cs" />
     <Compile Include="source\database\IDatabaseHandler.cs" />
-    <Compile Include="source\IGraphClient.cs" />
     <Compile Include="source\intune\IntuneScript.cs" />
     <Compile Include="source\intune\IntuneDevice.cs" />
     <Compile Include="source\GraphClient.cs" />

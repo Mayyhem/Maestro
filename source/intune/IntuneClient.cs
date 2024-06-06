@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using System.Xml.Linq;
 
 namespace Maestro
 {
@@ -129,36 +130,44 @@ namespace Maestro
             var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponseContent);
             if (deviceResponseDict is null) return null;
 
-            var devices = (ArrayList)deviceResponseDict["value"];
-
-            if (devices.Count > 0)
+            var devices = new ArrayList();
+            if (deviceResponseDict.ContainsKey("value"))
             {
-                Logger.Info($"Found {devices.Count} matching {(devices.Count == 1 ? "device" : "devices")} in Intune");
-                foreach (Dictionary<string, object> device in devices)
-                {
-                    // Create an object for each item in the response
-                    var intuneDevice = new IntuneDevice(device);
-                    intuneDevices.Add(intuneDevice);
-                    if (database != null)
-                    {
-                        // Insert new record if matching id doesn't exist
-                        database.Upsert(intuneDevice);
-                    }
-                }
-                if (database != null)
-                {
-                    Logger.Info($"Upserted {(devices.Count == 1 ? "device" : "devices")} in the database");
-                }
-                // Convert the devices ArrayList to JSON blob string
-                string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
-
-                // Print the selected properties of the devices
-                if (printJson) JsonHandler.PrintProperties(devicesJson, properties);
+                devices = (ArrayList)deviceResponseDict["value"];
             }
             else
             {
-                Logger.Info("No devices found");
+                devices.Add(deviceResponseDict);
             }
+
+            if (devices.Count == 0)
+            {
+                Logger.Info("No devices found");
+                return intuneDevices;
+            }
+
+            Logger.Info($"Found {devices.Count} matching {(devices.Count == 1 ? "device" : "devices")} in Intune");
+            foreach (Dictionary<string, object> device in devices)
+            {
+                // Create an object for each item in the response
+                var intuneDevice = new IntuneDevice(device);
+                intuneDevices.Add(intuneDevice);
+                if (database != null)
+                {
+                    // Insert new record if matching id doesn't exist
+                    database.Upsert(intuneDevice);
+                }
+            }
+            if (database != null)
+            {
+                Logger.Info($"Upserted {(devices.Count == 1 ? "device" : "devices")} in the database");
+            }
+            // Convert the devices ArrayList to JSON blob string
+            string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
+
+            // Print the selected properties of the devices
+            if (printJson) JsonHandler.PrintProperties(devicesJson, properties);
+            
             return intuneDevices;
         }
 
@@ -415,6 +424,77 @@ namespace Maestro
             string scriptId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained script ID: {scriptId}");
             return scriptId;
+        }
+
+        public async Task<string> NewWin32App(string deviceId, string appName, string installationPath, string runAsAccount)
+        {
+            Logger.Info($"Creating new Win32 app with displayName: {appName}");
+            string url = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/";
+
+            string appData = $@"
+            {{
+                ""@odata.type"": ""#microsoft.graph.win32LobApp"",
+                ""applicableArchitectures"": ""x64"",
+                ""allowAvailableUninstall"": false,
+                ""categories"": [],
+                ""description"": """",
+                ""developer"": """",
+                ""displayName"": ""{appName}"",
+                ""displayVersion"": """",
+                ""fileName"": ""{appName}.intunewin"",
+                ""installCommandLine"": ""{installationPath.Replace(@"\", @"\\")}"",
+                ""installExperience"": {{
+                    ""deviceRestartBehavior"": ""suppress"",
+                    ""maxRunTimeInMinutes"": 60,
+                    ""runAsAccount"": ""{runAsAccount}""
+                }},
+                ""informationUrl"": """",
+                ""isFeatured"": false,
+                ""roleScopeTagIds"": [],
+                ""notes"": """",
+                ""minimumFreeDiskSpaceInMB"": null,
+                ""minimumMemoryInMB"": null,
+                ""minimumSupportedWindowsRelease"": ""1607"",
+                ""msiInformation"": null,
+                ""owner"": """",
+                ""privacyInformationUrl"": """",
+                ""publisher"": """",
+                ""returnCodes"": [],
+                ""rules"": [
+                    {{
+                        ""@odata.type"": ""#microsoft.graph.win32LobAppFileSystemRule"",
+                        ""ruleType"": ""detection"",
+                        ""operator"": ""notConfigured"",
+                        ""check32BitOn64System"": false,
+                        ""operationType"": ""exists"",
+                        ""comparisonValue"": null,
+                        ""fileOrFolderName"": """",
+                        ""path"": """"
+                    }}
+                ],
+                ""runAs32Bit"": false,
+                ""setupFilePath"": ""{appName}.exe"",
+                ""uninstallCommandLine"": ""{installationPath.Replace(@"\", @"\\")}""
+            }}";
+
+            // Deserialize the JSON string into a dynamic object
+            dynamic appJson = JsonConvert.DeserializeObject<dynamic>(appData);
+            string json = JsonConvert.SerializeObject(appJson, Formatting.Indented);
+
+            // Create JSON content from the dynamic object
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            // Send the POST request to create the Win32 app
+            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
+            if (response.StatusCode != HttpStatusCode.Created)
+            {
+                Logger.Error("Failed to create Win32 app");
+                return null;
+            }
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string appId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
+            Logger.Info($"Obtained app ID: {appId}");
+            return appId;
         }
 
         public List<IntuneDevice> ShowIntuneDevices(IDatabaseHandler database, string[] properties, string deviceId = "",

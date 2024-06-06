@@ -134,6 +134,44 @@ namespace Maestro
                         {
                             new Subcommand
                             {
+                                Name = "app",
+                                Description = "Launch an executable from a specified UNC path on a device using a Win32 app",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the device to execute the app on"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-n",
+                                        LongName = "--name",
+                                        ValuePlaceholder = "APPNAME",
+                                        Description = "Name to give the application (visible in Intune)"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-p",
+                                        LongName = "--path",
+                                        ValuePlaceholder = @"\\UNCPATH\APP.EXE",
+                                        Description = "UNC path of the executable to launch"
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--user",
+                                        Description = "Run as the currently logged in user (default: SYSTEM)",
+                                        IsFlag = true
+                                    }
+                                }
+                            },
+                            new Subcommand
+                            {
                                 Name = "query",
                                 Description = "Execute device query on a device",
                                 Options = new List<Option>
@@ -200,8 +238,8 @@ namespace Maestro
                                         ValuePlaceholder = "B64_SCRIPT",
                                         Description = "Base64-encoded PowerShell script to execute"
                                     }
-                                },
-                            },
+                                }
+                            }
                         }
                     }
                 }

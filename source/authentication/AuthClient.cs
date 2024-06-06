@@ -146,7 +146,7 @@ namespace Maestro
                 return null;
 
             // HTTP request 3
-            Logger.Info("Using PRT with nonce to obtain code+id_token required for Intune signin");
+            Logger.Info("Using PRT with nonce to obtain code+id_token required for signin");
             HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrt(urlToCheckForNonce, xMsRefreshtokencredentialWithNonce);
             if (authorizeWithSsoNonceResponse is null) 
                 return null;
@@ -167,7 +167,7 @@ namespace Maestro
             if (formData is null) 
                 return null;
 
-            Logger.Info("Signing in to Intune with code+id_token obtained from authorize endpoint");
+            Logger.Info("Signing in with code+id_token obtained from authorize endpoint");
             HttpResponseMessage signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
             if (signinResponse is null)
             {
