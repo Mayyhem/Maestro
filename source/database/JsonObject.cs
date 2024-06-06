@@ -1,11 +1,7 @@
 ﻿using LiteDB;
 using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
 using System.Dynamic;
-using System.Linq;
-using System.Text;
-using System.Web.Script.Serialization;
 
 namespace Maestro
 {
@@ -15,6 +11,26 @@ namespace Maestro
     public abstract class JsonObject : DynamicObject
     {
         public Dictionary<string, object> Properties = new Dictionary<string, object>();
+
+        // Instantiate object from JSON string
+        protected JsonObject(string primaryKey, string encodedJsonBlob)
+        {
+            string decodedJson = StringHandler.DecodeJwt(encodedJsonBlob);
+
+            var properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(decodedJson);
+
+            foreach (var property in properties)
+            {
+                AddProperty(property.Key, property.Value);
+            }
+
+            if (properties.ContainsKey(primaryKey))
+            {
+                AddProperty("primaryKey", primaryKey);
+            }
+
+            AddProperty("jsonBlob", encodedJsonBlob);
+        }
 
         // Instantiate object that has already been deserialized
         protected JsonObject(string primaryKey, Dictionary<string, object> properties = null)
@@ -56,14 +72,6 @@ namespace Maestro
         {
             return Properties;
         }
-
-        /*
-        // Serialize the object to JSON
-        public override string ToString()
-        {
-            var serializer = new JavaScriptSerializer();
-            return serializer.Serialize(Properties);
-        }*/
 
         public BsonDocument ToBsonDocument()
         {

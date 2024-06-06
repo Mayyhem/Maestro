@@ -62,7 +62,7 @@
     <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\RefreshToken.cs" />
     <Compile Include="source\commands\entra\EntraCommand.cs" />
-    <Compile Include="source\commands\entra\EntraGroupsCommand.cs" />
+    <Compile Include="source\commands\entra\EntraUsersCommand.cs" />
     <Compile Include="source\commands\intune\IntuneScriptsCommand.cs" />
     <Compile Include="source\commands\intune\IntuneExecQueryCommand.cs" />
     <Compile Include="source\commands\intune\IntuneExecScriptCommand.cs" />

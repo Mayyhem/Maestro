@@ -38,7 +38,7 @@ namespace Maestro
             }
 
             // Get a new access token if none found
-            if (entraClient.BearerToken is null)
+            if (string.IsNullOrEmpty(entraClient.BearerToken))
             {
                 //await entraClient.SignInToIntuneAndGetAccessToken(database);
             }

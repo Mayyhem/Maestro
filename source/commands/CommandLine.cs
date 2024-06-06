@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.NetworkInformation;
 
 namespace Maestro
 {
@@ -19,8 +18,8 @@ namespace Maestro
                 {
                     new Subcommand
                     {
-                        Name = "groups",
-                        Description = "Get information about EntraID groups",
+                        Name = "users",
+                        Description = "Get information about EntraID users",
                         Options = new List<Option>
                         {
                             new Option
@@ -28,14 +27,14 @@ namespace Maestro
                                 ShortName = "-i",
                                 LongName = "--id",
                                 ValuePlaceholder = "ID",
-                                Description = "ID of the device to get information for"
+                                Description = "ID of the user to get information for"
                             },
                             new Option
                             {
                                 ShortName = "-n",
                                 LongName = "--name",
                                 ValuePlaceholder = "NAME",
-                                Description = "Name of the device to get information for"
+                                Description = "Name of the user to get information for"
                             },
                             new Option
                             {

@@ -11,8 +11,6 @@ namespace Maestro
     public class AuthClient : IAuthClient
     {
         public IHttpHandler HttpHandler { get; }
-        public string EntraIdAccessToken { get; private set; }
-        public string IntuneAccessToken { get; private set; }
         public string RefreshToken { get; private set; }
         public string TenantId { get; private set; }
 

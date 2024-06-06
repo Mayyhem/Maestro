@@ -15,11 +15,11 @@ namespace Maestro
                 }
                 else if (subcommandName == "groups")
                 {
-                    await EntraGroupsCommand.Execute(arguments, database, databaseOnly);
+                    //await EntraGroupsCommand.Execute(arguments, database, databaseOnly);
                 }
                 else if (subcommandName == "users")
                 {
-                    //await IntuneSyncCommand.Execute(arguments, database);
+                    await EntraUsersCommand.Execute(arguments, database, databaseOnly);
                 }
             }
             else

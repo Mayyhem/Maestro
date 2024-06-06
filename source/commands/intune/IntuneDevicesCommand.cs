@@ -38,7 +38,7 @@ namespace Maestro
                 properties = propertiesCsv.Split(',');
             }
 
-            // Filter devices
+            // Filter objects
             if (arguments.TryGetValue("--id", out string intuneDeviceId))
             {
                 if (databaseOnly)
@@ -57,6 +57,7 @@ namespace Maestro
                 }
                 await intuneClient.GetDevices(deviceName: intuneDeviceName, properties: properties, database: database);
             }
+
             // Get information from all devices by default
             else
             {
