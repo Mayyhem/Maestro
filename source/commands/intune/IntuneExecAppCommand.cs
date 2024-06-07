@@ -8,7 +8,7 @@ namespace Maestro
     {
         public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool reauth)
         {
-            if (arguments.TryGetValue("--id", out string deviceId) && arguments.TryGetValue("--name", out string appName) 
+            if (arguments.TryGetValue("--id", out string groupId) && arguments.TryGetValue("--name", out string appName) 
                 && arguments.TryGetValue("--path", out string installationPath))
             {
                 // Run as system by default
@@ -23,16 +23,17 @@ namespace Maestro
                 var intuneClient = new IntuneClient();
                 intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
 
-                IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
-                if (device is null) return;
+                var entraClient = new EntraClient();
+                entraClient = await EntraClient.InitAndGetAccessToken(database, bearerToken: intuneClient._graphClient.BearerToken);
 
-                string groupId = "";
+                EntraGroup group = await entraClient.GetGroup(groupId, database: database);
+                if (group is null) return;
 
                 if (!await intuneClient.NewWin32App(groupId, appName, installationPath, runAsAccount)) return;
 
                 Logger.Info("App assignment created, waiting 10 seconds before requesting device sync");
                 Thread.Sleep(10000);
-                await intuneClient.SyncDevice(deviceId, database, skipDeviceLookup: true);
+                await intuneClient.SyncDevice(groupId, database, skipDeviceLookup: true);
             }
             else
             {

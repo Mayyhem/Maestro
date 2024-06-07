@@ -32,6 +32,24 @@ namespace Maestro
 
 
         // entra groups
+        public async Task<EntraGroup> GetGroup(string groupId = "", string groupName = "", string[] properties = null,
+    IDatabaseHandler database = null)
+        {
+            List<EntraGroup> groups = await GetGroups(groupId, properties, database, printJson: false);
+            if (groups.Count > 1)
+            {
+                Logger.Error("Multiple groups found matching the specified name");
+                return null;
+            }
+            else if (groups.Count == 0)
+            {
+                Logger.Error($"Failed to find the specified group");
+                return null;
+            }
+            groupId = groups.FirstOrDefault()?.Properties["id"].ToString();
+            return groups.FirstOrDefault();
+        }
+
         public async Task<List<EntraGroup>> GetGroups(string groupId = "", string[] properties = null, IDatabaseHandler database = null,
             bool printJson = true)
         {

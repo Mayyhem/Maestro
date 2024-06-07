@@ -173,7 +173,7 @@ namespace Maestro
                                         ShortName = "-i",
                                         LongName = "--id",
                                         ValuePlaceholder = "ID",
-                                        Description = "ID of the device to execute the app on"
+                                        Description = "ID of the group to execute the app on"
                                     },
                                     new Option
                                     {
