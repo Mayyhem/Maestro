@@ -42,9 +42,21 @@ namespace Maestro
             return await SendRequestAsync(request);
         }
 
+        public async Task<HttpResponseMessage> PatchAsync(string url, HttpContent content = null)
+        {
+            var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) { Content = content };
+            return await SendRequestAsync(request);
+        }
+
         public async Task<HttpResponseMessage> PostAsync(string url, HttpContent content = null)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+            return await SendRequestAsync(request);
+        }
+
+        public async Task<HttpResponseMessage> PutAsync(string url, HttpContent content = null)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = content };
             return await SendRequestAsync(request);
         }
 

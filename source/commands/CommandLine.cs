@@ -18,6 +18,35 @@ namespace Maestro
                 {
                     new Subcommand
                     {
+                        Name = "groups",
+                        Description = "Get information about EntraID groups",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the group to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-n",
+                                LongName = "--name",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the group to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-p",
+                                LongName = "--properties",
+                                ValuePlaceholder = "PROP,PROP | ALL",
+                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
                         Name = "users",
                         Description = "Get information about EntraID users",
                         Options = new List<Option>

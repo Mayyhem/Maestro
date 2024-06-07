@@ -26,16 +26,13 @@ namespace Maestro
                 IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
                 if (device is null) return;
 
-                string win32AppId = await intuneClient.NewWin32App(deviceId, appName, installationPath, runAsAccount);
-                if (win32AppId is null) return;
+                string groupId = "";
 
-                //string assignmentId = await intuneClient.NewAppAssignment(win32AppId, deviceId);
-                //if (assignmentId is null) return;
+                if (!await intuneClient.NewWin32App(groupId, appName, installationPath, runAsAccount)) return;
 
-                //Logger.Info("App assignment created, waiting 10 seconds before requesting device sync");
-                //Thread.Sleep(10000);
-                //await intuneClient.SyncDevice(deviceId, database, skipDeviceLookup: true);
-                
+                Logger.Info("App assignment created, waiting 10 seconds before requesting device sync");
+                Thread.Sleep(10000);
+                await intuneClient.SyncDevice(deviceId, database, skipDeviceLookup: true);
             }
             else
             {

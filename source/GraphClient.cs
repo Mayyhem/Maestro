@@ -69,15 +69,5 @@ namespace Maestro
             }
             return false;
         }
-
-        /*
-        public async Task<HttpResponseMessage> SendRequestAsync(string url, string queryParameters = "", bool count = false, 
-            string filter = "", string format = "json", string orderBy = "", string search = "", string properties = "", int top = 10)
-        {
-
-
-            return await _httpHandler.SendRequestAsync(request);
-        }
-        */
     }
 }

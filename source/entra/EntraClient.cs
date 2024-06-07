@@ -30,10 +30,15 @@ namespace Maestro
             return entraClient;
         }
 
-        public async Task<HttpResponseMessage> GetGroups()
+
+        // entra groups
+        public async Task<List<EntraGroup>> GetGroups(string groupId = "", string[] properties = null, IDatabaseHandler database = null,
+            bool printJson = true)
         {
+            Logger.Info($"Requesting groups from Entra");
+            List<EntraGroup> entraGroups = new List<EntraGroup>();
             string url = "https://graph.microsoft.com/v1.0/$batch";
-            var jsonObject = new
+            var content = _graphClient._httpHandler.CreateJsonContent(new
             {
                 requests = new[]
                 {
@@ -46,11 +51,107 @@ namespace Maestro
                         headers = new Dictionary<string, object>()
                     }
                 }
-            };
-            var serializer = new JavaScriptSerializer();
-            string json = serializer.Serialize(jsonObject);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            return await _graphClient._httpHandler.PostAsync(url, content);
+            });
+    
+            HttpResponseMessage groupsResponse = await _graphClient._httpHandler.PostAsync(url, content);
+            string groupsResponseContent = await groupsResponse.Content.ReadAsStringAsync();
+
+            if (groupsResponse.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to get groups from Entra");
+                JsonHandler.PrintProperties(groupsResponseContent);
+                return entraGroups;
+            }
+
+            // Deserialize the JSON response to a dictionary
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var fullResponseDict = serializer.Deserialize<Dictionary<string, object>>(groupsResponseContent);
+            if (fullResponseDict == null) return null;
+
+            var responses = (ArrayList)fullResponseDict["responses"];
+            if (responses.Count == 0) return null;
+
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            foreach (Dictionary<string, object> response in responses)
+            {
+                if (response["id"].ToString() == "SecurityEnabledGroups")
+                {
+                    body = (Dictionary<string, object>)response["body"];
+                    break;
+                }
+            }
+            if (body.Count == 0) return null;
+
+            var groups = (ArrayList)body["value"];
+            if (groups.Count == 0)
+            {
+                Logger.Info("No groups found in Entra");
+                return null;
+            }
+
+            Logger.Info($"Found {groups.Count} {(groups.Count == 1 ? "group" : "groups")} in Entra");
+            foreach (Dictionary<string, object> group in groups)
+            {
+                // Create an object for each item in the response
+                var entraGroup = new EntraGroup(group);
+                entraGroups.Add(entraGroup);
+                if (database != null)
+                {
+                    // Insert new record if matching id doesn't exist
+                    database.Upsert(entraGroup);
+                }
+            }
+            if (database != null)
+            {
+                Logger.Info("Upserted groups in the database");
+            }
+
+            // Convert the groups ArrayList to JSON blob string
+            string groupsJson = JsonConvert.SerializeObject(groups, Formatting.Indented);
+
+            // Print the selected properties of the devices
+            if (printJson) JsonHandler.PrintProperties(groupsJson, properties);
+            return entraGroups;
+        }
+
+        public List<EntraGroup> ShowGroups(IDatabaseHandler database, string[] properties, string groupId = "")
+        {
+            List<EntraGroup> entraGroups = new List<EntraGroup>();
+
+            if (!string.IsNullOrEmpty(groupId))
+            {
+                var group = database.FindByPrimaryKey<EntraGroup>(groupId);
+                if (group != null)
+                {
+                    Logger.Info($"Found a matching group in the database");
+                    JsonHandler.PrintProperties(group.ToString(), properties);
+                    Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
+                    entraGroups.Add(new EntraGroup(groupProperties));
+                }
+                else
+                {
+                    Logger.Info("No matching group found in the database");
+                }
+            }
+            else
+            {
+                var databaseGroups = database.FindInCollection<EntraGroup>();
+                if (databaseGroups.Any())
+                {
+                    Logger.Info($"Found {databaseGroups.Count()} matching groups in the database");
+                    foreach (var group in databaseGroups)
+                    {
+                        JsonHandler.PrintProperties(group.ToString(), properties);
+                        Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
+                        entraGroups.Add(new EntraGroup(groupProperties));
+                    }
+                }
+                else
+                {
+                    Logger.Info("No matching groups found in the database");
+                }
+            }
+            return entraGroups;
         }
 
         public async Task<HttpResponseMessage> GetGroupMembers(string groupId)
@@ -86,10 +187,10 @@ namespace Maestro
         public async Task<List<EntraUser>> GetUsers(string userId = "", string[] properties = null, IDatabaseHandler database = null, 
             bool printJson = true)
         {
-            List<EntraUser> entraUsers = new List<EntraUser>();
-
             Logger.Info($"Requesting users from Entra");
+            List<EntraUser> entraUsers = new List<EntraUser>();
             string url = $"https://graph.microsoft.com/beta/users";
+
             if (!string.IsNullOrEmpty(userId))
             {
                 url += $"?filter=Id%20eq%20%27{userId}%27";
