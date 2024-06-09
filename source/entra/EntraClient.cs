@@ -56,20 +56,40 @@ namespace Maestro
             Logger.Info($"Requesting groups from Entra");
             List<EntraGroup> entraGroups = new List<EntraGroup>();
             string url = "https://graph.microsoft.com/v1.0/$batch";
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+
+            StringContent content = null;
+            if (!string.IsNullOrEmpty(groupId))
             {
-                requests = new[]
+                content = _graphClient._httpHandler.CreateJsonContent(new
                 {
+                    requests = new[]
+    {
                     new
                     {
                         id = "SecurityEnabledGroups",
                         method = "GET",
-                        url = "groups?$select=displayName,mail,id,onPremisesSyncEnabled,onPremisesLastSyncDateTime,groupTypes," +
-                        "mailEnabled,securityEnabled,resourceProvisioningOptions,isAssignableToRole&$top=100&$filter=securityEnabled eq true",
+                        url = $"groups?$filter=id eq '{groupId}'",
                         headers = new Dictionary<string, object>()
                     }
                 }
-            });
+                });
+            }
+            else
+            {
+                content = _graphClient._httpHandler.CreateJsonContent(new
+                {
+                    requests = new[]
+    {
+                    new
+                    {
+                        id = "SecurityEnabledGroups",
+                        method = "GET",
+                        url = "groups?$filter=securityEnabled eq true",
+                        headers = new Dictionary<string, object>()
+                    }
+                }
+                });
+            }
     
             HttpResponseMessage groupsResponse = await _graphClient._httpHandler.PostAsync(url, content);
             string groupsResponseContent = await groupsResponse.Content.ReadAsStringAsync();

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
@@ -260,7 +261,7 @@ namespace Maestro
                         ""check32BitOn64System"": false,
                         ""operationType"": ""exists"",
                         ""comparisonValue"": null,
-                        ""fileOrFolderName"": ""C:\"",
+                        ""fileOrFolderName"": ""C:\\"",
                         ""path"": ""Mayyhem""
                     }}
                 ],
@@ -321,8 +322,8 @@ namespace Maestro
                 ""name"": ""IntunePackage.intunewin"",
                 ""size"": 7269,
                 ""sizeEncrypted"": 7328,
-                ""isDependency"": false
-                ""@odata.type"": ""#microsoft.graph.mobileAppContentFile""""
+                ""isDependency"": false,
+                ""@odata.type"": ""#microsoft.graph.mobileAppContentFile""
             }}";
 
             // Deserialize the JSON string into a dynamic object
@@ -380,7 +381,10 @@ namespace Maestro
             // Upload the content file to Azure storage
             var content = new ByteArrayContent(winFileBytes);
             content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-            HttpResponseMessage response = await _graphClient._httpHandler.PutAsync(url, content);
+
+            // Don't include authorization header for this request
+            HttpHandler httpHandler = new HttpHandler();
+            HttpResponseMessage response = await httpHandler.PutAsync(url, content);
 
             if (response.StatusCode != HttpStatusCode.Created)
             {
@@ -396,23 +400,14 @@ namespace Maestro
         {
             Logger.Info("Sending content block list to Azure storage");
             string url = $"{azureStorageUri}&comp=blocklist";
-            string appData = $@"
-            {{
-                ""name"": ""IntunePackage.intunewin"",
-                ""size"": 7269,
-                ""sizeEncrypted"": 7328,
-                ""isDependency"": false
-                ""@odata.type"": ""#microsoft.graph.mobileAppContentFile""""
-            }}";
-
-            // Deserialize the JSON string into a dynamic object
-            dynamic appJson = JsonConvert.DeserializeObject<dynamic>(appData);
-            string json = JsonConvert.SerializeObject(appJson, Formatting.Indented);
+            string data = $@"<?xml version=""1.0"" encoding=""utf-8""?><BlockList><Latest>YmxvY2stMDAwMDAwMDA=</Latest></BlockList>";
 
             // Create JSON content from the dynamic object
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var content = new StringContent(data, Encoding.UTF8, "text/plain");
 
-            HttpResponseMessage contentFileResponse = await _graphClient._httpHandler.PutAsync(url, content);
+            // Don't include authorization header for this request either
+            HttpHandler httpHandler = new HttpHandler();
+            HttpResponseMessage contentFileResponse = await httpHandler.PutAsync(url, content);
             if (contentFileResponse.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to send block list");
@@ -431,13 +426,15 @@ namespace Maestro
             // Hardcoded values from .intunewin file created for calc.exe using IntuneWinAppUtil.exe
             var content = _graphClient._httpHandler.CreateJsonContent(new
             {
-                encryptionKey = "Em883WOfW9PzoF6vNWnc5C/vMlfny1UlnJ+sFwWcj3I=",
-                initializationVector = "aHbMoo5pDLBEtwWiZTxSGA==",
-                mac = "1Kh5GEMbmlHqzW3rbheU97ncwEIx3Mh/PgtHbIvGifM=",
-                macKey = "P29tFcMTctz/MLt93t+9NNpHyGs2x5bIcdOrbNCkg8o=",
-                profileIdentifier = "ProfileVersion1",
-                fileDigest = "uM0HYZFMcKDRNykTIYJzegzzjbqJJx6NpSyTLEMiCH4=",
-                fileDigestAlgorithm = "SHA256"
+                fileEncryptionInfo = new {
+                    encryptionKey = "Em883WOfW9PzoF6vNWnc5C/vMlfny1UlnJ+sFwWcj3I=",
+                    initializationVector = "aHbMoo5pDLBEtwWiZTxSGA==",
+                    mac = "1Kh5GEMbmlHqzW3rbheU97ncwEIx3Mh/PgtHbIvGifM=",
+                    macKey = "P29tFcMTctz/MLt93t+9NNpHyGs2x5bIcdOrbNCkg8o=",
+                    profileIdentifier = "ProfileVersion1",
+                    fileDigest = "uM0HYZFMcKDRNykTIYJzegzzjbqJJx6NpSyTLEMiCH4=",
+                    fileDigestAlgorithm = "SHA256"
+                }
             });
 
             HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
@@ -459,7 +456,7 @@ namespace Maestro
             string data = $@"
             {{
                 ""@odata.type"": ""#microsoft.graph.win32LobApp"",
-                ""committedContentVersion"": 1""
+                ""committedContentVersion"": ""1""
             }}";
 
             // Deserialize the JSON string into a dynamic object

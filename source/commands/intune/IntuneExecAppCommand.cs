@@ -24,7 +24,7 @@ namespace Maestro
                 intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
 
                 var entraClient = new EntraClient();
-                entraClient = await EntraClient.InitAndGetAccessToken(database, bearerToken: intuneClient._graphClient.BearerToken);
+                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth);
 
                 EntraGroup group = await entraClient.GetGroup(groupId, database: database);
                 if (group is null) return;
