@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using LiteDB;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -108,47 +109,42 @@ namespace Maestro
             return authorizeUrl;
         }
 
+        public async Task<string> GetNonce()
+        {
+            string url = "https://login.microsoftonline.com/common/oauth2/token";
+            Logger.Info($"Requesting nonce from {url}");
+
+            var content = new StringContent("grant_type=srv_challenge", Encoding.UTF8, "application/x-www-form-urlencoded");
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            string responseContent = await response.Content.ReadAsStringAsync();
+            return StringHandler.GetMatch(responseContent, "\"Nonce\":\"([^\"]+)\"");
+        }
+
         public async Task<HttpResponseMessage> SignInToService(string redirectUrl, IDatabaseHandler database)
         {
             // HTTP request 1
+            string ssoNonce = await GetNonce();
+            if (ssoNonce is null)
+            {
+                Logger.Error("No nonce was found in the response");
+                return null;
+            }
+            Logger.Info($"Found nonce in the response: {ssoNonce}");
+
+            // HTTP request 2
             string authorizeUrl = await GetAuthorizeUrl(redirectUrl);
             if (authorizeUrl is null) 
                 return null;
 
-            // Local request to mint PRT cookie 1
-            string xMsRefreshtokencredential = ROADToken.GetXMsRefreshtokencredential();
-            if (xMsRefreshtokencredential is null) 
-                return null;
-
-            // HTTP request 2
-            HttpResponseMessage initialAuthorizeResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredential);
-            if (initialAuthorizeResponse is null) 
-                return null;
-            string initialAuthorizeResponseContent = await initialAuthorizeResponse.Content.ReadAsStringAsync();
-
-            // Parse response for authorize URL with nonce
-            string urlToCheckForNonce = ParseInitialAuthorizeResponseForAuthorizeUrl(initialAuthorizeResponseContent);
-            if (urlToCheckForNonce is null) 
-                return null;
-
-            // Parse URL for nonce
-            string ssoNonce = StringHandler.GetMatch(urlToCheckForNonce, "sso_nonce=([^&]+)");
-            if (ssoNonce is null)
-            {
-                Logger.Error("No sso_nonce parameter was found in the URL");
-                return null;
-            }
-            Logger.Info($"Found sso_nonce parameter in the URL: {ssoNonce}");
-
-            // Local request to mint PRT cookie 2 with nonce
+            // Local request to mint PRT cookie with nonce
             string xMsRefreshtokencredentialWithNonce = ROADToken.GetXMsRefreshtokencredential(ssoNonce);
             if (xMsRefreshtokencredentialWithNonce is null) 
                 return null;
 
             // HTTP request 3
             Logger.Info("Using PRT with nonce to obtain code+id_token required for signin");
-            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrt(urlToCheckForNonce, xMsRefreshtokencredentialWithNonce);
-            if (authorizeWithSsoNonceResponse is null) 
+            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredentialWithNonce);
+            if (authorizeWithSsoNonceResponse is null)
                 return null;
             string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
 
