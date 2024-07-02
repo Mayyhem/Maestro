@@ -62,11 +62,14 @@ namespace Maestro
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
-                    case "intune":
-                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth);
+                    case "token":
+                        await TokenCommand.Execute(parsedArguments, database, databaseOnly, reauth);
                         break;
                     case "entra":
                         await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth);
+                        break;
+                    case "intune":
+                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

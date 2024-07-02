@@ -63,6 +63,9 @@
     <Compile Include="source\authentication\OAuthToken.cs" />
     <Compile Include="source\commands\entra\EntraGroupsCommand.cs" />
     <Compile Include="source\commands\intune\IntuneExecAppCommand.cs" />
+    <Compile Include="source\commands\token\TokenPrtCommand.cs" />
+    <Compile Include="source\commands\token\TokenAccessCommand.cs" />
+    <Compile Include="source\commands\token\TokenCommand.cs" />
     <Compile Include="source\entra\EntraGroup.cs" />
     <Compile Include="source\GraphRequest.cs" />
     <Compile Include="source\commands\entra\EntraCommand.cs" />

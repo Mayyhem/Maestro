@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -12,6 +13,7 @@ namespace Maestro
     {
         public IHttpHandler HttpHandler { get; }
         public string BearerToken { get; private set; }
+        public string ImpersonationToken { get; private set; }
         public string RefreshToken { get; private set; }
         public string TenantId { get; private set; }
 
@@ -20,10 +22,9 @@ namespace Maestro
             HttpHandler = new HttpHandler();
         }
 
-        public static async Task<T> InitAndGetAccessToken<T>(string authRedirectUrl, string delegationTokenUrl, string extensionName, string resourceName, IDatabaseHandler database = null, string bearerToken = "", bool reauth = false)
-     where T : AuthClient, new()
+        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, string delegationTokenUrl, string extensionName, string resourceName, IDatabaseHandler database = null, string bearerToken = "", bool reauth = false)
         {
-            var client = new T();
+            var client = new AuthClient();
 
             // Use the provided bearer token if available
             if (!string.IsNullOrEmpty(bearerToken))
@@ -175,9 +176,9 @@ namespace Maestro
             return StringHandler.GetMatch(responseContent, "\"Nonce\":\"([^\"]+)\"");
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, IDatabaseHandler database)
+        public async Task<string> GetPrtCookie()
         {
-            // HTTP request 1
+            // Request nonce from token endpoint
             string ssoNonce = await GetNonce();
             if (ssoNonce is null)
             {
@@ -186,13 +187,20 @@ namespace Maestro
             }
             Logger.Info($"Found nonce in the response: {ssoNonce}");
 
-            // HTTP request 2
+            // Local request to mint PRT cookie with nonce
+            return ROADToken.GetXMsRefreshtokencredential(ssoNonce);
+        }
+
+        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, IDatabaseHandler database)
+        {
+
+            // Get authorize endpoint from redirect
             string authorizeUrl = await GetAuthorizeUrl(redirectUrl);
-            if (authorizeUrl is null) 
+            if (authorizeUrl is null)
                 return null;
 
-            // Local request to mint PRT cookie with nonce
-            string xMsRefreshtokencredentialWithNonce = ROADToken.GetXMsRefreshtokencredential(ssoNonce);
+            // Get a nonce and primary refresh token cookie
+            string xMsRefreshtokencredentialWithNonce = await GetPrtCookie();
             if (xMsRefreshtokencredentialWithNonce is null) 
                 return null;
 
@@ -268,9 +276,21 @@ namespace Maestro
             if (tenantId is null) return;
             TenantId = tenantId;
 
+            // Get impersonation token for Azure portal
             OAuthToken oAuthToken = ParseOAuthTokenFromJsonResponse(signinResponseContent, database);
             if (oAuthToken is null) return;
+            JObject oAuthTokenJ = (JObject)oAuthToken.GetProperties()["oAuthToken"];
+            string authHeader = oAuthTokenJ.GetValue("authHeader").ToString();
+            ImpersonationToken = StringHandler.GetMatch(authHeader, "Bearer ([^\"]+)");
+            if (ImpersonationToken is null)
+            {
+                Logger.Error("No bearer token with the \"user_impersonation\" scope for Azure Portal was found in the response");
+                return;
+            }
+            Logger.Info($"Found user_impersonation token for Azure Portal in response: {ImpersonationToken}");
+            Logger.Debug(ImpersonationToken);
 
+            // Get refresh token for future requests
             string refreshToken = ParseRefreshTokenFromJsonResponse(signinResponseContent);
             if (refreshToken is null) return;
             RefreshToken = refreshToken;

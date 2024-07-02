@@ -28,7 +28,7 @@ namespace Maestro
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
             string resourceName = "microsoft.graph";
-            entraClient._authClient = await AuthClient.InitAndGetAccessToken<AuthClient>(authRedirectUrl, delegationTokenUrl, extensionName,
+            entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
                 resourceName, database, bearerToken, reauth);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             entraClient.HttpHandler = entraClient._authClient.HttpHandler;

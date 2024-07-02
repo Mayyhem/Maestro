@@ -12,6 +12,86 @@ namespace Maestro
         {
             new Command
             {
+                Name = "token",
+                Description = "Authenticate to EntraID and manipulate tokens",
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "prt",
+                        Description = "Use the current user's PRT to get a PRT cookie"
+                    },
+                    new Subcommand
+                    {
+                        Name = "refresh",
+                        Description = "Use a PRT cookie to get a refresh token",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                LongName = "--prt",
+                                ValuePlaceholder = "PRTCOOKIE",
+                                Description = "A primary refresh token to use",
+                                Default = "current user's PRT"
+                            },
+                            new Option
+                            {
+                                ShortName = "-s",
+                                LongName = "--store",
+                                ValuePlaceholder = "BEARERTOKEN",
+                                Description = "A bearer token to store in the database"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "access",
+                        Description = "Get an access token for a specified resource",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                ShortName = "-e",
+                                LongName = "--extension",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the extension to request an access token for",
+                                Default = "Microsoft_AAD_IAM"
+                            },
+                            new Option
+                            {
+                                ShortName = "-r",
+                                LongName = "--resource",
+                                ValuePlaceholder = "RESOURCE",
+                                Description = "Name of the resource to request an access token for",
+                                Default = "microsoft.graph"
+                            },
+                            new Option
+                            {
+                                ShortName = "-s",
+                                LongName = "--store",
+                                ValuePlaceholder = "BEARERTOKEN",
+                                Description = "A bearer token to store in the database"
+                            },
+                            new Option
+                            {
+                                LongName = "--prt",
+                                ValuePlaceholder = "PRTCOOKIE",
+                                Description = "A primary refresh token to use",
+                                Default = "current user's PRT"
+                            },
+                            new Option
+                            {
+                                LongName = "--refresh",
+                                ValuePlaceholder = "REFRESHTOKEN",
+                                Description = "A refresh token to use",
+                                Default = "request a refresh token with PRT of current user"
+                            }
+                        }
+                    }
+                }
+            },
+            new Command
+            {
                 Name = "entra",
                 Description = "Execute actions in EntraID",
                 Subcommands = new List<Subcommand>

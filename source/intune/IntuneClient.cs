@@ -28,7 +28,7 @@ namespace Maestro
             string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
             string extensionName = "Microsoft_Intune_DeviceSettings";
             string resourceName = "microsoft.graph";
-            intuneClient._authClient = await AuthClient.InitAndGetAccessToken<AuthClient>(authRedirectUrl, delegationTokenUrl, extensionName, 
+            intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
                 resourceName, database, bearerToken, reauth);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
