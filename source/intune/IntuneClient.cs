@@ -6,22 +6,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Security.Cryptography;
-using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
-using System.Xml.Linq;
 
 namespace Maestro
 {
     public class IntuneClient
     {
-
-        public GraphClient _graphClient;
+        private IAuthClient _authClient;
+        public IHttpHandler HttpHandler;
         public IntuneClient() 
-        { 
-            _graphClient = new GraphClient();
+        {
+            _authClient = new AuthClient();
         }
 
         public static async Task<IntuneClient> InitAndGetAccessToken(IDatabaseHandler database, string bearerToken = "", bool reauth = false)
@@ -30,11 +27,13 @@ namespace Maestro
             string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
             string extensionName = "Microsoft_Intune_DeviceSettings";
-            intuneClient._graphClient = await GraphClient.InitAndGetAccessToken<GraphClient>(authRedirectUrl, delegationTokenUrl, extensionName, 
-                database, bearerToken, reauth);
+            string resourceName = "microsoft.graph";
+            intuneClient._authClient = await AuthClient.InitAndGetAccessToken<AuthClient>(authRedirectUrl, delegationTokenUrl, extensionName, 
+                resourceName, database, bearerToken, reauth);
+            // Copy the HttpHandler from the AuthClient for use in the IntuneClient
+            intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
         }
-
 
         // intune devices
         public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null,
@@ -75,7 +74,7 @@ namespace Maestro
 
             // Request devices from Intune
             Logger.Info("Requesting devices from Intune");
-            HttpResponseMessage devicesResponse = await _graphClient._httpHandler.GetAsync(intuneDevicesUrl);
+            HttpResponseMessage devicesResponse = await HttpHandler.GetAsync(intuneDevicesUrl);
             if (devicesResponse is null)
             {
                 Logger.Error("Failed to get devices from Intune");
@@ -278,7 +277,7 @@ namespace Maestro
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             // Send the POST request to create the Win32 app
-            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
 
             if (response.StatusCode != HttpStatusCode.Created)
             {
@@ -300,7 +299,7 @@ namespace Maestro
 
             string jsonContent = "{}";
             var stringContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-            HttpResponseMessage contentVersionResponse = await _graphClient._httpHandler.PostAsync(url, stringContent);
+            HttpResponseMessage contentVersionResponse = await HttpHandler.PostAsync(url, stringContent);
 
             if (contentVersionResponse.StatusCode != HttpStatusCode.Created)
             {
@@ -333,7 +332,7 @@ namespace Maestro
             // Create JSON content from the dynamic object
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage contentFileResponse = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage contentFileResponse = await HttpHandler.PostAsync(url, content);
 
             if (contentFileResponse.StatusCode != HttpStatusCode.Created)
             {
@@ -353,7 +352,7 @@ namespace Maestro
             string url = $"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{appId}" +
                 $"/microsoft.graph.win32LobApp/contentVersions/1/files/{contentFileId}";
 
-            HttpResponseMessage response = await _graphClient._httpHandler.GetAsync(url);
+            HttpResponseMessage response = await HttpHandler.GetAsync(url);
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
@@ -424,7 +423,7 @@ namespace Maestro
                 $"/microsoft.graph.win32LobApp/contentVersions/1/files/{contentFileId}/commit";
 
             // Hardcoded values from .intunewin file created for calc.exe using IntuneWinAppUtil.exe
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+            var content = HttpHandler.CreateJsonContent(new
             {
                 fileEncryptionInfo = new {
                     encryptionKey = "Em883WOfW9PzoF6vNWnc5C/vMlfny1UlnJ+sFwWcj3I=",
@@ -437,7 +436,7 @@ namespace Maestro
                 }
             });
 
-            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
@@ -466,7 +465,7 @@ namespace Maestro
             // Create JSON content from the dynamic object
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage commitAppResponse = await _graphClient._httpHandler.PatchAsync(url, content);
+            HttpResponseMessage commitAppResponse = await HttpHandler.PatchAsync(url, content);
             if (commitAppResponse.StatusCode != HttpStatusCode.NoContent)
             {
                 Logger.Error("Failed to commit app");
@@ -511,7 +510,7 @@ namespace Maestro
             // Create JSON content from the dynamic object
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage commitAppResponse = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage commitAppResponse = await HttpHandler.PostAsync(url, content);
             if (commitAppResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to assign app");
@@ -556,11 +555,11 @@ namespace Maestro
             {
                 string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/createQuery";
                 string encodedQuery = Convert.ToBase64String(Encoding.UTF8.GetBytes(query));
-                var content = _graphClient._httpHandler.CreateJsonContent(new
+                var content = HttpHandler.CreateJsonContent(new
                 {
                     query = encodedQuery
                 });
-                HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
+                HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
                 if (!response.IsSuccessStatusCode)
                 {
                     Logger.Error("Failed to execute query");
@@ -587,7 +586,7 @@ namespace Maestro
             {
                 attempts++;
                 Logger.Info($"Attempt {attempts} of {maxRetries} to fetch query results");
-                HttpResponseMessage response = await _graphClient._httpHandler.GetAsync(url);
+                HttpResponseMessage response = await HttpHandler.GetAsync(url);
                 if (response.IsSuccessStatusCode)
                 {
                     string responseContent = await response.Content.ReadAsStringAsync();
@@ -621,7 +620,7 @@ namespace Maestro
             Logger.Info($"Creating new detection script with displayName: {displayName}");
             string url = "https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
 
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+            var content = HttpHandler.CreateJsonContent(new
             {
                 displayName,
                 description,
@@ -633,7 +632,7 @@ namespace Maestro
                 remediationScriptContent,
                 roleScopeTagIds = new List<string> { "0" }
             });
-            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
             if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to create detection script");
@@ -651,7 +650,7 @@ namespace Maestro
             Logger.Info($"Creating new device assignment filter with displayName: {displayName}");
 
             string url = "https://graph.microsoft.com/beta/deviceManagement/assignmentFilters";
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+            var content = HttpHandler.CreateJsonContent(new
             {
                 displayName,
                 description = "",
@@ -659,7 +658,7 @@ namespace Maestro
                 rule = $"(device.deviceName -eq \"{deviceName}\")",
                 roleScopeTagIds = new List<string> { "0" }
             });
-            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
             if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error("Failed to create device assignment filter");
@@ -679,7 +678,7 @@ namespace Maestro
             Logger.Info($"Assigning script {scriptId} to filter {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}/assign";
 
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+            var content = HttpHandler.CreateJsonContent(new
             {
                 deviceHealthScriptAssignments = new[]
                 {
@@ -703,7 +702,7 @@ namespace Maestro
                     }
                 }
             });
-            await _graphClient._httpHandler.PostAsync(url, content);
+            await HttpHandler.PostAsync(url, content);
         }
 
         public async Task NewDeviceManagementScriptAssignmentHourly(string filterId, string scriptId)
@@ -713,7 +712,7 @@ namespace Maestro
             Logger.Info($"Assigning script {scriptId} to filter {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}/assign";
 
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+            var content = HttpHandler.CreateJsonContent(new
             {
                 deviceHealthScriptAssignments = new[]
                 {
@@ -734,7 +733,7 @@ namespace Maestro
                     }
                 }
             });
-            await _graphClient._httpHandler.PostAsync(url, content);
+            await HttpHandler.PostAsync(url, content);
         }
 
         public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
@@ -742,11 +741,11 @@ namespace Maestro
             Logger.Info($"Initiating on demand proactive remediation - execution script {scriptId} on device {deviceId}");
             string url =
                 $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/initiateOnDemandProactiveRemediation";
-            var content = _graphClient._httpHandler.CreateJsonContent(new
+            var content = HttpHandler.CreateJsonContent(new
             {
                 ScriptPolicyId = scriptId,
             });
-            await _graphClient._httpHandler.PostAsync(url);
+            await HttpHandler.PostAsync(url);
         }
 
         public async Task DeleteDeviceAssignmentFilter(string filterId)
@@ -754,14 +753,14 @@ namespace Maestro
 
             Logger.Info($"Deleting device assignment filter with ID: {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/assignmentFilters/{filterId}";
-            await _graphClient._httpHandler.DeleteAsync(url);
+            await HttpHandler.DeleteAsync(url);
         }
 
         public async Task DeleteScriptPackage(string scriptId)
         {
             Logger.Info($"Deleting detection script with scriptId: {scriptId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
-            HttpResponseMessage response = await _graphClient._httpHandler.DeleteAsync(url);
+            HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to delete detection script");
@@ -782,7 +781,7 @@ namespace Maestro
             {
                 url += $"/{scriptId}";
             }
-            HttpResponseMessage scriptsResponse = await _graphClient._httpHandler.GetAsync(url);
+            HttpResponseMessage scriptsResponse = await HttpHandler.GetAsync(url);
             if (scriptsResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get scripts from Intune");
@@ -881,7 +880,7 @@ namespace Maestro
             }
             Logger.Info($"Sending request for Intune to notify to {deviceId} sync");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
-            HttpResponseMessage response = await _graphClient._httpHandler.PostAsync(url);
+            HttpResponseMessage response = await HttpHandler.PostAsync(url);
             if (!(response.StatusCode == HttpStatusCode.NoContent))
             {
                 Logger.Error($"Failed to send request for device sync notification");

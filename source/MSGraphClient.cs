@@ -3,20 +3,20 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    public class GraphClient
+    public class MSGraphClient
     {
         private readonly IAuthClient _authClient;
-        public readonly IHttpHandler _httpHandler;
+        public readonly IHttpHandler HttpHandler;
         public string BearerToken { get; protected set; }
 
-        public GraphClient() 
+        public MSGraphClient() 
         {
-            _httpHandler = new HttpHandler();
-            _authClient = new AuthClient(_httpHandler);
+            _authClient = new AuthClient();
+            HttpHandler = _authClient.HttpHandler;
         }
 
         public static async Task<T> InitAndGetAccessToken<T>(string authRedirectUrl, string delegationTokenUrl, string extensionName, IDatabaseHandler database = null, string bearerToken = "", bool reauth = false)
-             where T : GraphClient, new()
+             where T : MSGraphClient, new()
         {
             var client = new T();
 
@@ -45,7 +45,7 @@ namespace Maestro
                 await client._authClient.Authenticate(authRedirectUrl, database);
                 client.BearerToken = await client._authClient.GetAccessToken(client._authClient.TenantId, client._authClient.RefreshToken,
                     delegationTokenUrl, extensionName, "microsoft.graph", database);
-                client._httpHandler.SetAuthorizationHeader(client.BearerToken);
+                client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
             }
             return client;
         }
@@ -63,7 +63,7 @@ namespace Maestro
 
                 if (!string.IsNullOrEmpty(BearerToken))
                 {
-                    _httpHandler.SetAuthorizationHeader(BearerToken);
+                    HttpHandler.SetAuthorizationHeader(BearerToken);
                     return true;
                 }
             }

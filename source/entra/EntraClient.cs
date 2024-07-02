@@ -13,10 +13,10 @@ namespace Maestro
     // EntraID Microsoft Graph client
     public class EntraClient
     {
-        private GraphClient _graphClient;
+        private MSGraphClient _graphClient;
         public EntraClient() 
         {
-            _graphClient = new GraphClient();
+            _graphClient = new MSGraphClient();
         }
 
         public static async Task<EntraClient> InitAndGetAccessToken(IDatabaseHandler database, string bearerToken = "", bool reauth = false)
@@ -25,11 +25,10 @@ namespace Maestro
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
-            entraClient._graphClient = await GraphClient.InitAndGetAccessToken<GraphClient>(authRedirectUrl, delegationTokenUrl, extensionName, 
+            entraClient._graphClient = await MSGraphClient.InitAndGetAccessToken<MSGraphClient>(authRedirectUrl, delegationTokenUrl, extensionName, 
                 database, bearerToken, reauth);
             return entraClient;
         }
-
 
         // entra groups
         public async Task<EntraGroup> GetGroup(string groupId = "", string groupName = "", string[] properties = null,
@@ -60,7 +59,7 @@ namespace Maestro
             StringContent content = null;
             if (!string.IsNullOrEmpty(groupId))
             {
-                content = _graphClient._httpHandler.CreateJsonContent(new
+                content = _graphClient.HttpHandler.CreateJsonContent(new
                 {
                     requests = new[]
     {
@@ -76,7 +75,7 @@ namespace Maestro
             }
             else
             {
-                content = _graphClient._httpHandler.CreateJsonContent(new
+                content = _graphClient.HttpHandler.CreateJsonContent(new
                 {
                     requests = new[]
     {
@@ -91,7 +90,7 @@ namespace Maestro
                 });
             }
     
-            HttpResponseMessage groupsResponse = await _graphClient._httpHandler.PostAsync(url, content);
+            HttpResponseMessage groupsResponse = await _graphClient.HttpHandler.PostAsync(url, content);
             string groupsResponseContent = await groupsResponse.Content.ReadAsStringAsync();
 
             if (groupsResponse.StatusCode != HttpStatusCode.OK)
@@ -201,7 +200,7 @@ namespace Maestro
             // Set required header per https://aka.ms/graph-docs/advanced-queries
             request.Headers.Add("Consistencylevel", "eventual");
 
-            return await _graphClient._httpHandler.SendRequestAsync(request);
+            return await _graphClient.HttpHandler.SendRequestAsync(request);
         }
 
         public async Task<EntraUser> GetUser(string userId = "", string userName = "", string[] properties = null,
@@ -233,7 +232,7 @@ namespace Maestro
             {
                 url += $"?filter=Id%20eq%20%27{userId}%27";
             }
-            HttpResponseMessage usersResponse = await _graphClient._httpHandler.GetAsync(url);
+            HttpResponseMessage usersResponse = await _graphClient.HttpHandler.GetAsync(url);
             string usersResponseContent = await usersResponse.Content.ReadAsStringAsync();
             if (usersResponse.StatusCode != HttpStatusCode.OK)
             {

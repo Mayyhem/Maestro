@@ -70,7 +70,7 @@ namespace Maestro
                 Logger.Verbose($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
                 string responseContent = await response.Content.ReadAsStringAsync();
                 Logger.Debug($"Response:\n {responseContent}");
-                if (response.StatusCode == HttpStatusCode.Forbidden)
+                if (response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     Logger.Error("Unauthorized: try reauthenticating (--reauth) or providing different credentials");
                     JsonHandler.PrintProperties(responseContent);
