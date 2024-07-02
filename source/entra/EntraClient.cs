@@ -21,7 +21,7 @@ namespace Maestro
             _authClient = new AuthClient();
         }
 
-        public static async Task<EntraClient> InitAndGetAccessToken(IDatabaseHandler database, string bearerToken = "", bool reauth = false)
+        public static async Task<EntraClient> InitAndGetAccessToken(IDatabaseHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false)
         {
             var entraClient = new EntraClient();
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
@@ -29,7 +29,7 @@ namespace Maestro
             string extensionName = "Microsoft_AAD_IAM";
             string resourceName = "microsoft.graph";
             entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
-                resourceName, database, bearerToken, reauth);
+                resourceName, database, prtCookie, bearerToken, reauth);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             entraClient.HttpHandler = entraClient._authClient.HttpHandler;
             return entraClient;

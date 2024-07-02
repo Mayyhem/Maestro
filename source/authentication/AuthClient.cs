@@ -22,7 +22,7 @@ namespace Maestro
             HttpHandler = new HttpHandler();
         }
 
-        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, string delegationTokenUrl, string extensionName, string resourceName, IDatabaseHandler database = null, string bearerToken = "", bool reauth = false)
+        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, string delegationTokenUrl, string extensionName, string resourceName, IDatabaseHandler database = null, string prtCookie = "", string bearerToken = "", bool reauth = false)
         {
             var client = new AuthClient();
 
@@ -48,10 +48,10 @@ namespace Maestro
             // Get a new access token if none found
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                await client.Authenticate(authRedirectUrl, database);
-                client.BearerToken = await client.GetAccessToken(client.TenantId, client.RefreshToken,
-                    delegationTokenUrl, extensionName, resourceName, database);
-                client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
+                await client.Authenticate(authRedirectUrl, database, prtCookie);
+                //client.BearerToken = await client.GetAccessToken(client.TenantId, client.RefreshToken,
+                //    delegationTokenUrl, extensionName, resourceName, database);
+                //client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
             }
             return client;
         }
@@ -76,7 +76,7 @@ namespace Maestro
             return false;
         }
 
-        private async Task<HttpResponseMessage> AuthorizeWithPrt(string url, string xMSRefreshtokencredential)
+        private async Task<HttpResponseMessage> AuthorizeWithPrtCookie(string url, string xMSRefreshtokencredential)
         {
             Logger.Info("Using PRT cookie to authenticate to authorize URL");
 
@@ -191,7 +191,7 @@ namespace Maestro
             return ROADToken.GetXMsRefreshtokencredential(ssoNonce);
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, IDatabaseHandler database)
+        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, IDatabaseHandler database, string prtCookie = "")
         {
 
             // Get authorize endpoint from redirect
@@ -199,14 +199,17 @@ namespace Maestro
             if (authorizeUrl is null)
                 return null;
 
-            // Get a nonce and primary refresh token cookie
-            string xMsRefreshtokencredentialWithNonce = await GetPrtCookie();
-            if (xMsRefreshtokencredentialWithNonce is null) 
-                return null;
+            if (string.IsNullOrEmpty(prtCookie))
+            {
+                // Get a nonce and primary refresh token cookie (x-Ms-Refreshtokencredential)
+                prtCookie = await GetPrtCookie();
+                if (prtCookie is null)
+                    return null;
+            }
 
             // HTTP request 3
             Logger.Info("Using PRT with nonce to obtain code+id_token required for signin");
-            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrt(authorizeUrl, xMsRefreshtokencredentialWithNonce);
+            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, prtCookie);
             if (authorizeWithSsoNonceResponse is null)
                 return null;
             string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
@@ -265,10 +268,10 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task Authenticate(string redirectUrl, IDatabaseHandler database = null)
+        public async Task Authenticate(string redirectUrl, IDatabaseHandler database = null, string prtCookie = "")
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database);
+            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtCookie);
             if (signinResponse is null) return;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();

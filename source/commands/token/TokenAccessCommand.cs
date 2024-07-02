@@ -30,11 +30,20 @@ namespace Maestro
             // Request tokens
             if (arguments.TryGetValue("--prt", out string prt))
             {
-                prtCookie = prt;
-                // Need to implement  
+                // Clear default usage text
+                string defaultValue = CommandLine.commands.Find(
+                    c => c.Name == "token").Subcommands.Find(s => s.Name == "access").Options.Find(o => o.LongName == "--prt").Default;
+                if (prt == defaultValue)
+                {
+                    prtCookie = "";
+                }
+                else
+                {
+                    prtCookie = prt;
+                }
             }
 
-            else if (arguments.TryGetValue("--refresh", out string refresh))
+            if (arguments.TryGetValue("--refresh", out string refresh))
             {
                 refreshToken = refresh;
                 // Need to implement    
@@ -53,7 +62,7 @@ namespace Maestro
 
             if (!databaseOnly)
             {
-                authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, resourceName, database, bearerToken);
+                authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, resourceName, database, prtCookie, bearerToken);
             }
             else
             {

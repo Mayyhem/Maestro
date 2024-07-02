@@ -8,7 +8,7 @@ namespace Maestro
     {
         private const int DescriptionPadding = 40;
 
-        private static List<Command> commands = new List<Command>
+        public static List<Command> commands = new List<Command>
         {
             new Command
             {
