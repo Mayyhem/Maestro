@@ -1,26 +1,27 @@
 ﻿using LiteDB;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Maestro
 {
-    internal class LiteDBHandler : IDatabaseHandler
+    public class LiteDBHandler
     {
-        private readonly LiteDatabase _database;
+        public readonly LiteDatabase Database;
         public LiteDBHandler(string databasePath)
         {
-            _database = new LiteDatabase(databasePath);
+            Database = new LiteDatabase(databasePath);
         }
 
         public void Dispose() 
         {             
-            _database.Dispose();
+            Database.Dispose();
         }
 
         public IEnumerable<BsonDocument> FindInCollection<T>(string propertyName = "", BsonValue propertyValue = null)
         {
-            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
+            var collection = Database.GetCollection<BsonDocument>(typeof(T).Name);
             if (string.IsNullOrEmpty(propertyName))
             {
                 return collection.FindAll();
@@ -31,14 +32,52 @@ namespace Maestro
 
         public BsonDocument FindByPrimaryKey<T>(string primaryKeyValue)
         {
-            return _database.GetCollection<BsonDocument>(typeof(T).Name).FindById(new BsonValue(primaryKeyValue));
+            return Database.GetCollection<BsonDocument>(typeof(T).Name).FindById(new BsonValue(primaryKeyValue));
+        }
+
+        public string FindValidAccessToken(string scope = "")
+        {
+            string bearerToken = "";
+            var collection = Database.GetCollection<BsonDocument>("AccessToken");
+
+            // Define current Unix timestamp
+            var now = DateTime.UtcNow;
+            var nowUnixTimestamp = DateTimeHandler.ConvertToUnixTimestamp(DateTime.UtcNow);
+
+            // Use a single query to filter documents and find the matching JWT
+            var farthestExpiryAccessToken = collection.FindAll()
+                .Where(doc =>
+                    doc.ContainsKey("NotBefore") &&
+                    doc.ContainsKey("Expiry") &&
+                    // Check if the JWT is currently valid
+                    doc["NotBefore"].AsDateTime <= now && doc["Expiry"].AsDateTime >= now &&
+                    // Check if the JWT has the required scope, if provided
+                    (string.IsNullOrEmpty(scope) ||
+                        (doc.ContainsKey("Scope") &&
+                        doc["Scope"].IsString &&
+                        doc["Scope"].AsString.Split(' ').Contains(scope))))
+                // Find the JWT with the farthest expiration date
+                .OrderByDescending(doc => doc["Expiry"].AsDateTime)
+                .FirstOrDefault();
+
+            if (farthestExpiryAccessToken != null)
+            {
+                Logger.Info($"Found JWT with the required scope {scope} in the database");
+                bearerToken = farthestExpiryAccessToken["Value"];
+                Logger.DebugTextOnly(bearerToken);
+            }
+            else
+            {
+                Logger.Info($"No JWTs with the required scope {scope} found in the database");
+            }
+            return bearerToken;
         }
 
         public string FindValidJwt(string scope = "")
         {
             string bearerToken = "";
             // Get the Jwt collection (or create, if doesn't exist)
-            var collection = _database.GetCollection<BsonDocument>("Jwt");
+            var collection = Database.GetCollection<BsonDocument>("Jwt");
 
             // Define current Unix timestamp
             var nowUnixTimestamp = DateTimeHandler.ConvertToUnixTimestamp(DateTime.UtcNow);
@@ -78,7 +117,7 @@ namespace Maestro
         {
             string refreshToken = "";
             // Get the Jwt collection (or create, if doesn't exist)
-            var collection = _database.GetCollection<BsonDocument>("OAuthToken");
+            var collection = Database.GetCollection<BsonDocument>("OAuthToken");
 
             // Define current Unix timestamp
             var nowUnixTimestamp = DateTimeHandler.ConvertToUnixTimestamp(DateTime.UtcNow);
@@ -99,31 +138,10 @@ namespace Maestro
             return refreshToken;
         }
 
-        // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id
-        public void Upsert<T>(T item) where T : JsonObject
+        public void Upsert<T>(T entity)
         {
-            var collection = _database.GetCollection<BsonDocument>(typeof(T).Name);
-            var doc = new BsonDocument();
-
-            // Get the properties dynamically
-            var properties = item.GetProperties();
-
-            // Find the primary key property
-            var primaryKeyName = properties["primaryKey"]?.ToString();
-            string primaryKeyValue = "";
-
-            foreach (var kvp in properties)
-            {
-                doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
-                if (kvp.Key == primaryKeyName)
-                {
-                    primaryKeyValue = (string)kvp.Value;
-                }
-            }
-
-            // Ensure the primary key is set as _id in BsonDocument
-            doc["_id"] = new BsonValue(primaryKeyValue);
-            collection.Upsert(doc);
+            var collection = Database.GetCollection<T>(typeof(T).Name);
+            collection.Upsert(entity);
             Logger.Debug($"Upserted item in database: {typeof(T).Name}");
         }
     }

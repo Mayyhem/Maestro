@@ -14,32 +14,33 @@ namespace Maestro
     public class EntraClient
     {
 
-        private IAuthClient _authClient;
-        public IHttpHandler HttpHandler;
+        private AuthClient _authClient;
+        public HttpHandler HttpHandler;
         public EntraClient()
         {
             _authClient = new AuthClient();
         }
 
-        public static async Task<EntraClient> InitAndGetAccessToken(IDatabaseHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false)
+        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false)
         {
             var entraClient = new EntraClient();
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
             string resourceName = "microsoft.graph";
+            string requiredScope = "Directory.Read.All";
             entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
-                resourceName, database, prtCookie, bearerToken, reauth);
+                resourceName, database, prtCookie, bearerToken, reauth, requiredScope);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             entraClient.HttpHandler = entraClient._authClient.HttpHandler;
             return entraClient;
         }
 
         // entra groups
-        public async Task<EntraGroup> GetGroup(string groupId = "", string groupName = "", string[] properties = null,
-    IDatabaseHandler database = null)
+        public async Task<EntraGroupDynamic> GetGroup(string groupId = "", string groupName = "", string[] properties = null,
+    LiteDBHandler database = null)
         {
-            List<EntraGroup> groups = await GetGroups(groupId, properties, database, printJson: false);
+            List<EntraGroupDynamic> groups = await GetGroups(groupId, properties, database, printJson: false);
             if (groups.Count > 1)
             {
                 Logger.Error("Multiple groups found matching the specified name");
@@ -54,11 +55,11 @@ namespace Maestro
             return groups.FirstOrDefault();
         }
 
-        public async Task<List<EntraGroup>> GetGroups(string groupId = "", string[] properties = null, IDatabaseHandler database = null,
+        public async Task<List<EntraGroupDynamic>> GetGroups(string groupId = "", string[] properties = null, LiteDBHandler database = null,
             bool printJson = true)
         {
             Logger.Info($"Requesting groups from Entra");
-            List<EntraGroup> entraGroups = new List<EntraGroup>();
+            List<EntraGroupDynamic> entraGroups = new List<EntraGroupDynamic>();
             string url = "https://graph.microsoft.com/v1.0/$batch";
 
             StringContent content = null;
@@ -135,12 +136,13 @@ namespace Maestro
             foreach (Dictionary<string, object> group in groups)
             {
                 // Create an object for each item in the response
-                var entraGroup = new EntraGroup(group);
+                var entraGroup = new EntraGroupDynamic(group);
                 entraGroups.Add(entraGroup);
                 if (database != null)
                 {
                     // Insert new record if matching id doesn't exist
-                    database.Upsert(entraGroup);
+                    entraGroup.Upsert(database);
+                    //database.UpsertJsonObject(entraGroup);
                 }
             }
             if (database != null)
@@ -156,19 +158,19 @@ namespace Maestro
             return entraGroups;
         }
 
-        public List<EntraGroup> ShowGroups(IDatabaseHandler database, string[] properties, string groupId = "")
+        public List<EntraGroupDynamic> ShowGroups(LiteDBHandler database, string[] properties, string groupId = "")
         {
-            List<EntraGroup> entraGroups = new List<EntraGroup>();
+            List<EntraGroupDynamic> entraGroups = new List<EntraGroupDynamic>();
 
             if (!string.IsNullOrEmpty(groupId))
             {
-                var group = database.FindByPrimaryKey<EntraGroup>(groupId);
+                var group = database.FindByPrimaryKey<EntraGroupDynamic>(groupId);
                 if (group != null)
                 {
                     Logger.Info($"Found a matching group in the database");
                     JsonHandler.PrintProperties(group.ToString(), properties);
                     Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
-                    entraGroups.Add(new EntraGroup(groupProperties));
+                    entraGroups.Add(new EntraGroupDynamic(groupProperties));
                 }
                 else
                 {
@@ -177,7 +179,7 @@ namespace Maestro
             }
             else
             {
-                var databaseGroups = database.FindInCollection<EntraGroup>();
+                var databaseGroups = database.FindInCollection<EntraGroupDynamic>();
                 if (databaseGroups.Any())
                 {
                     Logger.Info($"Found {databaseGroups.Count()} matching groups in the database");
@@ -185,7 +187,7 @@ namespace Maestro
                     {
                         JsonHandler.PrintProperties(group.ToString(), properties);
                         Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
-                        entraGroups.Add(new EntraGroup(groupProperties));
+                        entraGroups.Add(new EntraGroupDynamic(groupProperties));
                     }
                 }
                 else
@@ -208,10 +210,10 @@ namespace Maestro
             return await HttpHandler.SendRequestAsync(request);
         }
 
-        public async Task<EntraUser> GetUser(string userId = "", string userName = "", string[] properties = null,
-            IDatabaseHandler database = null)
+        public async Task<EntraUserDynamic> GetUser(string userId = "", string userName = "", string[] properties = null,
+            LiteDBHandler database = null)
         {
-            List<EntraUser> users = await GetUsers(userId, properties, database, printJson: false);
+            List<EntraUserDynamic> users = await GetUsers(userId, properties, database, printJson: false);
             if (users.Count > 1)
             {
                 Logger.Error("Multiple users found matching the specified name");
@@ -226,11 +228,11 @@ namespace Maestro
             return users.FirstOrDefault();
         }
 
-        public async Task<List<EntraUser>> GetUsers(string userId = "", string[] properties = null, IDatabaseHandler database = null, 
+        public async Task<List<EntraUserDynamic>> GetUsers(string userId = "", string[] properties = null, LiteDBHandler database = null, 
             bool printJson = true)
         {
             Logger.Info($"Requesting users from Entra");
-            List<EntraUser> entraUsers = new List<EntraUser>();
+            List<EntraUserDynamic> entraUsers = new List<EntraUserDynamic>();
             string url = $"https://graph.microsoft.com/beta/users";
 
             if (!string.IsNullOrEmpty(userId))
@@ -259,12 +261,13 @@ namespace Maestro
                 foreach (Dictionary<string, object> user in users)
                 {
                     // Create an object for each item in the response
-                    var entraUser = new EntraUser(user);
+                    var entraUser = new EntraUserDynamic(user);
                     entraUsers.Add(entraUser);
                     if (database != null)
                     {
                         // Insert new record if matching id doesn't exist
-                        database.Upsert(entraUser);
+                        entraUser.Upsert(database);
+                        //database.UpsertJsonObject(entraUser);
                     }
                 }
                 if (database != null)
@@ -284,19 +287,19 @@ namespace Maestro
             return entraUsers;
         }
 
-        public List<EntraUser> ShowUsers(IDatabaseHandler database, string[] properties, string userId = "")
+        public List<EntraUserDynamic> ShowUsers(LiteDBHandler database, string[] properties, string userId = "")
         {
-            List<EntraUser> entraUsers = new List<EntraUser>();
+            List<EntraUserDynamic> entraUsers = new List<EntraUserDynamic>();
 
             if (!string.IsNullOrEmpty(userId))
             {
-                var user = database.FindByPrimaryKey<EntraUser>(userId);
+                var user = database.FindByPrimaryKey<EntraUserDynamic>(userId);
                 if (user != null)
                 {
                     Logger.Info($"Found a matching user in the database");
                     JsonHandler.PrintProperties(user.ToString(), properties);
                     Dictionary<string, object> userProperties = BsonDocumentHandler.ToDictionary(user);
-                    entraUsers.Add(new EntraUser(userProperties));
+                    entraUsers.Add(new EntraUserDynamic(userProperties));
                 }
                 else 
                 { 
@@ -305,7 +308,7 @@ namespace Maestro
             }
             else
             {
-                var databaseUsers = database.FindInCollection<EntraUser>();
+                var databaseUsers = database.FindInCollection<EntraUserDynamic>();
                 if (databaseUsers.Any())
                 {
                     Logger.Info($"Found {databaseUsers.Count()} matching users in the database");
@@ -313,7 +316,7 @@ namespace Maestro
                     {
                         JsonHandler.PrintProperties(user.ToString(), properties);
                         Dictionary<string, object> userProperties = BsonDocumentHandler.ToDictionary(user);
-                        entraUsers.Add(new EntraUser(userProperties));
+                        entraUsers.Add(new EntraUserDynamic(userProperties));
                     }
                 }
                 else

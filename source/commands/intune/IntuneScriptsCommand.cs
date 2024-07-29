@@ -5,7 +5,7 @@ namespace Maestro
 {
     internal class IntuneScriptsCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth)
         {
             var intuneClient = new IntuneClient();
             if (!databaseOnly)

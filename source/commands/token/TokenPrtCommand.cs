@@ -5,7 +5,7 @@ namespace Maestro
 {
     internal class TokenPrtCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly)
         {
             var authClient = new AuthClient();
             string prtCookie = "";

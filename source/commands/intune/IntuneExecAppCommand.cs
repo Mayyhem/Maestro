@@ -6,7 +6,7 @@ namespace Maestro
 {
     internal class IntuneExecAppCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool reauth)
         {
             if (arguments.TryGetValue("--id", out string groupId) && arguments.TryGetValue("--name", out string appName) 
                 && arguments.TryGetValue("--path", out string installationPath))
@@ -26,7 +26,7 @@ namespace Maestro
                 var entraClient = new EntraClient();
                 entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth);
 
-                EntraGroup group = await entraClient.GetGroup(groupId, database: database);
+                EntraGroupDynamic group = await entraClient.GetGroup(groupId, database: database);
                 if (group is null) return;
 
                 if (!await intuneClient.NewWin32App(groupId, appName, installationPath, runAsAccount)) return;

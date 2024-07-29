@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 
 namespace Maestro
-{ 
-    public class EntraUser : JsonObject
+{
+    public class IntuneDeviceDynamic : JsonObject
     {
         // Class instances will be stored in the collection in the database
         // Primary key: id
-        public EntraUser(Dictionary<string, object> properties) : base("id", properties) { }
+        public IntuneDeviceDynamic(Dictionary<string, object> deviceProperties) : base("id", deviceProperties) { }
     }
 }

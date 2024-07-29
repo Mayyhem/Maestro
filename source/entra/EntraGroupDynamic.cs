@@ -2,10 +2,10 @@
 
 namespace Maestro
 { 
-    public class EntraGroup : JsonObject
+    public class EntraGroupDynamic : JsonObject
     {
         // Class instances will be stored in the collection in the database
         // Primary key: id
-        public EntraGroup(Dictionary<string, object> properties) : base("id", properties) { }
+        public EntraGroupDynamic(Dictionary<string, object> properties) : base("id", properties) { }
     }
 }

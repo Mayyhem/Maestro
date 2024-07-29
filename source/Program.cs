@@ -12,7 +12,7 @@ namespace Maestro
         {
             // Execution timer
             var timer = new Stopwatch();
-            IDatabaseHandler database = null;
+            LiteDBHandler database = null;
 
             try
             {

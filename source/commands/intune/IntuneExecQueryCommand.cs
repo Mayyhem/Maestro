@@ -5,7 +5,7 @@ namespace Maestro
 {
     internal class IntuneExecQueryCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool reauth)
         {
 
             if (arguments.TryGetValue("--query", out string kustoQuery))

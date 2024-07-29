@@ -5,7 +5,7 @@ namespace Maestro
 {
     internal static class IntuneDevicesCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly = false, bool reauth = false)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly = false, bool reauth = false)
         {
             IntuneClient intuneClient = new IntuneClient();
             if (!databaseOnly)

@@ -4,11 +4,11 @@ using System.Web.Script.Serialization;
 
 namespace Maestro
 {
-    public class Jwt : JsonObject
+    public class JwtDynamic : JsonObject
     {
         // Class instances will be stored in the collection in the database
         // Primary key: oid
-        public Jwt(string base64BearerToken) : base("oid")
+        public JwtDynamic(string base64BearerToken) : base("oid")
         {
             string decodedJson = StringHandler.DecodeJwt(base64BearerToken);
             var serializer = new JavaScriptSerializer();
@@ -20,6 +20,6 @@ namespace Maestro
             AddProperty("bearerToken", base64BearerToken);
         }
 
-        public Jwt(BsonDocument bsonDocument) : base(bsonDocument) { }
+        public JwtDynamic(BsonDocument bsonDocument) : base(bsonDocument) { }
     }
 }

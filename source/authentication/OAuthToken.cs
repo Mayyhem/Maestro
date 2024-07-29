@@ -2,10 +2,10 @@
 
 namespace Maestro
 {
-    public class OAuthToken : JsonObject
+    public class OAuthTokenDynamic : JsonObject
     {
         // Set primary key
-        public OAuthToken(string jsonBlob) : base("aadSessionId", jsonBlob) { }
-        public OAuthToken(BsonDocument bsonDocument) : base(bsonDocument) { }
+        public OAuthTokenDynamic(string jsonBlob) : base("aadSessionId", jsonBlob) { }
+        public OAuthTokenDynamic(BsonDocument bsonDocument) : base(bsonDocument) { }
     }
 }

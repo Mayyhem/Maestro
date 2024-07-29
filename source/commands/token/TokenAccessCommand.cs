@@ -8,7 +8,7 @@ namespace Maestro
 {
     internal class TokenAccessCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly)
         {
             var authClient = new AuthClient();
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";

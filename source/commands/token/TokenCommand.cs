@@ -8,7 +8,7 @@ namespace Maestro
 { 
     internal class TokenCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, IDatabaseHandler database, bool databaseOnly, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
