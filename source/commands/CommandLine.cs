@@ -501,7 +501,7 @@ namespace Maestro
 
             if (command == null)
             {
-                Console.WriteLine($"Invalid command: {commandName}");
+                Console.WriteLine($"\nInvalid command: {commandName}");
                 PrintUsage();
                 return null;
             }
@@ -512,9 +512,11 @@ namespace Maestro
             {
                 var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1, command);
 
-                if (result == null && parsedArguments.ContainsKey("--help"))
+                // Invalid command or subcommand
+                if (result == null)
                 {
                     PrintCommandUsage(command, depth);
+                    Console.WriteLine();
                     return null;
                 }
                 return result;
@@ -627,8 +629,15 @@ namespace Maestro
                     // Invalid options
                     else
                     {
-                        Console.WriteLine($"Invalid option: {args[i]}");
-                        PrintUsage(parsedArguments["command"]);
+                        if (args[i].StartsWith("-"))
+                        {
+                            Console.WriteLine($"\nInvalid option: {args[i]}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"\nInvalid subcommand: {args[i]}");
+                        }
+                        Console.WriteLine();
                         return null;
                     }
                 }
@@ -676,12 +685,19 @@ namespace Maestro
                 }
             }
 
+            // Check for invalid subcommands
+            else if (command != null && !command.Options.Any(o => o.LongName == subcommandOrOptionNameArg))
+            {
+                Console.WriteLine($"\nInvalid subcommand: {subcommandOrOptionNameArg}\n");
+                return null;
+            }
+
             // Command options will be leftover after parsing subcommands
             if (command.Options.Count > 0)
             {
                 return ParseOptions(args.Skip(1).ToArray(), command.Options, parsedArguments);
             }
-
+    
             // If the argument is not a command option or subcommand, it must be a subcommand option
             return ParseOptions(args.Skip(1).ToArray(), subcommandOrOption.Options, parsedArguments);
         }
@@ -779,7 +795,10 @@ namespace Maestro
                             PrintSubcommandUsage(subCommand, depth + 1);
                         }
                     }
-                    Console.WriteLine("\n");
+                    if (command != commands.Last())
+                    {
+                        Console.WriteLine("\n");
+                    }
                 }
             }
             else
@@ -807,6 +826,7 @@ namespace Maestro
                             return;
                         }
                     }
+
                     // If not found
                     Console.WriteLine($"Unknown command or subcommand: {commandOrSubcommandName}");
                 }

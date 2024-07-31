@@ -24,7 +24,7 @@ namespace Maestro
             }
             else
             {
-                Logger.Error("Missing arguments for \"tokens\" command");
+                Logger.Error("Missing or invalid arguments for \"tokens\" command");
                 CommandLine.PrintUsage("tokens");
             }
         }
