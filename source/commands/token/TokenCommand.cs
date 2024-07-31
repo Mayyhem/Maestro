@@ -8,13 +8,13 @@ namespace Maestro
 { 
     internal class TokenCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
                 if (subcommandName == "prt")
                 {
-                    await TokenPrtCommand.Execute(arguments, database, databaseOnly);
+                    await TokenPrtCommand.Execute(arguments, database, databaseOnly, prtMethod);
                 }
                 else if (subcommandName == "refresh")
                 {

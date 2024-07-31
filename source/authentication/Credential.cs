@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Maestro
 {
-    public class Credential
+    public abstract class Credential
     {
         // Hash of Type and Value are used as the primary key to ensure upserts don't create new rows
         [BsonId]
@@ -16,7 +16,7 @@ namespace Maestro
         public string Type { get; set; }
         public string Value { get; private set; }
 
-        public Credential(string type, string value)
+        public Credential(string type, string value, LiteDBHandler database)
         {
             CompositeKey = GenerateCompositeKey(type, value);
             Type = type;
@@ -30,6 +30,15 @@ namespace Maestro
                 var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(type + value));
                 return Convert.ToBase64String(hashBytes);
             }
+        }
+
+        public void Upsert(LiteDBHandler database)
+        {
+            if (database == null)
+            {
+                return;
+            }
+            database.Upsert(this);
         }
     }
 }

@@ -411,6 +411,16 @@ namespace Maestro
             },
             new Option
             {
+                LongName = "--prt-method",
+                ValuePlaceholder = "METHOD",
+                Description =
+                    "Method used to request PRT cookies from LSA Cloud AP plugin (default: 0)\n" +
+                    new string(' ', DescriptionPadding) + "  0: RequestAADRefreshToken (via GetCookieInfoForUri COM interface)\n" +
+                    new string(' ', DescriptionPadding) + "  1: ROADToken (spawn BrowserCore.exe and call GetCookies)",
+                Default = "0"
+            },
+            new Option
+            {
                 LongName = "--reauth",
                 Description = "Skip database credential lookup and force reauthentication",
                 IsFlag = true

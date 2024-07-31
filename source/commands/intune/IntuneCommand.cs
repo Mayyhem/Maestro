@@ -5,13 +5,13 @@ namespace Maestro
 {
     internal class IntuneCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
                 if (subcommandName == "devices")
                 {
-                    await IntuneDevicesCommand.Execute(arguments, database, databaseOnly, reauth);
+                    await IntuneDevicesCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
                 else if (subcommandName == "exec")
                 {
@@ -19,11 +19,11 @@ namespace Maestro
                 }
                 else if (subcommandName == "scripts")
                 {
-                    await IntuneScriptsCommand.Execute(arguments, database, databaseOnly, reauth);
+                    await IntuneScriptsCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
                 else if (subcommandName == "sync")
                 {
-                    await IntuneSyncCommand.Execute(arguments, database, reauth);
+                    await IntuneSyncCommand.Execute(arguments, database, reauth, prtMethod);
                 }
             }
             else

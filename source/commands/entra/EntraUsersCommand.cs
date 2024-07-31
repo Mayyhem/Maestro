@@ -5,12 +5,12 @@ namespace Maestro
 {
     internal static class EntraUsersCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
         {
             EntraClient entraClient = new EntraClient();
             if (!databaseOnly)
             {
-                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth);
+                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth, prtMethod: prtMethod);
             }
 
             // Set default properties to print

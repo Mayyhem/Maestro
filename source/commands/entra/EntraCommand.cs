@@ -5,7 +5,7 @@ namespace Maestro
 {
     internal class EntraCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth)
+        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
@@ -15,11 +15,11 @@ namespace Maestro
                 }
                 else if (subcommandName == "groups")
                 {
-                    await EntraGroupsCommand.Execute(arguments, database, databaseOnly, reauth);
+                    await EntraGroupsCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
                 else if (subcommandName == "users")
                 {
-                    await EntraUsersCommand.Execute(arguments, database, databaseOnly, reauth);
+                    await EntraUsersCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
             }
             else

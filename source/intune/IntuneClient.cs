@@ -21,7 +21,7 @@ namespace Maestro
             _authClient = new AuthClient();
         }
 
-        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false)
+        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false, int prtMethod = 0)
         {
             var intuneClient = new IntuneClient();
             string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
@@ -30,17 +30,17 @@ namespace Maestro
             string resourceName = "microsoft.graph";
             string requiredScope = "DeviceManagementConfiguration.ReadWrite.All";
             intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
-                resourceName, database, prtCookie, bearerToken, reauth, requiredScope);
+                resourceName, database, prtCookie, bearerToken, reauth, requiredScope, prtMethod);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
         }
 
         // intune devices
-        public async Task<IntuneDeviceDynamic> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null,
+        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null,
     LiteDBHandler database = null)
         {
-            List<IntuneDeviceDynamic> devices = await GetDevices(deviceId, deviceName, properties, database, printJson: false);
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, properties, database, printJson: false);
             if (devices.Count > 1)
             {
                 Logger.Error("Multiple devices found matching the specified device name");
@@ -55,10 +55,10 @@ namespace Maestro
             return devices.FirstOrDefault();
         }
 
-        public async Task<List<IntuneDeviceDynamic>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null,
+        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null,
             LiteDBHandler database = null, bool printJson = true)
         {
-            List<IntuneDeviceDynamic> intuneDevices = new List<IntuneDeviceDynamic>();
+            List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
 
             // Get all devices by default
             string intuneDevicesUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
@@ -108,13 +108,8 @@ namespace Maestro
             foreach (Dictionary<string, object> device in devices)
             {
                 // Create an object for each item in the response
-                var intuneDevice = new IntuneDeviceDynamic(device);
+                var intuneDevice = new IntuneDevice(device, database);
                 intuneDevices.Add(intuneDevice);
-                if (database != null)
-                {
-                    // Insert new record if matching id doesn't exist
-                    intuneDevice.Upsert(database);
-                }
             }
             if (database != null)
             {
@@ -129,20 +124,20 @@ namespace Maestro
             return intuneDevices;
         }
 
-        public List<IntuneDeviceDynamic> ShowIntuneDevices(LiteDBHandler database, string[] properties, string deviceId = "",
+        public List<IntuneDevice> ShowIntuneDevices(LiteDBHandler database, string[] properties, string deviceId = "",
             string deviceName = "")
         {
-            List<IntuneDeviceDynamic> intuneDevices = new List<IntuneDeviceDynamic>();
+            List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
 
             if (!string.IsNullOrEmpty(deviceId))
             {
-                var device = database.FindByPrimaryKey<IntuneDeviceDynamic>(deviceId);
+                var device = database.FindByPrimaryKey<IntuneDevice>(deviceId);
                 if (device != null)
                 {
                     Logger.Info($"Found a matching device in the database");
                     JsonHandler.PrintProperties(device.ToString(), properties);
                     Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
-                    intuneDevices.Add(new IntuneDeviceDynamic(deviceProperties));
+                    intuneDevices.Add(new IntuneDevice(deviceProperties, database));
                 }
                 else
                 {
@@ -152,7 +147,7 @@ namespace Maestro
             else if (!string.IsNullOrEmpty(deviceName))
             {
 
-                var databaseDevices = database.FindInCollection<IntuneDeviceDynamic>("deviceName", deviceName);
+                var databaseDevices = database.FindInCollection<IntuneDevice>("deviceName", deviceName);
                 if (databaseDevices.Any())
                 {
                     Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
@@ -160,7 +155,7 @@ namespace Maestro
                     {
                         JsonHandler.PrintProperties(device.ToString(), properties);
                         Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
-                        intuneDevices.Add(new IntuneDeviceDynamic(deviceProperties));
+                        intuneDevices.Add(new IntuneDevice(deviceProperties, database));
                     }
                 }
                 else
@@ -170,7 +165,7 @@ namespace Maestro
             }
             else
             {
-                var databaseDevices = database.FindInCollection<IntuneDeviceDynamic>();
+                var databaseDevices = database.FindInCollection<IntuneDevice>();
                 if (databaseDevices.Any())
                 {
                     Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
@@ -178,7 +173,7 @@ namespace Maestro
                     {
                         JsonHandler.PrintProperties(device.ToString(), properties);
                         Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
-                        intuneDevices.Add(new IntuneDeviceDynamic(deviceProperties));
+                        intuneDevices.Add(new IntuneDevice(deviceProperties, database));
                     }
                 }
                 else
@@ -526,7 +521,7 @@ namespace Maestro
         public async Task ExecuteDeviceQuery(string kustoQuery, int maxRetries, int retryDelay, string deviceId = "", string deviceName = "", LiteDBHandler database = null)
         {
             // Check whether the device exists in Intune
-            IntuneDeviceDynamic device = await GetDevice(deviceId, deviceName, database: database);
+            IntuneDevice device = await GetDevice(deviceId, deviceName, database: database);
 
             // Submit the query to Intune
             string queryId = await NewDeviceQuery(kustoQuery, deviceId: deviceId);
@@ -772,9 +767,9 @@ namespace Maestro
 
  
         // intune scripts
-        public async Task<List<IntuneScriptDynamic>> GetScripts(string scriptId = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+        public async Task<List<IntuneScript>> GetScripts(string scriptId = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
         {
-            List<IntuneScriptDynamic> intuneScripts = new List<IntuneScriptDynamic>();
+            List<IntuneScript> intuneScripts = new List<IntuneScript>();
 
             Logger.Info($"Requesting scripts from Intune");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
@@ -803,19 +798,10 @@ namespace Maestro
                 foreach (Dictionary<string, object> script in scripts)
                 {
                     // Create an object for each item in the response
-                    var intuneScript = new IntuneScriptDynamic(script);
+                    var intuneScript = new IntuneScript(script, database);
                     intuneScripts.Add(intuneScript);
-                    if (database != null)
-                    {
-                        // Insert new record if matching id doesn't exist
-                        intuneScript.Upsert(database);
-                        //database.UpsertJsonObject(intuneScript);
-                    }
                 }
-                if (database != null)
-                {
-                    Logger.Info("Upserted scripts in the database");
-                }
+
                 // Convert the devices ArrayList to JSON blob string
                 string scriptsJson = JsonConvert.SerializeObject(scripts, Formatting.Indented);
 
@@ -829,19 +815,19 @@ namespace Maestro
             return intuneScripts;
         }
 
-        public List<IntuneScriptDynamic> ShowIntuneScripts(LiteDBHandler database, string[] properties, string scriptId = "")
+        public List<IntuneScript> ShowIntuneScripts(LiteDBHandler database, string[] properties, string scriptId = "")
         {
-            List<IntuneScriptDynamic> intuneScripts = new List<IntuneScriptDynamic>();
+            List<IntuneScript> intuneScripts = new List<IntuneScript>();
 
             if (!string.IsNullOrEmpty(scriptId))
             {
-                var script = database.FindByPrimaryKey<IntuneScriptDynamic>(scriptId);
+                var script = database.FindByPrimaryKey<IntuneScript>(scriptId);
                 if (script != null)
                 {
                     Logger.Info($"Found a matching script in the database");
                     JsonHandler.PrintProperties(script.ToString(), properties);
                     Dictionary<string, object> scriptProperties = BsonDocumentHandler.ToDictionary(script);
-                    intuneScripts.Add(new IntuneScriptDynamic(scriptProperties));
+                    intuneScripts.Add(new IntuneScript(scriptProperties, database));
                 }
                 else
                 {
@@ -850,7 +836,7 @@ namespace Maestro
             }
             else
             {
-                var databaseScripts = database.FindInCollection<IntuneScriptDynamic>();
+                var databaseScripts = database.FindInCollection<IntuneScript>();
                 if (databaseScripts.Any())
                 {
                     Logger.Info($"Found {databaseScripts.Count()} matching scripts in the database");
@@ -858,7 +844,7 @@ namespace Maestro
                     {
                         JsonHandler.PrintProperties(script.ToString(), properties);
                         Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(script);
-                        intuneScripts.Add(new IntuneScriptDynamic(deviceProperties));
+                        intuneScripts.Add(new IntuneScript(deviceProperties, database));
                     }
                 }
                 else
@@ -874,7 +860,7 @@ namespace Maestro
         {
             if (!skipDeviceLookup)
             {
-                IntuneDeviceDynamic device = await GetDevice(deviceId: deviceId, database: database);
+                IntuneDevice device = await GetDevice(deviceId: deviceId, database: database);
                 if (device is null)
                 {
                     return;

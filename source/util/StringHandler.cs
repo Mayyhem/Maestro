@@ -42,9 +42,9 @@ namespace Maestro
             return match.Value;
         }
 
-        public static string Truncate(string str)
+        public static string Truncate(string str, int maxLength)
         {
-            if (str.Length <= 12)
+            if (str.Length <= maxLength)
                 return str;
             return str.Substring(0, 6) + "..." + str.Substring(str.Length - 6);
         }

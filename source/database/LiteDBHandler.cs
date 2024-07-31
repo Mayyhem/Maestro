@@ -138,6 +138,11 @@ namespace Maestro
             return refreshToken;
         }
 
+        public ILiteCollection<T> GetCollection<T>(string typeName)
+        {
+            return Database.GetCollection<T>(typeName); 
+        }
+
         public void Upsert<T>(T entity)
         {
             var collection = Database.GetCollection<T>(typeof(T).Name);

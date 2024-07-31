@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -25,7 +26,10 @@ namespace Maestro
             HttpHandler = new HttpHandler();
         }
 
-        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null, string prtCookie = "", string bearerToken = "", bool reauth = false, string requiredScope = "")
+        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
+            string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null,
+            string prtCookie = "", string bearerToken = "", bool reauth = false, string requiredScope = "",
+            int prtMethod = 0)
         {
             var client = new AuthClient();
 
@@ -33,14 +37,7 @@ namespace Maestro
             if (!string.IsNullOrEmpty(bearerToken))
             {
                 client.BearerToken = bearerToken;
-                if (database != null)
-                {
-                    AccessToken accessToken = new AccessToken(bearerToken);
-                    //JwtDynamic accessToken = new JwtDynamic(bearerToken);
-                    //accessToken.Upsert(database);
-                    database.Upsert(accessToken);
-                    Logger.Info("Upserted access token in the database");
-                }
+                AccessToken accessToken = new AccessToken(bearerToken, database);
                 return client;
             }
 
@@ -50,10 +47,10 @@ namespace Maestro
                 client.FindStoredAccessToken(database, requiredScope);
             }
 
-            // Get a new access token if none found
+            // Get a new access token if none is found in the database
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                await client.Authenticate(authRedirectUrl, database, prtCookie);
+                await client.Authenticate(authRedirectUrl, database, prtCookie, prtMethod);
                 AccessToken accessToken = await client.GetAccessToken(client.TenantId, client.PortalAuthorization,
                     delegationTokenUrl, extensionName, resourceName, database);
                 client.BearerToken = accessToken.Value;
@@ -120,16 +117,7 @@ namespace Maestro
                 return null;
             }
             Logger.Info($"Found access token in DelegationToken response: {authHeader}");
-            AccessToken accessToken = new AccessToken(authHeader);
-
-            // Store new JWT in the database
-            if (database != null)
-            {
-                database.Upsert(accessToken);
-                //var jwt = new JwtDynamic(authHeader);
-                //database.UpsertJsonObject(jwt);
-                Logger.Info("Upserted access token in the database");
-            }
+            AccessToken accessToken = new AccessToken(authHeader, database);
             return accessToken;
         }
 
@@ -185,7 +173,7 @@ namespace Maestro
             return StringHandler.GetMatch(responseContent, "\"Nonce\":\"([^\"]+)\"");
         }
 
-        public async Task<string> GetPrtCookie()
+        public async Task<string> GetPrtCookie(int method, LiteDBHandler database)
         {
             // Request nonce from token endpoint
             string ssoNonce = await GetNonce();
@@ -197,12 +185,21 @@ namespace Maestro
             Logger.Info($"Found nonce in the response: {ssoNonce}");
 
             // Local request to mint PRT cookie with nonce
-            string prtCookie = ROADToken.GetXMsRefreshtokencredential(ssoNonce);
-            PrtCookie = prtCookie;
-            return prtCookie;
+            PrtCookie prtCookie = null;
+            if (method == 0)
+            {
+                Logger.Info("Requesting PRT cookie from LSA/CloudAP with nonce");
+                prtCookie = RequestAADRefreshToken.GetPrtCookies(database, ssoNonce).First();
+            }
+            else if (method == 1)
+            {
+                Logger.Info("Requesting PRT cookie via BrowserCore.exe with nonce");
+                prtCookie = ROADToken.GetPrtCookie(database, ssoNonce);
+            }
+            return prtCookie.Value;
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database, string prtCookie = "")
+        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database, string prtCookie = "", int prtMethod = 0)
         {
 
             // Get authorize endpoint from redirect
@@ -213,7 +210,7 @@ namespace Maestro
             if (string.IsNullOrEmpty(prtCookie))
             {
                 // Get a nonce and primary refresh token cookie (x-Ms-Refreshtokencredential)
-                prtCookie = await GetPrtCookie();
+                prtCookie = await GetPrtCookie(prtMethod, database);
                 if (prtCookie is null)
                     return null;
             }
@@ -274,15 +271,15 @@ namespace Maestro
                 Logger.Error("No portalAuthorization was found in the DelegationToken response");
                 return null;
             }
-            Logger.Info($"Found portalAuthorization in DelegationToken response: {StringHandler.Truncate(portalAuthorization)}");
+            Logger.Info($"Found portalAuthorization in DelegationToken response: {StringHandler.Truncate(portalAuthorization, 12)}");
             Logger.Debug(portalAuthorization);
             return portalAuthorization;
         }
 
-        public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, string prtCookie = "")
+        public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, string prtCookie = "", int prtMethod = 0)
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtCookie);
+            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtCookie, prtMethod);
             if (signinResponse is null) return;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();
@@ -290,6 +287,7 @@ namespace Maestro
             if (tenantId is null) return;
             TenantId = tenantId;
 
+            /*
             // Get impersonation token for Azure portal
             OAuthTokenDynamic oAuthToken = ParseOAuthTokenFromJsonResponse(signinResponseContent, database);
             if (oAuthToken is null) return;
@@ -303,7 +301,9 @@ namespace Maestro
                 return;
             }
             Logger.Info($"Found user_impersonation token for Azure Portal in response: {ImpersonationToken}");
-            Logger.Debug(ImpersonationToken);
+            AccessToken userImpersonationToken = new AccessToken(ImpersonationToken, database);
+            Logger.Debug(userImpersonationToken.Value);
+            */
 
             // Get refresh token for future requests
             string portalAuthorization = ParsePortalAuthorizationRefreshTokenFromJsonResponse(signinResponseContent);
@@ -365,13 +365,7 @@ namespace Maestro
             }
             Logger.Info($"Found oAuthToken in response");
             Logger.Debug(oAuthTokenBlob);
-            OAuthTokenDynamic oAuthToken = new OAuthTokenDynamic(oAuthTokenBlob);
-            if (database != null)
-            {
-                oAuthToken.Upsert(database);
-                //database.UpsertJsonObject(oAuthToken);
-                Logger.Info("Upserted OAuthToken in the database");
-            }
+            OAuthTokenDynamic oAuthToken = new OAuthTokenDynamic(oAuthTokenBlob, database);
             return oAuthToken;
         }
 
@@ -384,7 +378,7 @@ namespace Maestro
                 Logger.Error("No portal authorization (refreshToken) was found in the response");
                 return null;
             }
-            Logger.Info($"Found portal authorization (refreshToken) in response: {StringHandler.Truncate(portalAuthorization)}");
+            Logger.Info($"Found portal authorization (refreshToken) in response: {StringHandler.Truncate(portalAuthorization, 12)}");
             Logger.Debug(portalAuthorization);
             return portalAuthorization;
         }

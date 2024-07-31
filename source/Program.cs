@@ -38,8 +38,11 @@ namespace Maestro
                 }
                 Logger.Info("Execution started");
 
+                // Parse global options
+
                 // Lookup credentials in database or force reauthentication
                 bool reauth = false;
+
                 // Use database file if option is specified
                 if (parsedArguments.TryGetValue("--database", out string databasePath))
                 {
@@ -59,17 +62,23 @@ namespace Maestro
                     databaseOnly = bool.Parse(databaseOnlyString);
                 }
 
+                int prtMethod = 0;
+                if (parsedArguments.TryGetValue("--prt-method", out string prtMethodString))
+                {
+                    prtMethod = int.Parse(prtMethodString);
+                }
+
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
                     case "token":
-                        await TokenCommand.Execute(parsedArguments, database, databaseOnly, reauth);
+                        await TokenCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
                         break;
                     case "entra":
-                        await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth);
+                        await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
                         break;
                     case "intune":
-                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth);
+                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

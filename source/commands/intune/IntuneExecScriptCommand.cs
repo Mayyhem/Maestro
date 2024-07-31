@@ -13,7 +13,7 @@ namespace Maestro
                 var intuneClient = new IntuneClient();
                 intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
 
-                IntuneDeviceDynamic device = await intuneClient.GetDevice(deviceId, database: database);
+                IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
                 if (device is null) return;
 
                 string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);

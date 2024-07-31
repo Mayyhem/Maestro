@@ -1,7 +1,9 @@
 ﻿using LiteDB;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Web.Script.Serialization;
 
 namespace Maestro
 {
@@ -12,11 +14,21 @@ namespace Maestro
     {
         public Dictionary<string, object> Properties = new Dictionary<string, object>();
 
-        // Instantiate object from JSON string
-        protected JsonObject(string primaryKey, string jsonBlob)
-        {
-            var properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonBlob);
 
+        // Instantiate object from JSON string
+        protected JsonObject(string primaryKey, string jsonBlob, LiteDBHandler database, bool encoded = false)
+        {
+            Dictionary<string, object> properties = new Dictionary<string, object>();
+            if (encoded)
+            {
+                string decodedJson = StringHandler.DecodeJwt(jsonBlob);
+                var serializer = new JavaScriptSerializer();
+                properties = serializer.Deserialize<Dictionary<string, object>>(decodedJson);
+            }
+            else
+            {
+                properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(jsonBlob);
+            }
             foreach (var property in properties)
             {
                 AddProperty(property.Key, property.Value);
@@ -28,10 +40,11 @@ namespace Maestro
             }
 
             AddProperty("jsonBlob", jsonBlob);
+            Upsert(database);
         }
 
         // Instantiate object that has already been deserialized
-        protected JsonObject(string primaryKey, Dictionary<string, object> properties = null)
+        protected JsonObject(string primaryKey, Dictionary<string, object> properties = null, LiteDBHandler database = null)
         {
             if (properties is null)
             {
@@ -48,6 +61,7 @@ namespace Maestro
                     AddProperty("primaryKey", primaryKey);
                 }
             }
+            Upsert(database);
         }
 
         // Instantiate object from BsonDocument fetched from the database
@@ -87,9 +101,15 @@ namespace Maestro
         }
 
         // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id
-        public void Upsert(LiteDBHandler dbHandler)
+        public void Upsert(LiteDBHandler database)
         {
-            var collection = dbHandler.Database.GetCollection<BsonDocument>(GetType().Name);
+            if (database == null)
+            {
+                Logger.Debug($"Database option not used, skipping storage of this {GetType().Name}");
+                return;
+            }
+
+            var collection = database.GetCollection<BsonDocument>(GetType().Name);
             var doc = new BsonDocument();
 
             // Get the properties dynamically
@@ -104,7 +124,8 @@ namespace Maestro
                 doc[kvp.Key] = BsonMapper.Global.Serialize(kvp.Value);
                 if (kvp.Key == primaryKeyName)
                 {
-                    primaryKeyValue = (string)kvp.Value;
+                    // Set the primary key value, truncated to 256 characters (1023 byte limit in LiteDB)
+                    primaryKeyValue = StringHandler.Truncate((string)kvp.Value, 256);
                 }
             }
 
