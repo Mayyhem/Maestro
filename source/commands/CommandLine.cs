@@ -85,7 +85,7 @@ namespace Maestro
                         ShortName = "-s",
                         LongName = "--store",
                         ValuePlaceholder = "VALUE",
-                        Description = "The PRT cookie, refresh token, or access token to store"
+                        Description = "A PRT cookie, refresh token, or access token to store"
                     }
                 }
             },
@@ -688,14 +688,26 @@ namespace Maestro
 
         private static void PrintCommandUsage(Command command, int depth)
         {
-            Console.WriteLine($"Usage: Maestro.exe {command.Name} [options]");
-            foreach (var option in command.Options)
+            Console.WriteLine($"Usage: Maestro.exe {command.Name} [subcommand] [options]");
+            Console.WriteLine("\nGlobal Options:\n");
+            foreach (var option in GlobalOptions)
             {
-                PrintOptionUsage(option, depth);
+                string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+                Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
+            }
+
+            if (command.Options.Count > 0)
+            {
+                Console.WriteLine("\n   Options:");
+                foreach (var option in command.Options)
+                {
+                    PrintOptionUsage(option, depth);
+                }
             }
 
             if (command.Subcommands.Any())
             {
+                Console.WriteLine("\n   Subcommands:");
                 foreach (var subCommand in command.Subcommands)
                 {
                     Console.WriteLine();
@@ -706,11 +718,12 @@ namespace Maestro
 
         private static void PrintSubcommandUsage(Subcommand subcommand, int depth)
         {
-            Console.WriteLine(PadDescription($"{new string(' ', depth)}  {subcommand.Name}") + subcommand.Description);
+            Console.WriteLine(PadDescription($"{new string(' ', depth)}    {subcommand.Name}") + subcommand.Description);
             foreach (var option in subcommand.Options)
             {
                 PrintOptionUsage(option, depth);
             }
+
             foreach (var subSubCommand in subcommand.Subcommands)
             {
                 PrintSubcommandUsage(subSubCommand, depth + 2);
@@ -738,25 +751,35 @@ namespace Maestro
 
             if (string.IsNullOrEmpty(commandOrSubcommandName))
             {
-                Console.WriteLine("Usage: Maestro.exe <command> [options]");
+                Console.WriteLine("Usage: Maestro.exe <command> [subcommand] [options]");
+                Console.WriteLine("\nGlobal Options:\n");
+                foreach (var option in GlobalOptions)
+                {
+                    string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+                    Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
+                }
                 Console.WriteLine("\nCommands:\n");
                 foreach (var command in commands)
                 {
                     Console.WriteLine(PadDescription($"  {command.Name}") + command.Description);
+                    if (command.Options.Count > 0)
+                    {
+                        Console.WriteLine("\n   Options:");
+                        foreach (var option in command.Options)
+                        {
+                            string shortNameOrNot = $"     {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+                            Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
+                        }
+                    }
                     if (command.Subcommands.Any())
                     {
+                        Console.WriteLine("\n   Subcommands:");
                         foreach (var subCommand in command.Subcommands)
                         {
                             PrintSubcommandUsage(subCommand, depth + 1);
                         }
                     }
-                    Console.WriteLine();
-                }
-                Console.WriteLine("Global Options:\n");
-                foreach (var option in GlobalOptions)
-                {
-                    string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
-                    Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
+                    Console.WriteLine("\n");
                 }
             }
             else
@@ -765,13 +788,6 @@ namespace Maestro
                 if (command != null)
                 {
                     PrintCommandUsage(command, depth);
-
-                    Console.WriteLine("\nGlobal Options:\n");
-                    foreach (var option in GlobalOptions)
-                    {
-                        string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
-                        Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
-                    }
                 }
                 else
                 {
@@ -780,6 +796,12 @@ namespace Maestro
                         var subcommand = FindSubcommand(cmd.Subcommands, commandOrSubcommandName);
                         if (subcommand != null)
                         {
+                            Console.WriteLine("\nGlobal Options:\n");
+                            foreach (var option in GlobalOptions)
+                            {
+                                string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+                                Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
+                            }
                             PrintSubcommandUsage(subcommand, depth);
                             Console.WriteLine();
                             return;
