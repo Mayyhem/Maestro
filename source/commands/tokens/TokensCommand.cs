@@ -1,34 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Maestro
-{ 
-    internal class TokenCommand
+{
+    internal class TokensCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
-                if (subcommandName == "prt")
+                if (subcommandName == "prt-cookie")
                 {
-                    await TokenPrtCommand.Execute(arguments, database, databaseOnly, prtMethod);
+                    await TokensPrtCookieCommand.Execute(arguments, database, databaseOnly, prtMethod);
                 }
-                else if (subcommandName == "refresh")
+                else if (subcommandName == "refresh-token")
                 {
                     //await TokenRefreshCommand.Execute(arguments, database, databaseOnly, reauth);
                 }
-                else if (subcommandName == "access")
+                else if (subcommandName == "access-token")
                 {
-                    await TokenAccessCommand.Execute(arguments, database, databaseOnly);
+                    //await TokensAccessTokenCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
             }
             else
             {
-                Logger.Error("Missing arguments for \"token\" command");
-                CommandLine.PrintUsage("token");
+                Logger.Error("Missing arguments for \"tokens\" command");
+                CommandLine.PrintUsage("tokens");
             }
         }
     }

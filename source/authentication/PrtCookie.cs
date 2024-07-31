@@ -36,7 +36,15 @@ namespace Maestro
                 Nonce = (string)Jwt.Properties["request_nonce"];
             }
 
-            Upsert(database);
+            bool upsertSuccessful = Upsert(database);
+            if (!upsertSuccessful)
+            {
+                Logger.Error($"Failed to upsert {GetType()} in database");
+            }
+            else 
+            { 
+                Logger.Info($"Upserted {GetType()} in database");
+            }
         }
     } 
 }

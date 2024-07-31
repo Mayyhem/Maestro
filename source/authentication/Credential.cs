@@ -32,13 +32,13 @@ namespace Maestro
             }
         }
 
-        public void Upsert(LiteDBHandler database)
+        public bool Upsert(LiteDBHandler database)
         {
             if (database == null)
             {
-                return;
+                return false;
             }
-            database.Upsert(this);
+            return database.Upsert(this);
         }
     }
 }

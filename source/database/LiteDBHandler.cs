@@ -143,11 +143,28 @@ namespace Maestro
             return Database.GetCollection<T>(typeName); 
         }
 
-        public void Upsert<T>(T entity)
+        public bool Upsert<T>(T entity)
         {
-            var collection = Database.GetCollection<T>(typeof(T).Name);
-            collection.Upsert(entity);
-            Logger.Debug($"Upserted item in database: {typeof(T).Name}");
+            try
+            {
+                var collection = Database.GetCollection<T>(typeof(T).Name);
+                collection.Upsert(entity);
+                Logger.Debug($"Upserted item in database: {typeof(T).Name}");
+                return true;
+            }
+            catch (Exception ex) 
+            {
+                Logger.Error($"Failed to upsert item in database: {typeof(T).Name}");
+                while (ex != null)
+                {
+                    Logger.Debug($"  Exception type: {ex.GetType().Name}\n");
+                    Logger.Debug($"  Message: {ex.Message}\n");
+                    Logger.Debug($"  Stack Trace:\n {ex.StackTrace}\n");
+                    ex = ex.InnerException;
+                }
+                Logger.Error($"  Message: {ex.Message}");
+                return false;
+            }
         }
     }
 }

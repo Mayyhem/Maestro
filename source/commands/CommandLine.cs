@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 
 namespace Maestro
@@ -12,43 +13,45 @@ namespace Maestro
         {
             new Command
             {
-                Name = "token",
-                Description = "Authenticate to EntraID and manipulate tokens",
+                Name = "tokens",
+                Description = "Get or store EntraID/Azure tokens",
                 Subcommands = new List<Subcommand>
                 {
                     new Subcommand
                     {
-                        Name = "prt",
-                        Description = "Use the current user's PRT to get a PRT cookie"
+                        Name = "prt-cookie",
+                        Description = "Get or store a PRT cookie"
                     },
                     new Subcommand
                     {
-                        Name = "refresh",
-                        Description = "Use a PRT cookie to get a refresh token",
+                        Name = "refresh-token",
+                        Description = "Get or store a refresh token",
                         Options = new List<Option>
                         {
                             new Option
                             {
-                                LongName = "--prt",
-                                ValuePlaceholder = "PRTCOOKIE",
-                                Description = "A primary refresh token to use",
-                                Default = "current user's PRT"
-                            },
-                            new Option
-                            {
-                                ShortName = "-s",
-                                LongName = "--store",
-                                ValuePlaceholder = "BEARERTOKEN",
-                                Description = "A bearer token to store in the database"
+                                ShortName = "-c",
+                                LongName = "--prt-cookie",
+                                ValuePlaceholder = "VALUE",
+                                Description = "The PRT cookie to use",
+                                Default = "current user's PRT cookie"
                             }
                         }
                     },
                     new Subcommand
                     {
-                        Name = "access",
-                        Description = "Get an access token for a specified resource",
+                        Name = "access-token",
+                        Description = "Get or store an access token",
                         Options = new List<Option>
                         {
+                            new Option
+                            {
+                                ShortName = "-c",
+                                LongName = "--prt-cookie",
+                                ValuePlaceholder = "VALUE",
+                                Description = "The PRT cookie to use",
+                                Default = "current user's PRT cookie"
+                            },
                             new Option
                             {
                                 ShortName = "-e",
@@ -67,26 +70,22 @@ namespace Maestro
                             },
                             new Option
                             {
-                                ShortName = "-s",
-                                LongName = "--store",
-                                ValuePlaceholder = "BEARERTOKEN",
-                                Description = "A bearer token to store in the database"
-                            },
-                            new Option
-                            {
-                                LongName = "--prt",
-                                ValuePlaceholder = "PRTCOOKIE",
-                                Description = "A primary refresh token to use",
-                                Default = "current user's PRT"
-                            },
-                            new Option
-                            {
-                                LongName = "--refresh",
-                                ValuePlaceholder = "REFRESHTOKEN",
-                                Description = "A refresh token to use",
-                                Default = "request a refresh token with PRT of current user"
+                                ShortName = "-t",
+                                LongName = "--refresh-token",
+                                ValuePlaceholder = "VALUE",
+                                Description = "The refresh token to use"
                             }
                         }
+                    }
+                },
+                Options = new List<Option>
+                {
+                    new Option
+                    {
+                        ShortName = "-s",
+                        LongName = "--store",
+                        ValuePlaceholder = "VALUE",
+                        Description = "The PRT cookie, refresh token, or access token to store"
                     }
                 }
             },
@@ -511,7 +510,8 @@ namespace Maestro
 
             if (remainingArgs.Length > 1)
             {
-                var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1, null);
+                var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1, command);
+
                 if (result == null && parsedArguments.ContainsKey("--help"))
                 {
                     PrintCommandUsage(command, depth);
@@ -519,6 +519,7 @@ namespace Maestro
                 }
                 return result;
             }
+
             else
             {
                 if (parsedArguments.ContainsKey("--help"))
@@ -579,6 +580,7 @@ namespace Maestro
         {
             for (int i = 0; i < args.Length; i++)
             {
+                // Subcommand options
                 var option = options.FirstOrDefault(o => o.ShortName == args[i] || o.LongName == args[i]);
                 if (option != null)
                 {
@@ -598,8 +600,10 @@ namespace Maestro
                         i++;
                     }
                 }
+                
                 else
                 {
+                    // Global options
                     var globalOption = GlobalOptions.FirstOrDefault(o => o.ShortName == args[i] || o.LongName == args[i]);
                     if (globalOption != null)
                     {
@@ -619,6 +623,8 @@ namespace Maestro
                             i++;
                         }
                     }
+
+                    // Invalid options
                     else
                     {
                         Console.WriteLine($"Invalid option: {args[i]}");
@@ -640,39 +646,44 @@ namespace Maestro
             return parsedArguments;
         }
 
-        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth, string parentSubcommandName)
+        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth, Command command = null)
         {
             if (args.Length == 0)
             {
                 return parsedArguments;
             }
 
-            string subcommandOrOptionName = args[0];
+            // Check if the argument is a subcommand or an option
+            string subcommandOrOptionNameArg = args[0];
             
-            // Check if the argument is an subcommand
-            var subcommand = subcommands.FirstOrDefault(sc => sc.Name == subcommandOrOptionName);
+            var subcommandOrOption = subcommands.FirstOrDefault(sc => sc.Name == subcommandOrOptionNameArg);
 
-            if (subcommand != null)
+            if (subcommandOrOption != null)
             {
-                string subcommandName = subcommand.Name;
-                parsedArguments[$"subcommand{depth}"] = subcommandName;
+                parsedArguments[$"subcommand{depth}"] = subcommandOrOption.Name;
 
                 if (args.Length > 1)
                 {
                     // See if there are nested subcommands
-                    if (subcommand.Subcommands.Any())
+                    if (subcommandOrOption.Subcommands.Any())
                     {
-                        var matchedSubcommand = FindSubcommand(subcommand.Subcommands, args[1]);
+                        var matchedSubcommand = FindSubcommand(subcommandOrOption.Subcommands, args[1]);
                         if (matchedSubcommand != null)
                         {
-                            return ParseSubcommands(subcommand.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1, subcommandName);
+                            return ParseSubcommands(subcommandOrOption.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1);
                         }
                     }
                 }
             }
 
-            // If the argument is not a subcommand, it must be an option
-            return ParseOptions(args.Skip(1).ToArray(), subcommand.Options, parsedArguments);
+            // Command options will be leftover after parsing subcommands
+            if (command.Options.Count > 0)
+            {
+                return ParseOptions(args.Skip(1).ToArray(), command.Options, parsedArguments);
+            }
+
+            // If the argument is not a command option or subcommand, it must be a subcommand option
+            return ParseOptions(args.Skip(1).ToArray(), subcommandOrOption.Options, parsedArguments);
         }
 
         private static void PrintCommandUsage(Command command, int depth)
@@ -754,6 +765,13 @@ namespace Maestro
                 if (command != null)
                 {
                     PrintCommandUsage(command, depth);
+
+                    Console.WriteLine("\nGlobal Options:\n");
+                    foreach (var option in GlobalOptions)
+                    {
+                        string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
+                        Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
+                    }
                 }
                 else
                 {

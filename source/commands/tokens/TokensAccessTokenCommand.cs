@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class TokenAccessCommand
+    internal class TokensAccessTokenCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly)
         {
@@ -20,7 +20,7 @@ namespace Maestro
             string bearerToken = "";
 
             // Store the specified access token and exit
-            if (arguments.TryGetValue("--store", out string tokenToStore))
+            if (arguments.TryGetValue("--token", out string tokenToStore))
             {
                 bearerToken = tokenToStore;
                 // Need to implement
@@ -28,7 +28,7 @@ namespace Maestro
             }
 
             // Request tokens
-            if (arguments.TryGetValue("--prt", out string prt))
+            if (arguments.TryGetValue("--prt-cookie", out string prt))
             {
                 // Clear default usage text
                 string defaultValue = CommandLine.commands.Find(

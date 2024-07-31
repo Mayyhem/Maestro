@@ -38,8 +38,6 @@ namespace Maestro
                 }
                 Logger.Info("Execution started");
 
-                // Parse global options
-
                 // Lookup credentials in database or force reauthentication
                 bool reauth = false;
 
@@ -71,8 +69,8 @@ namespace Maestro
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
-                    case "token":
-                        await TokenCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                    case "tokens":
+                        await TokensCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
                         break;
                     case "entra":
                         await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
