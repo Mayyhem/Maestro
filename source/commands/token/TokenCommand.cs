@@ -22,7 +22,7 @@ namespace Maestro
                 }
                 else if (subcommandName == "access")
                 {
-                    await TokenAccessCommand.Execute(arguments, database, databaseOnly);
+                    //await TokenAccessCommand.Execute(arguments, database, databaseOnly);
                 }
             }
             else

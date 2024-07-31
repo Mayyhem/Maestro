@@ -11,29 +11,42 @@ using System.Web.Script.Serialization;
 namespace Maestro
 {
     // EntraID Microsoft Graph client
-    public class EntraClient
+    public class EntraClient : Cloneable
     {
-
         private AuthClient _authClient;
-        public HttpHandler HttpHandler;
-        public EntraClient()
+        public HttpHandler HttpHandler { get; private set; }
+
+        // ExecutedCommand properties
+        public string Command { get; private set; }
+        public Dictionary<string, string> Arguments { get; private set; }
+        public Logger.LogLevel LogLevel { get; private set; } = Logger.LogLevel.Info;
+        public LiteDBHandler Database { get; private set; }
+        public bool Reauth { get; private set; }
+        public bool DatabaseOnly { get; private set; }
+        public int PrtMethod { get; private set; }
+
+        // Parameterless constructor required for cloning parent commands
+        public EntraClient() { }
+        public EntraClient(Cloneable executedCommand)
         {
+            executedCommand.CloneTo<EntraClient>(this);
             _authClient = new AuthClient();
         }
 
-        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false, int prtMethod = 0)
+        public async Task<EntraClient> InitAndGetAccessToken()
         {
-            var entraClient = new EntraClient();
+            var entraClient = new EntraClient(this);
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
             string resourceName = "microsoft.graph";
             string requiredScope = "Directory.Read.All";
-            entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
-                resourceName, database, prtCookie, bearerToken, reauth, requiredScope, prtMethod);
-            // Copy the HttpHandler from the AuthClient for use in the IntuneClient
-            entraClient.HttpHandler = entraClient._authClient.HttpHandler;
-            return entraClient;
+            await _authClient.InitAndGetAccessToken(this, authRedirectUrl, delegationTokenUrl, extensionName, 
+                resourceName, requiredScope);
+
+            // Copy the HttpHandler from the AuthClient for use in the EntraClient
+            HttpHandler = _authClient.HttpHandler;
+            return this;
         }
 
         // entra groups
@@ -55,8 +68,8 @@ namespace Maestro
             return groups.FirstOrDefault();
         }
 
-        public async Task<List<EntraGroup>> GetGroups(string groupId = "", string[] properties = null, LiteDBHandler database = null,
-            bool printJson = true)
+        public async Task<List<EntraGroup>> GetGroups(string groupId = "", string[] properties = null,
+            LiteDBHandler database = null, bool printJson = true)
         {
             Logger.Info($"Requesting groups from Entra");
             List<EntraGroup> entraGroups = new List<EntraGroup>();
@@ -148,19 +161,19 @@ namespace Maestro
             return entraGroups;
         }
 
-        public List<EntraGroup> ShowGroups(LiteDBHandler database, string[] properties, string groupId = "")
+        public List<EntraGroup> ShowGroups(EntraGroupsCommand executedCommand)
         {
             List<EntraGroup> entraGroups = new List<EntraGroup>();
 
-            if (!string.IsNullOrEmpty(groupId))
+            if (!string.IsNullOrEmpty(executedCommand.GroupId))
             {
-                var group = database.FindByPrimaryKey<EntraGroup>(groupId);
+                var group = executedCommand.Database.FindByPrimaryKey<EntraGroup>(executedCommand.GroupId);
                 if (group != null)
                 {
                     Logger.Info($"Found a matching group in the database");
-                    JsonHandler.PrintProperties(group.ToString(), properties);
+                    JsonHandler.PrintProperties(group.ToString(), executedCommand.Properties);
                     Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
-                    entraGroups.Add(new EntraGroup(groupProperties, database));
+                    entraGroups.Add(new EntraGroup(groupProperties, executedCommand.Database));
                 }
                 else
                 {
@@ -169,15 +182,15 @@ namespace Maestro
             }
             else
             {
-                var databaseGroups = database.FindInCollection<EntraGroup>();
+                var databaseGroups = executedCommand.Database.FindInCollection<EntraGroup>();
                 if (databaseGroups.Any())
                 {
                     Logger.Info($"Found {databaseGroups.Count()} matching groups in the database");
                     foreach (var group in databaseGroups)
                     {
-                        JsonHandler.PrintProperties(group.ToString(), properties);
+                        JsonHandler.PrintProperties(group.ToString(), executedCommand.Properties);
                         Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
-                        entraGroups.Add(new EntraGroup(groupProperties, database));
+                        entraGroups.Add(new EntraGroup(groupProperties, executedCommand.Database));
                     }
                 }
                 else
@@ -267,19 +280,19 @@ namespace Maestro
             return entraUsers;
         }
 
-        public List<EntraUser> ShowUsers(LiteDBHandler database, string[] properties, string userId = "")
+        public List<EntraUser> ShowUsers(EntraUsersCommand executedCommand)
         {
             List<EntraUser> entraUsers = new List<EntraUser>();
 
-            if (!string.IsNullOrEmpty(userId))
+            if (!string.IsNullOrEmpty(executedCommand.UserId))
             {
-                var user = database.FindByPrimaryKey<EntraUser>(userId);
+                var user = executedCommand.Database.FindByPrimaryKey<EntraUser>(executedCommand.UserId);
                 if (user != null)
                 {
                     Logger.Info($"Found a matching user in the database");
-                    JsonHandler.PrintProperties(user.ToString(), properties);
+                    JsonHandler.PrintProperties(user.ToString(), executedCommand.Properties);
                     Dictionary<string, object> userProperties = BsonDocumentHandler.ToDictionary(user);
-                    entraUsers.Add(new EntraUser(userProperties, database));
+                    entraUsers.Add(new EntraUser(userProperties, executedCommand.Database));
                 }
                 else 
                 { 
@@ -288,15 +301,15 @@ namespace Maestro
             }
             else
             {
-                var databaseUsers = database.FindInCollection<EntraUser>();
+                var databaseUsers = executedCommand.Database.FindInCollection<EntraUser>();
                 if (databaseUsers.Any())
                 {
                     Logger.Info($"Found {databaseUsers.Count()} matching users in the database");
                     foreach (var user in databaseUsers)
                     {
-                        JsonHandler.PrintProperties(user.ToString(), properties);
+                        JsonHandler.PrintProperties(user.ToString(), executedCommand.Properties);
                         Dictionary<string, object> userProperties = BsonDocumentHandler.ToDictionary(user);
-                        entraUsers.Add(new EntraUser(userProperties, database));
+                        entraUsers.Add(new EntraUser(userProperties, executedCommand.Database));
                     }
                 }
                 else

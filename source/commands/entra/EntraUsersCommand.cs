@@ -1,46 +1,58 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.SqlServer.Server;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal static class EntraUsersCommand
+    public class EntraUsersCommand : EntraCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
+        // Set default properties to print
+        public string[] Properties { get; private set; }
+        public string UserId { get; private set; }
+
+        /*
+        public EntraUsersCommand(Dictionary<string, string> arguments) : base(arguments)
         {
-            EntraClient entraClient = new EntraClient();
-            if (!databaseOnly)
+            if (Arguments.TryGetValue("--id", out string userId))
             {
-                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth, prtMethod: prtMethod);
+                UserId = userId;
             }
 
-            // Set default properties to print
-            string[] properties = new string[] { };
-
             // User-specified properties
-            if (arguments.TryGetValue("--properties", out string propertiesCsv))
+            if (Arguments.TryGetValue("--properties", out string propertiesCsv))
             {
-                properties = propertiesCsv.Split(',');
+                Properties = propertiesCsv.Split(',');
+            }
+        }
+        */
+        public async Task Execute()
+        {
+            EntraClient entraClient = new EntraClient(this);
+
+            if (!DatabaseOnly)
+            {
+                await entraClient.InitAndGetAccessToken();
             }
 
             // Filter objects
-            if (arguments.TryGetValue("--id", out string userId))
+            if (!string.IsNullOrEmpty(UserId))
             {
-                if (databaseOnly)
+                if (DatabaseOnly)
                 {
-                    entraClient.ShowUsers(database, properties, userId: userId);
+                    entraClient.ShowUsers(this);
                     return;
                 }
-                await entraClient.GetUsers(userId: userId, properties: properties, database: database);
+                await entraClient.GetUser(UserId, properties: Properties, database: Database);
             }
             else
             {
                 // Get information for all items by default when no options are provided
-                if (databaseOnly)
+                if (DatabaseOnly)
                 {
-                    entraClient.ShowUsers(database, properties);
+                    entraClient.ShowUsers(this);
                     return;
                 }
-                await entraClient.GetUsers(properties: properties, database: database);
+                await entraClient.GetUsers(properties: Properties, database: Database);
             }
         }
     }

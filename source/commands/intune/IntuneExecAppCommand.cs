@@ -1,12 +1,14 @@
 ﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneExecAppCommand
+    internal class IntuneExecAppCommand : ExecutedCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool reauth)
+        public IntuneExecAppCommand(Dictionary<string, string> arguments) : base(arguments) { }
+        public async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool reauth)
         {
             if (arguments.TryGetValue("--id", out string groupId) && arguments.TryGetValue("--name", out string appName) 
                 && arguments.TryGetValue("--path", out string installationPath))
@@ -23,11 +25,11 @@ namespace Maestro
                 var intuneClient = new IntuneClient();
                 intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth);
 
-                var entraClient = new EntraClient();
-                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth);
+                //var entraClient = new EntraClient();
+                //var entraClient = await EntraClient.InitAndGetAccessToken(this);
 
-                EntraGroup group = await entraClient.GetGroup(groupId, database: database);
-                if (group is null) return;
+                //EntraGroup group = await entraClient.GetGroup(this);
+                //if (group is null) return;
 
                 if (!await intuneClient.NewWin32App(groupId, appName, installationPath, runAsAccount)) return;
 

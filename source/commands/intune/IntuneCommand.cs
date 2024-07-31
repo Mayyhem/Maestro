@@ -3,8 +3,10 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneCommand
+    public class IntuneCommand : ExecutedCommand
     {
+        public IntuneCommand(Dictionary<string, string> arguments) : base(arguments) { }
+
         public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
@@ -15,7 +17,7 @@ namespace Maestro
                 }
                 else if (subcommandName == "exec")
                 {
-                    await IntuneExecCommand.Execute(arguments, database, reauth);
+                    //await IntuneExecCommand.Execute(arguments, database, reauth);
                 }
                 else if (subcommandName == "scripts")
                 {

@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -10,7 +11,7 @@ using System.Web.Script.Serialization;
 
 namespace Maestro
 {
-    public class AuthClient
+    public class AuthClient : Cloneable
     {
         public HttpHandler HttpHandler { get; }
         public string BearerToken { get; private set; }
@@ -21,42 +22,68 @@ namespace Maestro
         public string SpaAuthCode { get; private set; }
         public string TenantId { get; private set; }
 
-        public AuthClient()
+        // ExecutedCommand properties
+        public string Command { get; private set; }
+        public Dictionary<string, string> Arguments { get; private set; }
+        public Logger.LogLevel LogLevel { get; private set; } = Logger.LogLevel.Info;
+        public LiteDBHandler Database { get; private set; }
+        public bool Reauth { get; private set; }
+        public bool DatabaseOnly { get; private set; }
+        public int PrtMethod { get; private set; } = 0;
+
+        // Parameterless constructor required for cloning properties
+        public AuthClient() { }
+
+        public AuthClient(Cloneable executedCommand)
         {
+            // Clone the matching properties of the parent commands
+            executedCommand.CloneTo<AuthClient>(this);
+
             HttpHandler = new HttpHandler();
+
+            // Use the provided credentials if available
+            if (Arguments.TryGetValue("--prt-cookie", out string prtCookie))
+            {
+                PrtCookie = prtCookie;
+            }
+            if (Arguments.TryGetValue("--refresh-token", out string refreshToken))
+            {
+                RefreshToken = refreshToken;
+            }
+            if (Arguments.TryGetValue("--bearer-token", out string bearerToken))
+            {
+                BearerToken = bearerToken;
+                AccessToken accessToken = new AccessToken(BearerToken, Database);
+            }
         }
 
-        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
-            string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null,
-            string prtCookie = "", string bearerToken = "", bool reauth = false, string requiredScope = "",
-            int prtMethod = 0)
+        public async Task<AuthClient> InitAndGetAccessToken(Cloneable executedCommand, string authRedirectUrl, 
+            string delegationTokenUrl, string extensionName, string resourceName, string requiredScope = "")
         {
-            var client = new AuthClient();
+           var authClient = new AuthClient(executedCommand);
 
-            // Use the provided bearer token if available
-            if (!string.IsNullOrEmpty(bearerToken))
+            // Use provided access token if available
+            if (!string.IsNullOrEmpty(authClient.BearerToken))
             {
-                client.BearerToken = bearerToken;
-                AccessToken accessToken = new AccessToken(bearerToken, database);
-                return client;
+                return authClient;
             }
 
             // Check the database for a stored access token before fetching from Intune
-            if (database != null && !reauth)
+            if (authClient.Database != null && !authClient.Reauth)
             {
-                client.FindStoredAccessToken(database, requiredScope);
+                authClient.FindStoredAccessToken(authClient.Database, requiredScope);
             }
 
             // Get a new access token if none is found in the database
-            if (string.IsNullOrEmpty(client.BearerToken))
+            if (string.IsNullOrEmpty(authClient.BearerToken))
             {
-                await client.Authenticate(authRedirectUrl, database, prtCookie, prtMethod);
-                AccessToken accessToken = await client.GetAccessToken(client.TenantId, client.PortalAuthorization,
-                    delegationTokenUrl, extensionName, resourceName, database);
-                client.BearerToken = accessToken.Value;
-                client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
+                authClient.Authenticate(authRedirectUrl);
+                AccessToken accessToken = await authClient.GetAccessToken(authClient.TenantId, authClient.PortalAuthorization,
+                    delegationTokenUrl, extensionName, resourceName, authClient.Database);
+                authClient.BearerToken = accessToken.Value;
+                authClient.HttpHandler.SetAuthorizationHeader(BearerToken);
             }
-            return client;
+            return authClient;
         }
 
         public bool FindStoredAccessToken(LiteDBHandler database, string scope = "")
@@ -173,7 +200,7 @@ namespace Maestro
             return StringHandler.GetMatch(responseContent, "\"Nonce\":\"([^\"]+)\"");
         }
 
-        public async Task<string> GetPrtCookie(int method, LiteDBHandler database)
+        public async Task<string> GetPrtCookie()
         {
             // Request nonce from token endpoint
             string ssoNonce = await GetNonce();
@@ -186,20 +213,20 @@ namespace Maestro
 
             // Local request to mint PRT cookie with nonce
             PrtCookie prtCookie = null;
-            if (method == 0)
+            if (PrtMethod == 0)
             {
                 Logger.Info("Requesting PRT cookie from LSA/CloudAP with nonce");
-                prtCookie = RequestAADRefreshToken.GetPrtCookies(database, ssoNonce).First();
+                prtCookie = RequestAADRefreshToken.GetPrtCookies(Database, ssoNonce).First();
             }
-            else if (method == 1)
+            else if (PrtMethod == 1)
             {
                 Logger.Info("Requesting PRT cookie via BrowserCore.exe with nonce");
-                prtCookie = ROADToken.GetPrtCookie(database, ssoNonce);
+                prtCookie = ROADToken.GetPrtCookie(Database, ssoNonce);
             }
             return prtCookie.Value;
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database, string prtCookie = "", int prtMethod = 0)
+        public async Task<HttpResponseMessage> SignInToService(string redirectUrl)
         {
 
             // Get authorize endpoint from redirect
@@ -207,17 +234,17 @@ namespace Maestro
             if (authorizeUrl is null)
                 return null;
 
-            if (string.IsNullOrEmpty(prtCookie))
+            if (string.IsNullOrEmpty(PrtCookie))
             {
                 // Get a nonce and primary refresh token cookie (x-Ms-Refreshtokencredential)
-                prtCookie = await GetPrtCookie(prtMethod, database);
-                if (prtCookie is null)
+                PrtCookie = await GetPrtCookie();
+                if (PrtCookie is null)
                     return null;
             }
 
             // HTTP request 3
             Logger.Info("Using PRT with nonce to obtain code+id_token required for signin");
-            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, prtCookie);
+            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, PrtCookie);
             if (authorizeWithSsoNonceResponse is null)
                 return null;
             string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
@@ -276,10 +303,10 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, string prtCookie = "", int prtMethod = 0)
+        public async void Authenticate(string redirectUrl)
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtCookie, prtMethod);
+            HttpResponseMessage signinResponse = await SignInToService(redirectUrl);
             if (signinResponse is null) return;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();

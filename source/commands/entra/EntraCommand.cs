@@ -3,23 +3,49 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class EntraCommand
+    public class EntraCommand : Cloneable
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
+        public string Subcommand { get; set; }
+
+        // ExecutedCommand properties
+        public string Command { get; private set; }
+        public Dictionary<string, string> Arguments { get; private set; }
+        public Logger.LogLevel LogLevel { get; private set; } = Logger.LogLevel.Info;
+        public LiteDBHandler Database { get; private set; }
+        public bool Reauth { get; private set; }
+        public bool DatabaseOnly { get; private set; }
+        public int PrtMethod { get; private set; }
+
+        // Parameterless constructor required for cloning parent commands
+        public EntraCommand() { }
+
+        public EntraCommand(ExecutedCommand executedCommand, Dictionary<string, string> arguments)
         {
-            if (arguments.TryGetValue("subcommand1", out string subcommandName))
+            // Clone the properties of the parent commands
+            executedCommand.CloneTo<EntraCommand>(this);
+        }
+
+        public async Task Execute(ExecutedCommand executedCommand, Dictionary<string, string> arguments)
+        {
+            var entraCommand = new EntraCommand(executedCommand, arguments);
+
+            if (Arguments.TryGetValue("subcommand1", out string subcommandName))
             {
-                if (subcommandName == "devices")
+                Subcommand = subcommandName;
+
+                if (Subcommand == "devices")
                 {
+
                     //await DevicesCommand.Execute(arguments, database);
                 }
-                else if (subcommandName == "groups")
+                else if (Subcommand == "groups")
                 {
-                    await EntraGroupsCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
+                    EntraGroupsCommand entraGroupsCommand = new EntraGroupsCommand(entraCommand, arguments);
+                    await entraGroupsCommand.Execute(this, arguments);
                 }
-                else if (subcommandName == "users")
+                else if (Subcommand == "users")
                 {
-                    await EntraUsersCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
+                    //await EntraUsersCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
             }
             else

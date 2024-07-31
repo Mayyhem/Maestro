@@ -23,6 +23,8 @@ namespace Maestro
                 Dictionary<string, string> parsedArguments = CommandLine.ParseCommands(args);
                 if (parsedArguments == null || !parsedArguments.ContainsKey("command")) return;
 
+                ExecutedCommand executedCommand = new ExecutedCommand(parsedArguments);
+                /*
                 // Initialize the logger
                 ILogger logger = new ConsoleLogger();
                 if (parsedArguments.TryGetValue("--verbosity", out string logLevelString)
@@ -37,8 +39,6 @@ namespace Maestro
                     Logger.SetLogLevel(logger, Logger.LogLevel.Info);
                 }
                 Logger.Info("Execution started");
-
-                // Parse global options
 
                 // Lookup credentials in database or force reauthentication
                 bool reauth = false;
@@ -67,18 +67,20 @@ namespace Maestro
                 {
                     prtMethod = int.Parse(prtMethodString);
                 }
+                */
 
                 // Direct execution flow based on the command
                 switch (parsedArguments["command"])
                 {
                     case "token":
-                        await TokenCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                        //await TokenCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
                         break;
                     case "entra":
-                        await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                        EntraCommand entraCommand = new EntraCommand(executedCommand, parsedArguments);
+                        await entraCommand.Execute(executedCommand, parsedArguments);
                         break;
                     case "intune":
-                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                        //await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

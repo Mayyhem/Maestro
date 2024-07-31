@@ -7,7 +7,7 @@ namespace Maestro
     {
         public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, int prtMethod)
         {
-            var authClient = new AuthClient();
+            //var authClient = new AuthClient();
             string prtCookie = "";
 
             // Store the specified access token and exit
@@ -21,7 +21,7 @@ namespace Maestro
             if (!databaseOnly)
             {
 
-                await authClient.GetPrtCookie(prtMethod, database);
+                //await authClient.GetPrtCookie(prtMethod, database);
             }
             else
             {

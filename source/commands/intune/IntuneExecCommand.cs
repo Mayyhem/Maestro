@@ -3,25 +3,26 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneExecCommand
+    public class IntuneExecCommand : IntuneCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool reauth)
+        public IntuneExecCommand(Dictionary<string, string> arguments) : base(arguments) { }
+        public async Task Execute()
         {
-            if (arguments.TryGetValue("subcommand2", out string subcommandName))
+            if (Arguments.TryGetValue("subcommand2", out string subcommandName))
             {
                 if (subcommandName == "app")
                 {
-                    await IntuneExecAppCommand.Execute(arguments, database, reauth);
+                    //await IntuneExecAppCommand.Execute(arguments, database, reauth);
                     return;
                 }
                 else if (subcommandName == "query")
                 {
-                    await IntuneExecQueryCommand.Execute(arguments, database, reauth);
+                    //await IntuneExecQueryCommand.Execute(arguments, database, reauth);
                     return;
                 }
                 else if (subcommandName == "script")
                 {
-                    await IntuneExecScriptCommand.Execute(arguments, database, reauth);
+                    //await IntuneExecScriptCommand.Execute(arguments, database, reauth);
                     return;
                 }
             }

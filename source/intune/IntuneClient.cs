@@ -18,7 +18,7 @@ namespace Maestro
         public HttpHandler HttpHandler;
         public IntuneClient() 
         {
-            _authClient = new AuthClient();
+            //_authClient = new AuthClient();
         }
 
         public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false, int prtMethod = 0)
@@ -29,8 +29,8 @@ namespace Maestro
             string extensionName = "Microsoft_Intune_DeviceSettings";
             string resourceName = "microsoft.graph";
             string requiredScope = "DeviceManagementConfiguration.ReadWrite.All";
-            intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
-                resourceName, database, prtCookie, bearerToken, reauth, requiredScope, prtMethod);
+            //intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
+            //    resourceName, database, prtCookie, bearerToken, reauth, requiredScope, prtMethod);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;

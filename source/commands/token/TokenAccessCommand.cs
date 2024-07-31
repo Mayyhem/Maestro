@@ -6,11 +6,14 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class TokenAccessCommand
+    public class TokenAccessCommand : ExecutedCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly)
+        public TokenAccessCommand(Dictionary<string, string> arguments) : base(arguments)
         {
-            var authClient = new AuthClient();
+        }
+        public async Task Execute()
+        {
+            var authClient = new AuthClient(this);
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
@@ -20,7 +23,7 @@ namespace Maestro
             string bearerToken = "";
 
             // Store the specified access token and exit
-            if (arguments.TryGetValue("--store", out string tokenToStore))
+            if (Arguments.TryGetValue("--store", out string tokenToStore))
             {
                 bearerToken = tokenToStore;
                 // Need to implement
@@ -28,7 +31,7 @@ namespace Maestro
             }
 
             // Request tokens
-            if (arguments.TryGetValue("--prt", out string prt))
+            if (Arguments.TryGetValue("--prt", out string prt))
             {
                 // Clear default usage text
                 string defaultValue = CommandLine.commands.Find(
@@ -43,26 +46,26 @@ namespace Maestro
                 }
             }
 
-            if (arguments.TryGetValue("--refresh", out string refresh))
+            if (Arguments.TryGetValue("--refresh", out string refresh))
             {
                 refreshToken = refresh;
                 // Need to implement    
             }
 
             // Request an access token with user-specified properties
-            if (arguments.TryGetValue("--extension", out string extension))
+            if (Arguments.TryGetValue("--extension", out string extension))
             {
                 extensionName = extension;
             }
 
-            if (arguments.TryGetValue("--resource", out string resource))
+            if (Arguments.TryGetValue("--resource", out string resource))
             {
                 resourceName = resource;
             }
 
-            if (!databaseOnly)
+            if (!DatabaseOnly)
             {
-                authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, resourceName, database, prtCookie, bearerToken);
+                //authClient = await AuthClient.InitAndGetAccessToken(this, authRedirectUrl, delegationTokenUrl, extensionName, resourceName);
             }
             else
             {
