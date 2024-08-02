@@ -28,7 +28,14 @@ namespace Maestro
             TenantId = (string)Jwt.Properties["tid"];
             UserPrincipalName = (string)Jwt.Properties["upn"];
 
-            Upsert(database);
+            if (database != null)
+            {
+                // Add to the AccessToken table
+                database.Upsert(this);
+
+                // Add to Credential table
+                Upsert(database);
+            }
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Maestro
                 }
                 else if (subcommandName == "access-token")
                 {
-                    //await TokensAccessTokenCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
+                    await TokensAccessTokenCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }
             }
             else

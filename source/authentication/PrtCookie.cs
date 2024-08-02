@@ -36,14 +36,30 @@ namespace Maestro
                 Nonce = (string)Jwt.Properties["request_nonce"];
             }
 
-            bool upsertSuccessful = Upsert(database);
-            if (!upsertSuccessful)
+            if (database != null)
             {
-                Logger.Error($"Failed to upsert {GetType()} in database");
-            }
-            else 
-            { 
-                Logger.Info($"Upserted {GetType()} in database");
+                // Add to the PrtCookie table
+                bool upsertSuccessful = database.Upsert(this);
+                database.Upsert(this);
+                if (!upsertSuccessful)
+                {
+                    Logger.Error($"Failed to upsert {GetType()} in database");
+                }
+                else
+                {
+                    Logger.Info($"Upserted {GetType()} in database");
+                }
+
+                // Add to Credential table
+                upsertSuccessful = Upsert(database);
+                if (!upsertSuccessful)
+                {
+                    Logger.Error($"Failed to upsert {GetType()} in Credential table");
+                }
+                else
+                {
+                    Logger.Info($"Upserted {GetType()} in Credential table");
+                }
             }
         }
     } 

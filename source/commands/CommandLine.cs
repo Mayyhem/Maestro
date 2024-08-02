@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 
 namespace Maestro
@@ -33,8 +32,7 @@ namespace Maestro
                                 ShortName = "-c",
                                 LongName = "--prt-cookie",
                                 ValuePlaceholder = "VALUE",
-                                Description = "The PRT cookie to use",
-                                Default = "current user's PRT cookie"
+                                Description = "The PRT cookie to use (default: current user's PRT cookie)"
                             }
                         }
                     },
@@ -49,8 +47,7 @@ namespace Maestro
                                 ShortName = "-c",
                                 LongName = "--prt-cookie",
                                 ValuePlaceholder = "VALUE",
-                                Description = "The PRT cookie to use",
-                                Default = "current user's PRT cookie"
+                                Description = "The PRT cookie to use (default: current user's PRT cookie)"
                             },
                             new Option
                             {
@@ -62,6 +59,17 @@ namespace Maestro
                             },
                             new Option
                             {
+                                ShortName = "-m",
+                                LongName = "--method",
+                                ValuePlaceholder = "METHOD",
+                                Description =
+                                    "Method used to request access tokens (default: 0)\n" +
+                                    new string(' ', DescriptionPadding) + "  0: /oauth2/v2.0/token\n" +
+                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken",
+                                Default = "0"
+                            },
+                            new Option
+                            {
                                 ShortName = "-r",
                                 LongName = "--resource",
                                 ValuePlaceholder = "RESOURCE",
@@ -70,7 +78,6 @@ namespace Maestro
                             },
                             new Option
                             {
-                                ShortName = "-t",
                                 LongName = "--refresh-token",
                                 ValuePlaceholder = "VALUE",
                                 Description = "The refresh token to use"
@@ -120,7 +127,7 @@ namespace Maestro
                                 ShortName = "-p",
                                 LongName = "--properties",
                                 ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                                Description = "Comma-separated list of properties to get or ALL to get all properties"
                             }
                         }
                     },
@@ -149,7 +156,7 @@ namespace Maestro
                                 ShortName = "-p",
                                 LongName = "--properties",
                                 ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                                Description = "Comma-separated list of properties to get or ALL to get all properties"
                             }
                         }
                     }
@@ -186,7 +193,7 @@ namespace Maestro
                                 ShortName = "-p",
                                 LongName = "--properties",
                                 ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                                Description = "Comma-separated list of properties to get or ALL to get all properties"
                             }
                         }
                     },
@@ -214,7 +221,7 @@ namespace Maestro
                                 ShortName = "-p",
                                 LongName = "--properties",
                                 ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                                Description = "Comma-separated list of properties to get or ALL to get all properties"
                             }
                         }
                     },
@@ -384,7 +391,7 @@ namespace Maestro
                                 ShortName = "-p",
                                 LongName = "--properties",
                                 ValuePlaceholder = "PROP,PROP",
-                                Description = "Comma-separated list of properties to display or ALL to display all properties"
+                                Description = "Comma-separated list of properties to get or ALL to get all properties"
                             }
                         }
                     }
@@ -485,7 +492,6 @@ namespace Maestro
 
             if (remainingArgs == null || remainingArgs.Length == 0)
             {
-                Console.WriteLine("No command provided");
                 PrintUsage();
                 return parsedArguments;
             }
@@ -550,10 +556,10 @@ namespace Maestro
                     }
                     else
                     {
-                        if (i + 1 >= args.Length)
+                        if (i + 1 >= args.Length || args[i + 1].StartsWith("-"))
                         {
-                            Console.WriteLine($"Missing value for global option: {args[i]}");
-                            PrintUsage();
+                            Console.WriteLine($"\nMissing value for global option: {args[i]}");
+                            PrintOptionUsage(option, 0);
                             return null;
                         }
                         parsedArguments[option.LongName] = args[i + 1];
@@ -594,8 +600,9 @@ namespace Maestro
                     {
                         if (i + 1 >= args.Length)
                         {
-                            Console.WriteLine($"Missing value for option: {args[i]}");
-                            PrintUsage(parsedArguments["command"]);
+                            Console.WriteLine($"\nMissing value for option: {args[i]}\n");
+                            PrintOptionUsage(option, 0);
+                            Console.WriteLine();
                             return null;
                         }
                         parsedArguments[option.LongName] = args[i + 1];
@@ -617,8 +624,8 @@ namespace Maestro
                         {
                             if (i + 1 >= args.Length)
                             {
-                                Console.WriteLine($"Missing value for global option: {args[i]}");
-                                PrintUsage();
+                                Console.WriteLine($"\nMissing value for global option: {args[i]}");
+                                PrintOptionUsage(globalOption, 0);
                                 return null;
                             }
                             parsedArguments[globalOption.LongName] = args[i + 1];
@@ -664,7 +671,7 @@ namespace Maestro
 
             // Check if the argument is a subcommand or an option
             string subcommandOrOptionNameArg = args[0];
-            
+
             var subcommandOrOption = subcommands.FirstOrDefault(sc => sc.Name == subcommandOrOptionNameArg);
 
             if (subcommandOrOption != null)
@@ -683,23 +690,25 @@ namespace Maestro
                         }
                     }
                 }
+
+                // If the argument is not a command option or subcommand, it must be a subcommand option
+                return ParseOptions(args.Skip(1).ToArray(), subcommandOrOption.Options, parsedArguments);
             }
 
             // Check for invalid subcommands
-            else if (command != null && !command.Options.Any(o => o.LongName == subcommandOrOptionNameArg))
+            if (command != null && !command.Options.Any(o => o.LongName == subcommandOrOptionNameArg))
             {
                 Console.WriteLine($"\nInvalid subcommand: {subcommandOrOptionNameArg}\n");
                 return null;
             }
 
             // Command options will be leftover after parsing subcommands
-            if (command.Options.Count > 0)
+            if (command != null && command.Options.Count > 0)
             {
                 return ParseOptions(args.Skip(1).ToArray(), command.Options, parsedArguments);
             }
-    
-            // If the argument is not a command option or subcommand, it must be a subcommand option
-            return ParseOptions(args.Skip(1).ToArray(), subcommandOrOption.Options, parsedArguments);
+
+            return parsedArguments;
         }
 
         private static void PrintCommandUsage(Command command, int depth)
@@ -774,30 +783,33 @@ namespace Maestro
                     string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
                     Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
                 }
+
                 Console.WriteLine("\nCommands:\n");
                 foreach (var command in commands)
                 {
-                    Console.WriteLine(PadDescription($"  {command.Name}") + command.Description);
+                    Console.WriteLine(PadDescription($"   {command.Name}") + command.Description);
                     if (command.Options.Count > 0)
                     {
-                        Console.WriteLine("\n   Options:");
+                        //Console.WriteLine("\n   Options:");
                         foreach (var option in command.Options)
                         {
                             string shortNameOrNot = $"     {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
                             Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
                         }
                     }
+                    Console.WriteLine();
                     if (command.Subcommands.Any())
                     {
-                        Console.WriteLine("\n   Subcommands:");
+                        //Console.WriteLine("\n   Subcommands:");
                         foreach (var subCommand in command.Subcommands)
                         {
                             PrintSubcommandUsage(subCommand, depth + 1);
                         }
+                        Console.WriteLine();
                     }
                     if (command != commands.Last())
                     {
-                        Console.WriteLine("\n");
+                        Console.WriteLine();
                     }
                 }
             }
@@ -815,13 +827,16 @@ namespace Maestro
                         var subcommand = FindSubcommand(cmd.Subcommands, commandOrSubcommandName);
                         if (subcommand != null)
                         {
-                            Console.WriteLine("\nGlobal Options:\n");
+                            //Console.WriteLine("Command:");
+                            Console.WriteLine(PadDescription($"  {cmd.Name}") + cmd.Description);
+                            PrintSubcommandUsage(subcommand, depth);
+                            Console.WriteLine();
+                            Console.WriteLine("Global Options:\n");
                             foreach (var option in GlobalOptions)
                             {
                                 string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
                                 Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
                             }
-                            PrintSubcommandUsage(subcommand, depth);
                             Console.WriteLine();
                             return;
                         }

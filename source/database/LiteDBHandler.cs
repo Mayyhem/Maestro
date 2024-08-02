@@ -2,6 +2,7 @@
 using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Maestro
@@ -9,9 +10,24 @@ namespace Maestro
     public class LiteDBHandler
     {
         public readonly LiteDatabase Database;
-        public LiteDBHandler(string databasePath)
+
+        private LiteDBHandler(string databasePath)
         {
             Database = new LiteDatabase(databasePath);
+        }
+
+        public static LiteDBHandler CreateOrOpen(string databasePath)
+        {
+            try
+            {
+                return new LiteDBHandler(databasePath);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException ||
+                ex is LiteException || ex is IOException)
+            {
+                Logger.Error($"Failed to open {databasePath}: {ex.Message}");
+                return null;
+            }
         }
 
         public void Dispose() 

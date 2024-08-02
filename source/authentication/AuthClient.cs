@@ -28,16 +28,17 @@ namespace Maestro
 
         public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null,
-            string prtCookie = "", string bearerToken = "", bool reauth = false, string requiredScope = "",
-            int prtMethod = 0)
+            string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, string requiredScope = "",
+            int prtMethod = 0, int accessTokenMethod = 0)
         {
             var client = new AuthClient();
+            AccessToken accessToken = null;
 
-            // Use the provided bearer token if available
-            if (!string.IsNullOrEmpty(bearerToken))
+            // Use the provided access token if available
+            if (!string.IsNullOrEmpty(providedAccessToken))
             {
-                client.BearerToken = bearerToken;
-                AccessToken accessToken = new AccessToken(bearerToken, database);
+                client.BearerToken = providedAccessToken;
+                accessToken = new AccessToken(providedAccessToken, database);
                 return client;
             }
 
@@ -50,11 +51,19 @@ namespace Maestro
             // Get a new access token if none is found in the database
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                await client.Authenticate(authRedirectUrl, database, prtCookie, prtMethod);
-                AccessToken accessToken = await client.GetAccessToken(client.TenantId, client.PortalAuthorization,
+                await client.Authenticate(authRedirectUrl, database, providedPrtCookie, prtMethod);
+
+                if (accessTokenMethod == 0)
+                {
+                    // Get access token from oauth/v2.0/token endpoint (requires refreshToken)
+                }
+
+                // Get access token from DelegationToken endpoint (requires portalAuthorization)
+                accessToken = await client.GetAccessTokenFromDelegationToken(client.TenantId, client.PortalAuthorization,
                     delegationTokenUrl, extensionName, resourceName, database);
                 client.BearerToken = accessToken.Value;
                 client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
+                return client;
             }
             return client;
         }
@@ -106,7 +115,7 @@ namespace Maestro
             return authorizeResponse;
         }
 
-        public async Task<AccessToken> GetAccessToken(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName,
+        public async Task<AccessToken> GetAccessTokenFromDelegationToken(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName,
             string resourceName, LiteDBHandler database)
         {
             Logger.Info("Requesting access token from DelegationToken endpoint with portalAuthorization");

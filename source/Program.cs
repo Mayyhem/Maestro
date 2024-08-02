@@ -44,7 +44,9 @@ namespace Maestro
                 // Use database file if option is specified
                 if (parsedArguments.TryGetValue("--database", out string databasePath))
                 {
-                    database = new LiteDBHandler(databasePath);
+                    database = LiteDBHandler.CreateOrOpen(databasePath);
+                    if (database == null) return;
+
                     Logger.Info($"Using database file: {Path.GetFullPath(databasePath)}");
 
                     if (parsedArguments.TryGetValue("--reauth", out string reauthString))

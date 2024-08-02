@@ -21,7 +21,7 @@ namespace Maestro
             _authClient = new AuthClient();
         }
 
-        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string prtCookie = "", string bearerToken = "", bool reauth = false, int prtMethod = 0)
+        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
         {
             var intuneClient = new IntuneClient();
             string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
@@ -30,7 +30,7 @@ namespace Maestro
             string resourceName = "microsoft.graph";
             string requiredScope = "DeviceManagementConfiguration.ReadWrite.All";
             intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
-                resourceName, database, prtCookie, bearerToken, reauth, requiredScope, prtMethod);
+                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, prtMethod);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
