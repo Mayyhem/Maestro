@@ -14,10 +14,12 @@ namespace Maestro
     {
         public HttpHandler HttpHandler { get; }
         public string BearerToken { get; private set; }
-        public string ImpersonationToken { get; private set; }
+        public string ClientId { get; private set; }
         public string PortalAuthorization { get; private set; }
         public string PrtCookie { get; private set; }
         public string RefreshToken { get; private set; }
+        public string Resource { get; private set; }
+        public string Scope { get; private set; }
         public string SpaAuthCode { get; private set; }
         public string TenantId { get; private set; }
 
@@ -28,8 +30,8 @@ namespace Maestro
 
         public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null,
-            string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, string requiredScope = "",
-            int prtMethod = 0, int accessTokenMethod = 0)
+            string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
+            bool reauth = false, string requiredScope = "", int prtMethod = 0, int accessTokenMethod = 0)
         {
             var client = new AuthClient();
             AccessToken accessToken = null;
@@ -55,15 +57,18 @@ namespace Maestro
 
                 if (accessTokenMethod == 0)
                 {
-                    // Get access token from oauth/v2.0/token endpoint (requires refreshToken)
+                    // Get access token from oauth/v2.0/token endpoint (requires spaAuthCode)
+                    accessToken = await client.GetAccessTokenFromTokenEndpoint(database, client.ClientId,
+                        client.Scope, client.SpaAuthCode, client.RefreshToken, client.TenantId);
                 }
-
-                // Get access token from DelegationToken endpoint (requires portalAuthorization)
-                accessToken = await client.GetAccessTokenFromDelegationToken(client.TenantId, client.PortalAuthorization,
-                    delegationTokenUrl, extensionName, resourceName, database);
+                else if (accessTokenMethod == 1)
+                {
+                    // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
+                    accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
+                        client.PortalAuthorization, delegationTokenUrl, extensionName, resourceName, database);
+                }
                 client.BearerToken = accessToken.Value;
                 client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
-                return client;
             }
             return client;
         }
@@ -115,7 +120,7 @@ namespace Maestro
             return authorizeResponse;
         }
 
-        public async Task<AccessToken> GetAccessTokenFromDelegationToken(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName,
+        public async Task<AccessToken> GetAccessTokenFromDelegationTokenEndpoint(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName,
             string resourceName, LiteDBHandler database)
         {
             Logger.Info("Requesting access token from DelegationToken endpoint with portalAuthorization");
@@ -128,6 +133,66 @@ namespace Maestro
             Logger.Info($"Found access token in DelegationToken response: {authHeader}");
             AccessToken accessToken = new AccessToken(authHeader, database);
             return accessToken;
+        }
+
+        public async Task<AccessToken> GetAccessTokenFromTokenEndpoint(LiteDBHandler database, string clientId = "", string scope = "", string spaAuthCode = "", string refreshToken = "", string tenantId = "")
+        {
+            if (!string.IsNullOrEmpty(spaAuthCode))
+            {
+                Logger.Info("Requesting access token from /oauth2/v2.0/token endpoint with spaAuthCode");
+                string url = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
+
+                var content = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("client_id", clientId),
+                    new KeyValuePair<string, string>("scope", scope),
+                    new KeyValuePair<string, string>("code", spaAuthCode),
+                    new KeyValuePair<string, string>("grant_type", "authorization_code")
+                });
+
+                // AADSTS9002327: Tokens issued for the 'Single-Page Application' client-type may only be redeemed via cross-origin requests. 
+                HttpHandler.SetOriginHeader("https://portal.azure.com");
+                HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+
+                OAuthTokenResponse tokenResponse = null;
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    string responseContent = await response.Content.ReadAsStringAsync();
+                    tokenResponse = new OAuthTokenResponse(responseContent, database);
+
+                    BearerToken = tokenResponse.AccessToken.Value;
+                    if (string.IsNullOrEmpty(BearerToken))
+                    {
+                        Logger.Error("No access token was found in the /oauth2/v2.0/token response");
+                    }
+
+                    RefreshToken = tokenResponse.RefreshToken.Value;
+                    if (string.IsNullOrEmpty(RefreshToken))
+                    {
+                        Logger.Error("No refresh token was found in the /oauth2/v2.0/token response");
+                    }
+                }
+
+                Logger.Info($"Found tokens in /oauth2/v2.0/token response");
+                Logger.Info($"Access token: {BearerToken}");
+                Logger.Info($"Refresh token: {RefreshToken}");
+                return tokenResponse.AccessToken;
+            }
+
+            else if (!string.IsNullOrEmpty(refreshToken))
+            {
+                Logger.Info("Requesting access token from /oauth2/v2.0/token endpoint with refreshToken");
+            }
+            else
+            {
+                Logger.Error("No spaAuthCode or refreshToken was provided");
+                return null;
+            }
+
+            Logger.Info($"Found access token in /oauth2/v2.0/token response: ");
+            //AccessToken accessToken = new AccessToken(authHeader, database);
+            //return accessToken;
+            return null;
         }
 
         private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName, 
@@ -216,6 +281,10 @@ namespace Maestro
             if (authorizeUrl is null)
                 return null;
 
+            // Parse authorize URL for client_id and scope
+            ClientId = StringHandler.GetMatch(authorizeUrl, "client_id=(.*?)&");
+            Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
+
             if (string.IsNullOrEmpty(prtCookie))
             {
                 // Get a nonce and primary refresh token cookie (x-Ms-Refreshtokencredential)
@@ -224,11 +293,12 @@ namespace Maestro
                     return null;
             }
 
-            // HTTP request 3
-            Logger.Info("Using PRT with nonce to obtain code+id_token required for signin");
+            // Use PRT cookie to obtain code+id_token required for signin
+            Logger.Info("Using PRT cookie with nonce to obtain code+id_token required for signin");
             HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, prtCookie);
             if (authorizeWithSsoNonceResponse is null)
                 return null;
+
             string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
 
             // Parse response for signin URL
@@ -292,32 +362,14 @@ namespace Maestro
             if (signinResponse is null) return;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();
+
+            // Get tenantId for subsequent requests
             string tenantId = ParseTenantIdFromJsonResponse(signinResponseContent);
             if (tenantId is null) return;
-            TenantId = tenantId;
 
-            /*
-            // Get impersonation token for Azure portal
-            OAuthTokenDynamic oAuthToken = ParseOAuthTokenFromJsonResponse(signinResponseContent, database);
-            if (oAuthToken is null) return;
-
-            JObject oAuthTokenJ = (JObject)oAuthToken.GetProperties()["oAuthToken"];
-            string authHeader = oAuthTokenJ.GetValue("authHeader").ToString();
-            ImpersonationToken = StringHandler.GetMatch(authHeader, "Bearer ([^\"]+)");
-            if (ImpersonationToken is null)
-            {
-                Logger.Error("No bearer token with the \"user_impersonation\" scope for Azure Portal was found in the response");
-                return;
-            }
-            Logger.Info($"Found user_impersonation token for Azure Portal in response: {ImpersonationToken}");
-            AccessToken userImpersonationToken = new AccessToken(ImpersonationToken, database);
-            Logger.Debug(userImpersonationToken.Value);
-            */
-
-            // Get refresh token for future requests
-            string portalAuthorization = ParsePortalAuthorizationRefreshTokenFromJsonResponse(signinResponseContent);
-            if (portalAuthorization is null) return;
-            PortalAuthorization = portalAuthorization;
+            // Get spaAuthCode and portalAuthorization for subsequent requests
+            string spaAuthCode = ParseSpaAuthCodeFromJsonResponse(signinResponseContent, database);
+            string portalAuthorization = ParsePortalAuthorizationFromJsonResponse(signinResponseContent);
         }
 
         private FormUrlEncodedContent ParseFormDataFromHtml(string htmlContent)
@@ -378,7 +430,7 @@ namespace Maestro
             return oAuthToken;
         }
 
-        private string ParsePortalAuthorizationRefreshTokenFromJsonResponse(string jsonResponse)
+        private string ParsePortalAuthorizationFromJsonResponse(string jsonResponse)
         {
             // Parse response for refreshToken
             string portalAuthorization = StringHandler.GetMatch(jsonResponse, "\\\"refreshToken\\\":\\\"([^\\\"]+)\\\"");
@@ -388,20 +440,22 @@ namespace Maestro
                 return null;
             }
             Logger.Info($"Found portal authorization (refreshToken) in response: {StringHandler.Truncate(portalAuthorization, 12)}");
+            PortalAuthorization = portalAuthorization;
             Logger.Debug(portalAuthorization);
             return portalAuthorization;
         }
 
         private string ParseSpaAuthCodeFromJsonResponse(string jsonResponse, LiteDBHandler database = null)
         {
-            // Parse response for OAuthToken
-            string spaAuthTokenBlob = StringHandler.GetMatch(jsonResponse, @"\{""spaAuthCode"":\{.*?\}\}", false);
+            // Parse response for spaAuthCode
+            string spaAuthTokenBlob = StringHandler.GetMatch(jsonResponse, @"""spaAuthCode"":""(.*?)""", true);
             if (spaAuthTokenBlob is null)
             {
                 Logger.Error("No spaAuthCode was found in the response");
                 return null;
             }
-            Logger.Info($"Found spaAuthCode in response");
+            Logger.Info($"Found spaAuthCode in response: {StringHandler.Truncate(spaAuthTokenBlob, 12)}");
+            SpaAuthCode = spaAuthTokenBlob;
             Logger.Debug(spaAuthTokenBlob);
             return spaAuthTokenBlob;
         }
@@ -416,6 +470,7 @@ namespace Maestro
                 return null;
             }
             Logger.Info($"Found tenantId in the response: {tenantId}");
+            TenantId = tenantId;
             return tenantId;
         }
     }

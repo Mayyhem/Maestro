@@ -14,6 +14,7 @@ namespace Maestro
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
+            string requiredScope = "";
             string resourceName = "microsoft.graph";
 
             if (arguments.Count == 0)
@@ -34,25 +35,26 @@ namespace Maestro
             // Request tokens
             if (arguments.TryGetValue("--prt-cookie", out string providedPrtCookie))
             {
-                throw new NotImplementedException();
+                Logger.Error("The --prt-cookie option is not yet implemented");
             }
 
             if (arguments.TryGetValue("--refresh-token", out string providedRefreshToken))
             {
-                throw new NotImplementedException();
+                Logger.Error("The --refresh-token option is not yet implemented");
             }
 
             if (arguments.TryGetValue("--method", out string methodString))
             {
-                int.TryParse(methodString, out int method);
+                int.TryParse(methodString, out int accessTokenMethod);
 
                 // Use /oauth2/v2.0/token endpoint
-                if (method == 0)
+                if (accessTokenMethod == 0)
                 {
-
-                    return;
+                    if (arguments.TryGetValue("--tenant-id", out string tenantId))
+                    {
+                    }
                 }
-                else if (method == 1)
+                else if (accessTokenMethod == 1)
                 {
                     // Use /api/DelegationToken endpoint
                     if (arguments.TryGetValue("--extension", out string extension))
@@ -74,7 +76,7 @@ namespace Maestro
 
                 if (!databaseOnly)
                 {
-                    authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken);
+                    authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, prtMethod, accessTokenMethod);
                     return;
                 }
             }

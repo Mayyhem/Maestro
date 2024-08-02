@@ -4,8 +4,10 @@ namespace Maestro
 {
     public class AccessToken : Credential
     {
-        public string AppId { get; private set; }
         public string Audience { get; private set; }
+
+        // appid
+        public string ClientId { get; private set; }
         public Jwt Jwt { get; private set; }
         public DateTime NotBefore { get; private set; }
         public string ObjectId { get; private set; }
@@ -18,7 +20,7 @@ namespace Maestro
             // Decode and parse properties of JWT and store in database
             Jwt = new Jwt("oid", base64BearerToken, database);
 
-            AppId = (string)Jwt.Properties["appid"];
+            ClientId = (string)Jwt.Properties["appid"];
             Audience = (string)Jwt.Properties["aud"];
             Expiry = DateTimeHandler.ConvertFromUnixTimestamp((int)Jwt.Properties["exp"]);
             NotBefore = DateTimeHandler.ConvertFromUnixTimestamp((int)Jwt.Properties["nbf"]);

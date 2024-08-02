@@ -1,6 +1,4 @@
-﻿using LiteDB;
-
-namespace Maestro
+﻿namespace Maestro
 {
     public class OAuthTokenDynamic : JsonObject
     {

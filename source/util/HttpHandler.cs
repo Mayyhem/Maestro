@@ -88,5 +88,10 @@ namespace Maestro
         {
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
         }
+
+        public void SetOriginHeader(string origin)
+        {
+            _httpClient.DefaultRequestHeaders.Add("Origin", origin);
+        }
     }
 }

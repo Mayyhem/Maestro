@@ -86,7 +86,6 @@ namespace Maestro
                         break;
                 }
             }
-
             catch (Exception ex)
             {
                 Logger.ExceptionDetails(ex);

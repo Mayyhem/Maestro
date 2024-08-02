@@ -81,6 +81,13 @@ namespace Maestro
                                 LongName = "--refresh-token",
                                 ValuePlaceholder = "VALUE",
                                 Description = "The refresh token to use"
+                            },
+                            new Option
+                            {
+                                ShortName = "-t",
+                                LongName = "--tenant-id",
+                                ValuePlaceholder = "ID",
+                                Description = "The tenant ID to request tokens for (default: obtain from /signin)"
                             }
                         }
                     }
