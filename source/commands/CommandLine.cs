@@ -488,7 +488,7 @@ namespace Maestro
         {
             if (args.Length == 0)
             {
-                Console.WriteLine("No arguments provided");
+                Console.WriteLine("\nNo arguments provided");
                 PrintUsage();
                 return null;
             }

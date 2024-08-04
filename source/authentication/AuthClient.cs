@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -20,6 +21,7 @@ namespace Maestro
         public string RefreshToken { get; private set; }
         public string Resource { get; private set; }
         public string Scope { get; private set; }
+        public string SessionId { get; private set; }
         public string SpaAuthCode { get; private set; }
         public string TenantId { get; private set; }
 
@@ -53,7 +55,15 @@ namespace Maestro
             // Get a new access token if none is found in the database
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                await client.Authenticate(authRedirectUrl, database, providedPrtCookie, prtMethod);
+                // Generate a new GUID for the session ID
+                Guid newGuid = Guid.NewGuid();
+
+                // Format the GUID as a 32-character lowercase string without hyphens
+                string sessionId = newGuid.ToString("N");
+                client.SessionId = sessionId;
+
+                string authRedirectUrlWithSessionId = $"{authRedirectUrl}/?sessionId={sessionId}";
+                await client.Authenticate(authRedirectUrlWithSessionId, database, providedPrtCookie, prtMethod);
 
                 if (accessTokenMethod == 0)
                 {
@@ -83,7 +93,6 @@ namespace Maestro
             if (database != null)
             {
                 BearerToken = database.FindValidAccessToken(scope);
-                //BearerToken = database.FindValidJwt(scope);
 
                 if (!string.IsNullOrEmpty(BearerToken))
                 {
@@ -151,7 +160,7 @@ namespace Maestro
                 });
 
                 // AADSTS9002327: Tokens issued for the 'Single-Page Application' client-type may only be redeemed via cross-origin requests. 
-                HttpHandler.SetOriginHeader("https://portal.azure.com");
+                HttpHandler.SetHeader("Origin", "https://portal.azure.com");
                 HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
 
                 OAuthTokenResponse tokenResponse = null;

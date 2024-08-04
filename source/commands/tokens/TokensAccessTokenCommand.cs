@@ -36,11 +36,13 @@ namespace Maestro
             if (arguments.TryGetValue("--prt-cookie", out string providedPrtCookie))
             {
                 Logger.Error("The --prt-cookie option is not yet implemented");
+                return;
             }
 
             if (arguments.TryGetValue("--refresh-token", out string providedRefreshToken))
             {
                 Logger.Error("The --refresh-token option is not yet implemented");
+                return;
             }
 
             if (arguments.TryGetValue("--method", out string methodString))

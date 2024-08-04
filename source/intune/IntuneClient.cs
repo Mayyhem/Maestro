@@ -6,7 +6,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
+using System.Security.Permissions;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
@@ -21,26 +24,31 @@ namespace Maestro
             _authClient = new AuthClient();
         }
 
-        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
+        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "", 
+            string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
         {
             var intuneClient = new IntuneClient();
+
             string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
             string extensionName = "Microsoft_Intune_DeviceSettings";
             string resourceName = "microsoft.graph";
             string requiredScope = "DeviceManagementConfiguration.ReadWrite.All";
             intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
-                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, prtMethod);
+                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, 
+                prtMethod, accessTokenMethod: 1);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
         }
 
         // intune devices
-        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string[] properties = null,
-    LiteDBHandler database = null)
+        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string aadDeviceId = "", 
+            string[] properties = null, LiteDBHandler database = null)
         {
-            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, properties, database, printJson: false);
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, aadDeviceId, properties, database, printJson: false);
+            if (devices is null) return null;
+
             if (devices.Count > 1)
             {
                 Logger.Error("Multiple devices found matching the specified device name");
@@ -55,7 +63,7 @@ namespace Maestro
             return devices.FirstOrDefault();
         }
 
-        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string[] properties = null,
+        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string aadDeviceId = "", string[] properties = null,
             LiteDBHandler database = null, bool printJson = true)
         {
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
@@ -71,6 +79,10 @@ namespace Maestro
             else if (!string.IsNullOrEmpty(deviceName))
             {
                 intuneDevicesUrl += $"?filter=deviceName%20eq%20%27{deviceName}%27";
+            }
+            else if (!string.IsNullOrEmpty(aadDeviceId))
+            {
+                intuneDevicesUrl += $"?filter=azureADDeviceId%20eq%20%27{aadDeviceId}%27";
             }
 
             // Request devices from Intune
@@ -100,7 +112,7 @@ namespace Maestro
 
             if (devices.Count == 0)
             {
-                Logger.Info("No devices found");
+                Logger.Info("No matching devices found");
                 return intuneDevices;
             }
 
@@ -186,36 +198,33 @@ namespace Maestro
 
 
         // intune exec app
-        public async Task<bool> NewWin32App(string groupId, string appName, string installationPath, string runAsAccount)
+        public async Task<string> NewWin32App(string groupId, string appName, string installationPath, string runAsAccount)
         {
             Logger.Info($"Creating new app with displayName: {appName}");
 
-            string appId = await SaveApp(appName, installationPath, runAsAccount);
-            if (string.IsNullOrEmpty(appId)) return false;
+            string appId = await SaveApplication(appName, installationPath, runAsAccount);
+            if (string.IsNullOrEmpty(appId)) return null;
 
-            if (!await CreateAppContentVersion(appId)) return false;
+            if (!await CreateAppContentVersion(appId)) return null;
 
             string contentFileId = await CreateAppContentFile(appId);
-            if (string.IsNullOrEmpty(contentFileId)) return false;
+            if (string.IsNullOrEmpty(contentFileId)) return null;
 
             string azureStorageUri = await GetAzureStorageUri(appId, contentFileId);
-            if (string.IsNullOrEmpty(azureStorageUri)) return false;
+            if (string.IsNullOrEmpty(azureStorageUri)) return null;
 
-            if (!await PutContentFile(azureStorageUri)) return false;
+            if (!await PutContentFile(azureStorageUri)) return null;
 
-            if (!await PutContentBlockList(azureStorageUri)) return false;
+            if (!await PutContentBlockList(azureStorageUri)) return null;
 
-            if (!await SaveAppContentFileEncryptionInfo(appId, contentFileId)) return false;
+            if (!await SaveAppContentFileEncryptionInfo(appId, contentFileId)) return null;
 
-            if (!await CommitApp(appId)) return false;
+            if (!await CommitApp(appId)) return null;
 
-            if (!await AssignAppToGroup(appId, groupId)) return false;
-
-            Logger.Info("Successfully created Win32 app");
-            return true;
+            return appId;
         }
 
-        public async Task<string> SaveApp(string appName, string installationPath, string runAsAccount)
+        public async Task<string> SaveApplication(string appName, string installationPath, string runAsAccount)
         {
             Logger.Info("Creating Win32 app");
             string url = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/";
@@ -256,8 +265,8 @@ namespace Maestro
                         ""check32BitOn64System"": false,
                         ""operationType"": ""exists"",
                         ""comparisonValue"": null,
-                        ""fileOrFolderName"": ""C:\\"",
-                        ""path"": ""Mayyhem""
+                        ""fileOrFolderName"": ""Mayyhem"",
+                        ""path"": ""C:\\""
                     }}
                 ],
                 ""runAs32Bit"": false,
@@ -272,12 +281,15 @@ namespace Maestro
             // Create JSON content from the dynamic object
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            // Set headers
+            content.Headers.Add("X-Ms-Command-Name", "saveApplication");
+
             // Send the POST request to create the Win32 app
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
 
             if (response.StatusCode != HttpStatusCode.Created)
             {
-                Logger.Error("Failed to create Win32 app");
+                Logger.Error($"Failed to create Win32 app: {response.StatusCode} {response.Content}");
                 return null;
             }
 
@@ -294,12 +306,16 @@ namespace Maestro
                 $"/microsoft.graph.win32LobApp/contentVersions";
 
             string jsonContent = "{}";
-            var stringContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-            HttpResponseMessage contentVersionResponse = await HttpHandler.PostAsync(url, stringContent);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-            if (contentVersionResponse.StatusCode != HttpStatusCode.Created)
+            // Set headers
+            content.Headers.Add("X-Ms-Command-Name", "createLobAppContentVersion");
+
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+
+            if (response.StatusCode != HttpStatusCode.Created)
             {
-                Logger.Error("Failed to create content version for Win32 app");
+                Logger.Error($"Failed to create content version for Win32 app: {response.StatusCode} {response.Content}");
                 return false;
             }
 
@@ -317,6 +333,7 @@ namespace Maestro
                 ""name"": ""IntunePackage.intunewin"",
                 ""size"": 7269,
                 ""sizeEncrypted"": 7328,
+                ""manifest"": null,
                 ""isDependency"": false,
                 ""@odata.type"": ""#microsoft.graph.mobileAppContentFile""
             }}";
@@ -328,15 +345,18 @@ namespace Maestro
             // Create JSON content from the dynamic object
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            HttpResponseMessage contentFileResponse = await HttpHandler.PostAsync(url, content);
+            // Set headers
+            content.Headers.Add("X-Ms-Command-Name", "createLobAppContentFile");
 
-            if (contentFileResponse.StatusCode != HttpStatusCode.Created)
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+
+            if (response.StatusCode != HttpStatusCode.Created)
             {
-                Logger.Error("Failed to create content file for Win32 app");
+                Logger.Error($"Failed to create content file for Win32 app: {response.StatusCode} {response.Content}");
                 return null;
             }
 
-            string responseContent = await contentFileResponse.Content.ReadAsStringAsync();
+            string responseContent = await response.Content.ReadAsStringAsync();
             string contentFileId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
             Logger.Info($"Obtained content file ID: {contentFileId}");
             return contentFileId;
@@ -348,17 +368,31 @@ namespace Maestro
             string url = $"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{appId}" +
                 $"/microsoft.graph.win32LobApp/contentVersions/1/files/{contentFileId}";
 
-            HttpResponseMessage response = await HttpHandler.GetAsync(url);
+            bool successful = false;
+            int tries = 0;
+            int maxRequests = 5;
+            int retryDelay = 3;
+            string azureStorageUrl = "";
 
-            if (response.StatusCode != HttpStatusCode.OK)
+            while (!successful && tries < maxRequests)
             {
-                Logger.Error("Failed to get Azure storage URI for Win32 app");
-                return null;
-            }
+                Logger.Info($"Attempt {tries + 1} of {maxRequests} to get azureStorageUri for content file ID");
 
-            string responseContent = await response.Content.ReadAsStringAsync();
-            string azureStorageUrl = StringHandler.GetMatch(responseContent, "\"azureStorageUri\":\"([^\"]+)\"");
-            Logger.Info($"Obtained Azure storage URI: {azureStorageUrl}");
+                HttpHandler.SetHeader("X-Ms-Command-Name", "_retryGetLobAppContentFileRequest");
+                HttpResponseMessage response = await HttpHandler.GetAsync(url);
+                HttpHandler.RemoveHeader("X-Ms-Command-Name");
+                string responseContent = await response.Content.ReadAsStringAsync();
+                azureStorageUrl = StringHandler.GetMatch(responseContent, "\"azureStorageUri\":\"([^\"]+)\"");
+                if (!string.IsNullOrEmpty(azureStorageUrl))
+                {
+                    successful = true;
+                    Logger.Info($"Obtained Azure storage URI: {azureStorageUrl}");
+                    return azureStorageUrl;
+                }
+                await Task.Delay(retryDelay * 1000);
+                tries++;
+            }
+            Logger.Error("Failed to get Azure storage URI for Win32 app");
             return azureStorageUrl;
         }
 
@@ -370,12 +404,15 @@ namespace Maestro
             string url = $"{azureStorageUri}&comp=block&blockid=YmxvY2stMDAwMDAwMDA=";
 
             // Base64-encoded calc.exe wrapped with IntuneWinAppUtil.exe to .intunewin format for known good dummy data -- do you trust me?
-            string intuneWinFile = "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eI2ukg+jYUuzkC4qYPATODjbnZ2rJbBRZZGJEdv99oPiQxByOg7xqwgXPXW2+t8qW7uXuO7vIWiuQD1D1mq1QCmsjTttOuo8zEqM0GIE/UrGM/c04Y3QkhfCNOh1yLyCbTOZhvdFKDPOTBOFHtC+zlbDWqyL04lw2ABsqEdCDuuqjMSAvbI11VQiWT2/CZiLayQBlG1hM/emnRzAXx7Quuo7rUQCYph8KoGHYioVlr49ARcvrB+kRYvaZgJ4k/E5GXmd4ZHtXJ5rVu0ALPkNYrl6d3g/vqfZ8D67TJUD6n9fMtj8c3QGrmsYZVBLAwQKAAAAAAAzisZYtv9EEEYDAABGAwAAJwAcAEludHVuZVdpblBhY2thZ2UvTWV0YWRhdGEvRGV0ZWN0aW9uLnhtbCCiGAAooBQAAAAAAAAAAAAAAAAAAAAAAAAAAAA8QXBwbGljYXRpb25JbmZvIHhtbG5zOnhzZD0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEiIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIFRvb2xWZXJzaW9uPSIxLjguNi4wIj4NCiAgPE5hbWU+Y2FsYy5leGU8L05hbWU+DQogIDxVbmVuY3J5cHRlZENvbnRlbnRTaXplPjcyNjk8L1VuZW5jcnlwdGVkQ29udGVudFNpemU+DQogIDxGaWxlTmFtZT5JbnR1bmVQYWNrYWdlLmludHVuZXdpbjwvRmlsZU5hbWU+DQogIDxTZXR1cEZpbGU+Y2FsYy5leGU8L1NldHVwRmlsZT4NCiAgPEVuY3J5cHRpb25JbmZvPg0KICAgIDxFbmNyeXB0aW9uS2V5PkVtODgzV09mVzlQem9GNnZOV25jNUMvdk1sZm55MVVsbkorc0Z3V2NqM0k9PC9FbmNyeXB0aW9uS2V5Pg0KICAgIDxNYWNLZXk+UDI5dEZjTVRjdHovTUx0OTN0KzlOTnBIeUdzMng1YkljZE9yYk5Da2c4bz08L01hY0tleT4NCiAgICA8SW5pdGlhbGl6YXRpb25WZWN0b3I+YUhiTW9vNXBETEJFdHdXaVpUeFNHQT09PC9Jbml0aWFsaXphdGlvblZlY3Rvcj4NCiAgICA8TWFjPjFLaDVHRU1ibWxIcXpXM3JiaGVVOTduY3dFSXgzTWgvUGd0SGJJdkdpZk09PC9NYWM+DQogICAgPFByb2ZpbGVJZGVudGlmaWVyPlByb2ZpbGVWZXJzaW9uMTwvUHJvZmlsZUlkZW50aWZpZXI+DQogICAgPEZpbGVEaWdlc3Q+dU0wSFlaRk1jS0RSTnlrVElZSnplZ3p6amJxSkp4Nk5wU3lUTEVNaUNIND08L0ZpbGVEaWdlc3Q+DQogICAgPEZpbGVEaWdlc3RBbGdvcml0aG0+U0hBMjU2PC9GaWxlRGlnZXN0QWxnb3JpdGhtPg0KICA8L0VuY3J5cHRpb25JbmZvPg0KPC9BcHBsaWNhdGlvbkluZm8+UEsBAi0ACgAAAAAAM4rGWPOmNSegHAAAoBwAADEAAAAAAAAAAAAAAAAAAAAAAEludHVuZVdpblBhY2thZ2UvQ29udGVudHMvSW50dW5lUGFja2FnZS5pbnR1bmV3aW5QSwECLQAKAAAAAAAzisZYtv9EEEYDAABGAwAAJwAAAAAAAAAAAAAAAAALHQAASW50dW5lV2luUGFja2FnZS9NZXRhZGF0YS9EZXRlY3Rpb24ueG1sUEsFBgAAAAACAAIAtAAAALIgAAAAAA==";
+            // Used burp comparer to copy bytes from valid upload and decoder to convert hex to base64
+            string intuneWinFile = "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";
             byte[] winFileBytes = Convert.FromBase64String(intuneWinFile);
+
+            // Trim the last byte (0a) from the byte array that is added during conversion
+            winFileBytes = winFileBytes.Take(winFileBytes.Length - 1).ToArray();
 
             // Upload the content file to Azure storage
             var content = new ByteArrayContent(winFileBytes);
-            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
 
             // Don't include authorization header for this request
             HttpHandler httpHandler = new HttpHandler();
@@ -383,7 +420,7 @@ namespace Maestro
 
             if (response.StatusCode != HttpStatusCode.Created)
             {
-                Logger.Error("Failed to upload content file to Azure storage");
+                Logger.Error($"Failed to upload content file to Azure storage: {response.StatusCode} {response.Content}");
                 return false;
             }
 
@@ -402,10 +439,10 @@ namespace Maestro
 
             // Don't include authorization header for this request either
             HttpHandler httpHandler = new HttpHandler();
-            HttpResponseMessage contentFileResponse = await httpHandler.PutAsync(url, content);
-            if (contentFileResponse.StatusCode != HttpStatusCode.Created)
+            HttpResponseMessage response = await httpHandler.PutAsync(url, content);
+            if (response.StatusCode != HttpStatusCode.Created)
             {
-                Logger.Error("Failed to send block list");
+                Logger.Error($"Failed to send block list: {response.StatusCode} {response.Content}");
                 return false;
             }
             Logger.Info("Successfully sent content block list to Azure storage");
@@ -422,21 +459,22 @@ namespace Maestro
             var content = HttpHandler.CreateJsonContent(new
             {
                 fileEncryptionInfo = new {
-                    encryptionKey = "Em883WOfW9PzoF6vNWnc5C/vMlfny1UlnJ+sFwWcj3I=",
-                    initializationVector = "aHbMoo5pDLBEtwWiZTxSGA==",
-                    mac = "1Kh5GEMbmlHqzW3rbheU97ncwEIx3Mh/PgtHbIvGifM=",
-                    macKey = "P29tFcMTctz/MLt93t+9NNpHyGs2x5bIcdOrbNCkg8o=",
+                    encryptionKey = "OU22tJ9vWbw9Gdj3iLFbFPTyYvNe1/fwzzvd1YzBI/M=",
+                    initializationVector = "o9TQazwkEY2uVWHuI+qHFQ==",
+                    mac = "OJiQKIDluz9gypatflYsSzxalQbJgOLKDZP+C+hP3dA=",
+                    macKey = "6Dt2sAqvXy1baGjdr4s+ivhH5lppmZ83LwucDFQ20L0=",
                     profileIdentifier = "ProfileVersion1",
-                    fileDigest = "uM0HYZFMcKDRNykTIYJzegzzjbqJJx6NpSyTLEMiCH4=",
+                    fileDigest = "RVLextu9ni633iqW54ktzkU4kTDgekRFY8ao9gSwM78=",
                     fileDigestAlgorithm = "SHA256"
                 }
             });
 
+            content.Headers.Add("X-Ms-Command-Name", "saveLobAppContentFile");
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                Logger.Error("Failed to save file encryption info");
+                Logger.Error($"Failed to save file encryption info: {response.StatusCode} {response.Content}");
                 return false;
             }
 
@@ -456,28 +494,42 @@ namespace Maestro
 
             // Deserialize the JSON string into a dynamic object
             dynamic dataJson = JsonConvert.DeserializeObject<dynamic>(data);
-            string json = JsonConvert.SerializeObject(dataJson, Formatting.Indented);
+            string json = JsonConvert.SerializeObject(dataJson, Formatting.None);
 
-            // Create JSON content from the dynamic object
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            bool successful = false;
+            int tries = 0;
+            int maxRequests = 5;
+            int retryDelay = 3;
 
-            HttpResponseMessage commitAppResponse = await HttpHandler.PatchAsync(url, content);
-            if (commitAppResponse.StatusCode != HttpStatusCode.NoContent)
+            while (!successful && tries < maxRequests)
             {
-                Logger.Error("Failed to commit app");
-                return false;
+                Logger.Info($"Attempt {tries + 1} of {maxRequests} to commit app");
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.Add("X-Ms-Command-Name", "patchLobApp");
+
+                HttpResponseMessage response = await HttpHandler.PatchAsync(url, content);
+                
+                if (response.StatusCode == HttpStatusCode.NoContent)
+                {
+                    successful = true;
+                    Logger.Info("Successfully committed app");
+                    return true;
+                }
+                await Task.Delay(retryDelay * 1000);
+                tries++;
             }
-            Logger.Info("Successfully committed Win32 app");
-            return true;
+            Logger.Error("Failed to commit app");
+            return false;
         }
 
         public async Task<bool> AssignAppToGroup(string appId, string groupId)
         {
-            Logger.Info($"Assigning app to group:{groupId}");
+            Logger.Info($"Assigning app to group: {groupId}");
             string url = $"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{appId}/assign";
             string data = $@"
             {{
-                ""mobileAppAssignments"": [
+                ""mobileAppAssignments"": 
+                [
                     {{
                         ""@odata.type"": ""#microsoft.graph.mobileAppAssignment"",
                         ""target"": {{
@@ -485,43 +537,108 @@ namespace Maestro
                             ""groupId"": ""{groupId}""
                         }},
                         ""intent"": ""Required"",
-                        ""settings"": [
-                            {{
-                                ""@odata.type"": ""#microsoft.graph.win32LobAppAssignmentSettings"",
-                                ""notifications"": ""showAll"",
-                                ""installTimeSettings"": null,
-                                ""restartSettings"": null,
-                                ""deliveryOptimizationPriority"": ""notConfigured""
-                            }}
-                        ]
+                        ""settings"": 
+                        {{
+                            ""@odata.type"": ""#microsoft.graph.win32LobAppAssignmentSettings"",
+                            ""notifications"": ""showAll"",
+                            ""installTimeSettings"": null,
+                            ""restartSettings"": null,
+                            ""deliveryOptimizationPriority"": ""notConfigured""
+                        }}
                     }}
                 ]
-
             }}";
 
             // Deserialize the JSON string into a dynamic object
             dynamic dataJson = JsonConvert.DeserializeObject<dynamic>(data);
-            string json = JsonConvert.SerializeObject(dataJson, Formatting.Indented);
+            string json = JsonConvert.SerializeObject(dataJson, Formatting.None);
 
             // Create JSON content from the dynamic object
             var content = new StringContent(json, Encoding.UTF8, "application/json");
+            content.Headers.Add("X-Ms-Command-Name", "saveGroupTargetingAssignments");
 
-            HttpResponseMessage commitAppResponse = await HttpHandler.PostAsync(url, content);
-            if (commitAppResponse.StatusCode != HttpStatusCode.OK)
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            if (response.StatusCode != HttpStatusCode.OK)
             {
-                Logger.Error("Failed to assign app");
+                Logger.Error($"Failed to assign app: {response.StatusCode} {response.Content}");
                 return false;
             }
             Logger.Info("Successfully assigned app to group");
             return true;
         }
 
+        public async Task<bool> DeleteApplication(string appId)
+        {
+            Logger.Info($"Deleting Win32 app: {appId}");
+            string url = $"https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/{appId}";
 
-            // intune exec query
+            HttpHandler.SetHeader("X-Ms-Command-Name", "deleteApplication");
+            HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error($"Failed to delete application: {response.StatusCode} {response.Content}");
+                return false;
+            }
+
+            Logger.Info("Successfully deleted application");
+            return true;
+        }
+
+        public async Task<List<IntuneDevice>> GetIntuneDevicesFromEntraDevices(List<EntraDevice> entraDevices)
+        {
+            // Correlate the Entra device IDs with Intune device IDs
+            List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
+
+            foreach (EntraDevice entraDevice in entraDevices)
+            {
+                if (entraDevice.Properties.TryGetValue("deviceId", out object entraDeviceId))
+                {
+                    if (entraDeviceId is null)
+                    {
+                        Logger.Warning($"No Intune device ID found for Entra device {entraDevice.Properties["id"]}");
+                        continue;
+                    }
+                    IntuneDevice intuneDevice = await GetDevice(aadDeviceId: entraDeviceId.ToString());
+                    if (intuneDevice is null)
+                    {
+                        Logger.Warning($"No Intune device found for Entra deviceId {entraDeviceId}");
+                        continue;
+                    }
+                    Logger.Info($"Found device {intuneDevice.Properties["id"]} in Intune for Entra device {entraDeviceId}");
+                    intuneDevices.Add(intuneDevice);
+                }
+                if (entraDevice.Properties.TryGetValue("deviceName", out object entraDeviceName))
+                {
+                    if (entraDeviceName is null)
+                    {
+                        Logger.Warning($"No Intune device name found for Entra device {entraDevice.Properties["id"]}");
+                        continue;
+                    }
+                    IntuneDevice intuneDevice = await GetDevice(deviceName: entraDeviceName.ToString());
+                    if (intuneDevice is null)
+                    {
+                        Logger.Warning($"No Intune device found for Entra deviceName {entraDeviceName}");
+                        continue;
+                    }
+                    Logger.Info($"Found device {intuneDevice.Properties["id"]} in Intune for Entra device {entraDeviceName}");
+                    intuneDevices.Add(intuneDevice);
+                }
+                else
+                {
+                    
+                }
+            }
+            return intuneDevices;
+        }
+
+
+        // intune exec query
         public async Task ExecuteDeviceQuery(string kustoQuery, int maxRetries, int retryDelay, string deviceId = "", string deviceName = "", LiteDBHandler database = null)
         {
             // Check whether the device exists in Intune
             IntuneDevice device = await GetDevice(deviceId, deviceName, database: database);
+            if (device is null) return;
 
             // Submit the query to Intune
             string queryId = await NewDeviceQuery(kustoQuery, deviceId: deviceId);
@@ -866,10 +983,30 @@ namespace Maestro
                     return;
                 }
             }
-            Logger.Info($"Sending request for Intune to notify to {deviceId} sync");
+            Logger.Info($"Sending request for Intune to notify {deviceId} to sync");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/syncDevice";
             HttpResponseMessage response = await HttpHandler.PostAsync(url);
             if (!(response.StatusCode == HttpStatusCode.NoContent))
+            {
+                Logger.Error($"Failed to send request for device sync notification");
+                return;
+            }
+            Logger.Info("Successfully sent request for device sync notification");
+        }
+
+        public async Task SyncDevices(List<IntuneDevice> devices, LiteDBHandler database)
+        {
+            Logger.Info($"Sending request for Intune to notify devices to sync");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/executeAction";
+
+            var content = HttpHandler.CreateJsonContent(new
+            {
+                actionName = "syncDevice",
+                deviceIds = devices.Select(device => device.Properties["id"]).ToList()
+            });
+            
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            if (!(response.StatusCode == HttpStatusCode.OK))
             {
                 Logger.Error($"Failed to send request for device sync notification");
                 return;

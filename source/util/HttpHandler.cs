@@ -60,6 +60,11 @@ namespace Maestro
             return await SendRequestAsync(request);
         }
 
+        public void RemoveHeader(string headerName)
+        {
+            _httpClient.DefaultRequestHeaders.Remove(headerName);
+        }
+
         public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request)
         {
             Logger.Verbose($"Sending {request.Method} request to: {request.RequestUri}");
@@ -89,9 +94,9 @@ namespace Maestro
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
         }
 
-        public void SetOriginHeader(string origin)
+        public void SetHeader(string headerName, string headerValue)
         {
-            _httpClient.DefaultRequestHeaders.Add("Origin", origin);
+            _httpClient.DefaultRequestHeaders.Add(headerName, headerValue);
         }
     }
 }

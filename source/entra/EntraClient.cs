@@ -1,10 +1,10 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
@@ -21,9 +21,9 @@ namespace Maestro
             _authClient = new AuthClient();
         }
 
-        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, 
-            string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
-            bool reauth = false, int prtMethod = 0)
+        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database,
+            string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "",
+            bool reauth = false, int prtMethod = 0, int accessTokenMethod = 0)
         {
             var entraClient = new EntraClient();
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
@@ -32,7 +32,7 @@ namespace Maestro
             string resourceName = "microsoft.graph";
             string requiredScope = "Directory.Read.All";
             entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
-                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, prtMethod);
+                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, prtMethod, accessTokenMethod);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             entraClient.HttpHandler = entraClient._authClient.HttpHandler;
             return entraClient;
@@ -97,7 +97,7 @@ namespace Maestro
                 }
                 });
             }
-    
+
             HttpResponseMessage groupsResponse = await HttpHandler.PostAsync(url, content);
             string groupsResponseContent = await groupsResponse.Content.ReadAsStringAsync();
 
@@ -190,16 +190,176 @@ namespace Maestro
             return entraGroups;
         }
 
-        public async Task<HttpResponseMessage> GetGroupMembers(string groupId)
+        // entra devices
+        public async Task<EntraDevice> GetDevice(string deviceObjectId = "", string deviceName = "", string[] properties = null,
+            LiteDBHandler database = null)
         {
-            string url = $"https://graph.microsoft.com/beta/groups/{groupId}/members?$select=id,displayName,userType,appId,mail," +
+            List<EntraDevice> devices = await GetDevices(null, deviceObjectId, deviceName, properties, database, printJson: false);
+            if (devices is null) return null;
+
+            if (devices.Count > 1)
+            {
+                Logger.Error("Multiple devices found matching the specified device name");
+                return null;
+            }
+            else if (devices.Count == 0)
+            {
+                Logger.Error($"Failed to find the specified device");
+                return null;
+            }
+            return devices.FirstOrDefault();
+        }
+
+        public async Task<List<EntraDevice>> GetDevices(List<JsonObject> entraGroupMembers = null, string deviceId = "", string deviceName = "", string[] properties = null,
+            LiteDBHandler database = null, bool printJson = true)
+        {
+
+            var entraDevices = new List<EntraDevice>();
+
+            // Get all devices by default
+            string entraDevicesUrl = "https://graph.microsoft.com/v1.0/devices";
+
+            // Filter to specific devices
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                entraDevicesUrl += $"/{deviceId}";
+            }
+            else if (!string.IsNullOrEmpty(deviceName))
+            {
+                entraDevicesUrl += $"?$filter=displayName%20eq%20%27{deviceName}%27";
+            }
+            else if (entraGroupMembers != null)
+            {
+                var deviceIds = entraGroupMembers.Where(member => member.GetType().Name == "EntraDevice").Select(member => member.Properties["id"].ToString()).ToArray();
+                if (deviceIds.Length > 0)
+                {
+                    entraDevicesUrl += $"?$filter=id%20eq%20%27{string.Join("'%20or%20id%20eq%20'", deviceIds)}%27";
+                }
+            }
+
+            // Request devices from Entra
+            Logger.Info("Requesting devices from Entra");
+            HttpResponseMessage devicesResponse = await HttpHandler.GetAsync(entraDevicesUrl);
+            if (devicesResponse is null)
+            {
+                Logger.Error("Failed to get devices from Entra");
+                return null;
+            }
+
+            // Deserialize the JSON response to a dictionary
+            string devicesResponseContent = await devicesResponse.Content.ReadAsStringAsync();
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponseContent);
+            if (deviceResponseDict is null) return null;
+
+            var devices = new ArrayList();
+            if (deviceResponseDict.ContainsKey("value"))
+            {
+                devices = (ArrayList)deviceResponseDict["value"];
+            }
+            else
+            {
+                devices.Add(deviceResponseDict);
+            }
+
+            if (devices.Count == 0)
+            {
+                Logger.Info("No matching devices found");
+                return entraDevices;
+            }
+
+            Logger.Info($"Found {devices.Count} matching {(devices.Count == 1 ? "device" : "devices")} in Entra");
+            foreach (Dictionary<string, object> device in devices)
+            {
+                // Create an object for each item in the response
+                var entraDevice = new EntraDevice(device, database);
+                entraDevices.Add(entraDevice);
+            }
+            if (database != null)
+            {
+                Logger.Info($"Upserted {(devices.Count == 1 ? "device" : "devices")} in the database");
+            }
+            // Convert the devices ArrayList to JSON blob string
+            string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
+
+            // Print the selected properties of the devices
+            if (printJson) JsonHandler.PrintProperties(devicesJson, properties);
+
+            return entraDevices;
+        }
+
+        public async Task<List<JsonObject>> GetGroupMembers(string groupId, string searchForType, string[] properties = null, bool printJson = false, LiteDBHandler database = null)
+        {
+            List<JsonObject> entraGroupMembers = new List<JsonObject>();
+
+            string url = $"https://graph.microsoft.com/beta/groups/{groupId}/members?$select=id,deviceId,displayName,userType,appId,mail," +
                 "onPremisesSyncEnabled,deviceId&$orderby=displayName%20asc&$count=true";
             var request = new HttpRequestMessage(HttpMethod.Get, url);
 
             // Set required header per https://aka.ms/graph-docs/advanced-queries
             request.Headers.Add("Consistencylevel", "eventual");
 
-            return await HttpHandler.SendRequestAsync(request);
+            HttpResponseMessage groupMembersResponse = await HttpHandler.SendRequestAsync(request);
+            string groupMembersResponseContent = await groupMembersResponse.Content.ReadAsStringAsync();
+
+            if (groupMembersResponse.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to get group members from Entra");
+                JsonHandler.PrintProperties(groupMembersResponseContent);
+                return null;
+            }
+
+            // Deserialize the JSON response to a dictionary
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var fullResponseDict = serializer.Deserialize<Dictionary<string, object>>(groupMembersResponseContent);
+            if (fullResponseDict == null) return null;
+
+            var members = (ArrayList)fullResponseDict["value"];
+            if (members.Count == 0)
+            {
+                Logger.Info($"No group members found in {groupId}");
+                return null;
+            }
+
+            Logger.Info($"Found {members.Count} {(members.Count == 1 ? "member" : "members")} in {groupId}");
+            foreach (Dictionary<string, object> member in members)
+            {
+                // Create an object for each item in the response
+                if (member.TryGetValue("@odata.type", out var memberType))
+                {
+                    if (memberType.ToString().Contains("user"))
+                    {
+                        var entraUser = new EntraUser(member, database);
+                        entraGroupMembers.Add(entraUser);
+                    }
+                    else if (memberType.ToString().Contains("group"))
+                    {
+                        var entraGroup = new EntraGroup(member, database);
+                        entraGroupMembers.Add(entraGroup);
+                    }
+                    else if (memberType.ToString().Contains("device"))
+                    {
+                        var entraDevice = new EntraDevice(member, database);
+                        entraGroupMembers.Add(entraDevice);
+                    }
+                    else
+                    {
+                        Logger.Warning("Unknown member type found in group members list");
+                    }
+                }
+            }
+
+            // Convert the groups ArrayList to JSON blob string
+            string groupsJson = JsonConvert.SerializeObject(members, Formatting.Indented);
+
+            // Print the selected properties of the devices
+            if (printJson) JsonHandler.PrintProperties(groupsJson, properties);
+
+            if (searchForType != null)
+            {
+                entraGroupMembers = entraGroupMembers.Where(member => member.GetType().Name == searchForType).ToList();
+            }
+            return entraGroupMembers;
         }
 
         public async Task<EntraUser> GetUser(string userId = "", string userName = "", string[] properties = null,
