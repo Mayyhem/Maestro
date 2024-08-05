@@ -8,285 +8,59 @@ namespace Maestro
     {
         private const int DescriptionPadding = 40;
 
+        private static readonly List<Option> GlobalOptions = new List<Option>
+        {
+            new Option
+            {
+                ShortName = "-d",
+                LongName = "--database",
+                ValuePlaceholder = "PATH.db",
+                Description = "Database file used to read/write data that has already been queried"
+            },
+            new Option
+            {
+                ShortName = "-h",
+                LongName = "--help",
+                Description = "Display usage",
+                IsFlag = true
+            },
+            new Option
+            {
+                ShortName = "-v",
+                LongName = "--verbosity",
+                ValuePlaceholder = "LEVEL",
+                Description =
+                    "Set the log verbosity level (default: 2)\n" +
+                    new string(' ', DescriptionPadding) + "  0: Error\n" +
+                    new string(' ', DescriptionPadding) + "  1: Warning\n" +
+                    new string(' ', DescriptionPadding) + "  2: Info\n" +
+                    new string(' ', DescriptionPadding) + "  3: Verbose\n" +
+                    new string(' ', DescriptionPadding) + "  4: Debug",
+                Default = "2"
+            }
+        };
+
         public static List<Command> commands = new List<Command>
         {
+
             new Command
             {
-                Name = "tokens",
-                Description = "Get or store EntraID/Azure tokens",
+                Name = "delete",
+                Description = "Delete objects from Azure",
                 Subcommands = new List<Subcommand>
                 {
-                    new Subcommand
-                    {
-                        Name = "prt-cookie",
-                        Description = "Get or store a PRT cookie"
-                    },
-                    new Subcommand
-                    {
-                        Name = "refresh-token",
-                        Description = "Get or store a refresh token",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-c",
-                                LongName = "--prt-cookie",
-                                ValuePlaceholder = "VALUE",
-                                Description = "The PRT cookie to use (default: current user's PRT cookie)"
-                            }
-                        }
-                    },
-                    new Subcommand
-                    {
-                        Name = "access-token",
-                        Description = "Get or store an access token",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-c",
-                                LongName = "--prt-cookie",
-                                ValuePlaceholder = "VALUE",
-                                Description = "The PRT cookie to use (default: current user's PRT cookie)"
-                            },
-                            new Option
-                            {
-                                ShortName = "-e",
-                                LongName = "--extension",
-                                ValuePlaceholder = "NAME",
-                                Description = "Name of the extension to request an access token for",
-                                Default = "Microsoft_AAD_IAM"
-                            },
-                            new Option
-                            {
-                                ShortName = "-m",
-                                LongName = "--method",
-                                ValuePlaceholder = "METHOD",
-                                Description =
-                                    "Method used to request access tokens (default: 0)\n" +
-                                    new string(' ', DescriptionPadding) + "  0: /oauth2/v2.0/token\n" +
-                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken",
-                                Default = "0"
-                            },
-                            new Option
-                            {
-                                ShortName = "-r",
-                                LongName = "--resource",
-                                ValuePlaceholder = "RESOURCE",
-                                Description = "Name of the resource to request an access token for",
-                                Default = "microsoft.graph"
-                            },
-                            new Option
-                            {
-                                LongName = "--refresh-token",
-                                ValuePlaceholder = "VALUE",
-                                Description = "The refresh token to use"
-                            },
-                            new Option
-                            {
-                                ShortName = "-t",
-                                LongName = "--tenant-id",
-                                ValuePlaceholder = "ID",
-                                Description = "The tenant ID to request tokens for (default: obtain from /signin)"
-                            }
-                        }
-                    }
-                },
-                Options = new List<Option>
-                {
-                    new Option
-                    {
-                        ShortName = "-s",
-                        LongName = "--store",
-                        ValuePlaceholder = "VALUE",
-                        Description = "A PRT cookie, refresh token, or access token to store"
-                    }
                 }
             },
             new Command
             {
-                Name = "entra",
-                Description = "Execute actions in EntraID",
+                Name = "exec",
+                Description = "Execute actions on remote devices",
                 Subcommands = new List<Subcommand>
                 {
                     new Subcommand
                     {
-                        Name = "groups",
-                        Description = "Get information about EntraID groups",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the group to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-n",
-                                LongName = "--name",
-                                ValuePlaceholder = "NAME",
-                                Description = "Name of the group to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-p",
-                                LongName = "--properties",
-                                ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to get or ALL to get all properties"
-                            }
-                        }
-                    },
-                    new Subcommand
-                    {
-                        Name = "users",
-                        Description = "Get information about EntraID users",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the user to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-n",
-                                LongName = "--name",
-                                ValuePlaceholder = "NAME",
-                                Description = "Name of the user to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-p",
-                                LongName = "--properties",
-                                ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to get or ALL to get all properties"
-                            }
-                        }
-                    }
-                }
-            },
-            new Command
-            {
-                Name = "intune",
-                Description = "Execute actions in Intune and on Intune-enrolled devices",
-                Subcommands = new List<Subcommand>
-                {
-                    new Subcommand
-                    {
-                        Name = "apps",
-                        Description = "Get information about Intune apps",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                LongName = "--delete",
-                                Description = "Delete the specified app from Intune",
-                                IsFlag = true
-                            },
-                            new Option
-                            {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the app to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-n",
-                                LongName = "--name",
-                                ValuePlaceholder = "NAME",
-                                Description = "Name of the app to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-p",
-                                LongName = "--properties",
-                                ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to get or ALL to get all properties"
-                            }
-                        }
-                    },
-                    new Subcommand
-                    {
-                        Name = "devices",
-                        Description = "Get information about enrolled devices",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the device to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-n",
-                                LongName = "--name",
-                                ValuePlaceholder = "NAME",
-                                Description = "Name of the device to get information for"
-                            },
-                            new Option
-                            {
-                                ShortName = "-p",
-                                LongName = "--properties",
-                                ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to get or ALL to get all properties"
-                            }
-                        }
-                    },
-                    new Subcommand
-                    {
-                        Name = "scripts",
-                        Description = "Interact with scripts and remediations",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the script to interact with"
-                            },
-                            new Option
-                            {
-                                LongName = "--delete",
-                                Description = "Delete the specified script from Intune",
-                                IsFlag = true
-                            },
-                            new Option
-                            {
-                                ShortName = "-p",
-                                LongName = "--properties",
-                                ValuePlaceholder = "PROP,PROP | ALL",
-                                Description = "Comma-separated list of properties to get or ALL to get all properties"
-                            }
-                        }
-                    },
-                    new Subcommand
-                    {
-                        Name = "sync",
-                        Description = "Send notification to device requesting immediate sync to Intune",
-                        Options = new List<Option>
-                        {
-                            new Option
-                            {
-                                Required = true,
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the device to sync"
-                            }
-                        }
-                    },
-                    new Subcommand
-                    {
-                        Name = "exec",
-                        Description = "Execute actions on a device",
+                        Name = "intune",
+                        Description = "Execute actions on devices enrolled in Intune",
                         Subcommands = new List<Subcommand>
                         {
                             new Subcommand
@@ -329,7 +103,7 @@ namespace Maestro
                             },
                             new Subcommand
                             {
-                                Name = "query",
+                                Name = "device-query",
                                 Description = "Execute device query on a device",
                                 Options = new List<Option>
                                 {
@@ -396,102 +170,297 @@ namespace Maestro
                                         Description = "Base64-encoded PowerShell script to execute"
                                     }
                                 }
+                            },
+                            new Subcommand
+                            {
+                                Name = "sync",
+                                Description = "Send notification to device requesting immediate sync to Intune",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the device to sync"
+                                    }
+                                }
                             }
                         }
                     }
+                },
+            },
+            new Command
+            {
+                Name = "get",
+                Description = "Request information from Azure",
+                Options = new List<Option>
+                {
+                    new Option
+                    {
+                        LongName = "--access-token",
+                        ValuePlaceholder = "VALUE",
+                        Description = "The access token to use (default: request an access token)"
+                    },
+                    new Option
+                    {
+                        ShortName = "-i",
+                        LongName = "--id",
+                        ValuePlaceholder = "ID",
+                        Description = "ID of the object to get information for"
+                    },
+                    new Option
+                    {
+                        ShortName = "-n",
+                        LongName = "--name",
+                        ValuePlaceholder = "NAME",
+                        Description = "Name of the object to get information for"
+                    },
+                    new Option
+                    {
+                        ShortName = "-p",
+                        LongName = "--properties",
+                        ValuePlaceholder = "PROP,PROP | ALL",
+                        Description = "Comma-separated list of properties to get or ALL to get all properties"
+                    },
+                    new Option
+                    {
+                        LongName = "--prt-cookie",
+                        ValuePlaceholder = "VALUE",
+                        Description = "The PRT cookie to use (default: current user's PRT cookie)"
+                    },
+                    new Option
+                    {
+                        LongName = "--prt-method",
+                        ValuePlaceholder = "METHOD",
+                        Description =
+                            "Method used to request PRT cookies from LSA Cloud AP plugin (default: 0)\n" +
+                            new string(' ', DescriptionPadding) + "  0: RequestAADRefreshToken (via GetCookieInfoForUri COM interface)\n" +
+                            new string(' ', DescriptionPadding) + "  1: ROADToken (spawn BrowserCore.exe and call GetCookies)",
+                        Default = "0"
+                    },
+                    new Option
+                    {
+                        LongName = "--reauth",
+                        Description = "Skip database credential lookup and force reauthentication",
+                        IsFlag = true
+                    },
+                    new Option
+                    {
+                        LongName = "--refresh-token",
+                        ValuePlaceholder = "VALUE",
+                        Description = "The refresh token to use (default: request a refresh token)"
+                    },
+                    new Option
+                    {
+                        ShortName = "-t",
+                        LongName = "--tenant-id",
+                        ValuePlaceholder = "ID",
+                        Description = "The tenant ID to use (default: obtain from /signin)"
+                    }
+                },
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "access-token",
+                        Description = "Get an access token",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                ShortName = "-e",
+                                LongName = "--extension",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the extension to request an access token for",
+                                Default = "Microsoft_AAD_IAM"
+                            },
+                            new Option
+                            {
+                                ShortName = "-m",
+                                LongName = "--method",
+                                ValuePlaceholder = "METHOD",
+                                Description =
+                                    "Method used to request access tokens (default: 0)\n" +
+                                    new string(' ', DescriptionPadding) + "  0: /oauth2/v2.0/token\n" +
+                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken",
+                                Default = "0"
+                            },
+                            new Option
+                            {
+                                ShortName = "-r",
+                                LongName = "--resource",
+                                ValuePlaceholder = "RESOURCE",
+                                Description = "Name of the resource to request an access token for",
+                                Default = "microsoft.graph"
+                            },
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "entra",
+                        Description = "Get information about EntraID",
+                        Subcommands = new List<Subcommand>
+                        {
+                            new Subcommand
+                            {
+                                Name = "groups",
+                                Description = "Get information about EntraID groups"
+
+                            },
+                            new Subcommand
+                            {
+                                Name = "users",
+                                Description = "Get information about EntraID users"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "intune",
+                        Description = "Get information about Intune and Intune-enrolled devices",
+                        Subcommands = new List<Subcommand>
+                        {
+                            new Subcommand
+                            {
+                                Name = "apps",
+                                Description = "Get information about Intune apps"
+                            },
+                            new Subcommand
+                            {
+                                Name = "devices",
+                                Description = "Get information about enrolled devices"
+                            },
+                            new Subcommand
+                            {
+                                Name = "scripts",
+                                Description = "Get information about scripts and remediations"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "prt-cookie",
+                        Description = "Get a PRT cookie"
+                    },
+                    new Subcommand
+                    {
+                        Name = "refresh-token",
+                        Description = "Get a refresh token"
+                    },
+                }
+            },
+
+            new Command
+            {
+                Name = "local",
+                Description = "Execute actions on the local device",
+                Subcommands = new List<Subcommand>
+                {
+                }
+            },
+            new Command
+            {
+                Name = "new",
+                Description = "Create new objects in Azure",
+                Subcommands = new List<Subcommand>
+                {
                 }
             },
             new Command
             {
                 Name = "show",
                 Description = "Display information stored in the database",
+                Options = new List<Option>
+                {
+                    new Option
+                    {
+                        ShortName = "-i",
+                        LongName = "--id",
+                        ValuePlaceholder = "ID",
+                        Description = "ID of the object to show information for"
+                    },
+                    new Option
+                    {
+                        ShortName = "-n",
+                        LongName = "--name",
+                        ValuePlaceholder = "NAME",
+                        Description = "Name of the object to show information for"
+                    },
+                    new Option
+                    {
+
+                        ShortName = "-p",
+                        LongName = "--properties",
+                        ValuePlaceholder = "PROP,PROP",
+                        Description = "Comma-separated list of properties to get or ALL to get all properties"
+                    }
+                },
                 Subcommands = new List<Subcommand>
                 {
                     new Subcommand
                     {
                         Name = "devices",
-                        Description = "Show information about Intune enrolled devices (default: all devices)",
+                        Description = "Show information about Intune enrolled devices (default: all devices)"
+                    }
+                }
+            },
+            new Command
+            {
+                Name = "store",
+                Description = "Store information in the database",
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "access-token",
+                        Description = "Store an access token",
                         Options = new List<Option>
                         {
                             new Option
                             {
-                                ShortName = "-i",
-                                LongName = "--id",
-                                ValuePlaceholder = "ID",
-                                Description = "ID of the device to show information for"
-                            },
+                                Required = true,
+                                ShortName = "-t",
+                                LongName = "--access-token",
+                                ValuePlaceholder = "TOKEN",
+                                Description = "Access token to store"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "prt-cookie",
+                        Description = "Store a PRT cookie",
+                        Options = new List<Option>
+                        {
                             new Option
                             {
-                                ShortName = "-n",
-                                LongName = "--name",
-                                ValuePlaceholder = "NAME",
-                                Description = "Name of the device to show information for"
-                            },
+                                Required = true,
+                                ShortName = "-c",
+                                LongName = "--prt-cookie",
+                                ValuePlaceholder = "COOKIE",
+                                Description = "PRT cookie to store"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
+                        Name = "refresh-token",
+                        Description = "Store a refresh token",
+                        Options = new List<Option>
+                        {
                             new Option
                             {
-
-                                ShortName = "-p",
-                                LongName = "--properties",
-                                ValuePlaceholder = "PROP,PROP",
-                                Description = "Comma-separated list of properties to get or ALL to get all properties"
+                                Required = true,
+                                ShortName = "-t",
+                                LongName = "--refresh-token",
+                                ValuePlaceholder = "TOKEN",
+                                Description = "Refresh token to store"
                             }
                         }
                     }
                 }
-            }
-        };
-
-        private static readonly List<Option> GlobalOptions = new List<Option>
-        {
-            new Option
-            {
-                ShortName = "-d",
-                LongName = "--database",
-                ValuePlaceholder = "PATH.db",
-                Description = "Database file used to read/write data that has already been queried"
-            },
-            new Option
-            {
-                ShortName = "-h",
-                LongName = "--help",
-                Description = "Display usage",
-                IsFlag = true
-            },
-            new Option
-            {
-                LongName = "--prt-method",
-                ValuePlaceholder = "METHOD",
-                Description =
-                    "Method used to request PRT cookies from LSA Cloud AP plugin (default: 0)\n" +
-                    new string(' ', DescriptionPadding) + "  0: RequestAADRefreshToken (via GetCookieInfoForUri COM interface)\n" +
-                    new string(' ', DescriptionPadding) + "  1: ROADToken (spawn BrowserCore.exe and call GetCookies)",
-                Default = "0"
-            },
-            new Option
-            {
-                LongName = "--reauth",
-                Description = "Skip database credential lookup and force reauthentication",
-                IsFlag = true
-            },
-            new Option
-            {
-                LongName = "--show",
-                Description = "Display only information stored in the database (offline)",
-                IsFlag = true
-            },
-            new Option
-            {
-                ShortName = "-v",
-                LongName = "--verbosity",
-                ValuePlaceholder = "LEVEL",
-                Description =
-                    "Set the log verbosity level (default: 2)\n" +
-                    new string(' ', DescriptionPadding) + "  0: Error\n" +
-                    new string(' ', DescriptionPadding) + "  1: Warning\n" +
-                    new string(' ', DescriptionPadding) + "  2: Info\n" +
-                    new string(' ', DescriptionPadding) + "  3: Verbose\n" +
-                    new string(' ', DescriptionPadding) + "  4: Debug",
-                Default = "2"
             }
         };
 
@@ -511,6 +480,32 @@ namespace Maestro
                     return found;
                 }
             }
+            return null;
+        }
+
+        // Find a subcommand by its full path
+        private static Subcommand FindSubcommandByPath(List<Command> commands, string[] path)
+        {
+            if (path.Length == 0)
+                return null;
+
+            var command = commands.FirstOrDefault(c => c.Name == path[0]);
+            if (command == null)
+                return null;
+
+            var currentSubcommands = command.Subcommands;
+            for (int i = 1; i < path.Length; i++)
+            {
+                var subcommand = currentSubcommands.FirstOrDefault(sc => sc.Name == path[i]);
+                if (subcommand == null)
+                    return null;
+
+                if (i == path.Length - 1)
+                    return subcommand;
+
+                currentSubcommands = subcommand.Subcommands;
+            }
+
             return null;
         }
 
@@ -812,11 +807,11 @@ namespace Maestro
             Console.WriteLine(PadDescription($"{new string(' ', depth)}    {shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + description);
         }
 
-        public static void PrintUsage(string commandOrSubcommandName = "", int depth = 0)
+        public static void PrintUsage(string commandPath = "", int depth = 0)
         {
             Console.WriteLine();
 
-            if (string.IsNullOrEmpty(commandOrSubcommandName))
+            if (string.IsNullOrEmpty(commandPath))
             {
                 Console.WriteLine("Usage: Maestro.exe <command> [subcommand] [options]");
                 Console.WriteLine("\nGlobal Options:\n");
@@ -857,35 +852,53 @@ namespace Maestro
             }
             else
             {
-                var command = commands.FirstOrDefault(c => c.Name == commandOrSubcommandName);
+                string[] pathParts = commandPath.Split(' ');
+                var command = commands.FirstOrDefault(c => c.Name == pathParts[0]);
                 if (command != null)
                 {
-                    PrintCommandUsage(command, depth);
-                }
-                else
-                {
-                    foreach (var cmd in commands)
+                    if (pathParts.Length == 1)
                     {
-                        var subcommand = FindSubcommand(cmd.Subcommands, commandOrSubcommandName);
+                        PrintCommandUsage(command, depth);
+                    }
+                    else
+                    {
+                        var subcommand = FindSubcommandByPath(commands, pathParts);
                         if (subcommand != null)
                         {
-                            //Console.WriteLine("Command:");
-                            Console.WriteLine(PadDescription($"  {cmd.Name}") + cmd.Description);
-                            PrintSubcommandUsage(subcommand, depth);
-                            Console.WriteLine();
-                            Console.WriteLine("Global Options:\n");
+                            Console.WriteLine($"Usage: Maestro.exe {commandPath} [options]");
+                            Console.WriteLine($"\nDescription: {subcommand.Description}\n");
+                            if (subcommand.Options.Any())
+                            {
+                                Console.WriteLine("Options:");
+                                foreach (var option in subcommand.Options)
+                                {
+                                    PrintOptionUsage(option, depth);
+                                }
+                            }
+                            if (subcommand.Subcommands.Any())
+                            {
+                                Console.WriteLine("\nSubcommands:");
+                                foreach (var subSubcommand in subcommand.Subcommands)
+                                {
+                                    PrintSubcommandUsage(subSubcommand, depth + 1);
+                                }
+                            }
+                            Console.WriteLine("\nGlobal Options:");
                             foreach (var option in GlobalOptions)
                             {
                                 string shortNameOrNot = $"  {(!string.IsNullOrEmpty(option.ShortName) ? option.ShortName + "," : "   ")}";
                                 Console.WriteLine(PadDescription($"{shortNameOrNot}{option.LongName} {option.ValuePlaceholder}") + option.Description);
                             }
-                            Console.WriteLine();
-                            return;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Unknown command or subcommand: {commandPath}");
                         }
                     }
-
-                    // If not found
-                    Console.WriteLine($"Unknown command or subcommand: {commandOrSubcommandName}");
+                }
+                else
+                {
+                    Console.WriteLine($"Unknown command: {pathParts[0]}");
                 }
             }
             Console.WriteLine();

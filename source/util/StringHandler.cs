@@ -12,7 +12,7 @@ namespace Maestro
             string[] parts = jwt.Split('.');
             if (parts.Length != 3)
             {
-                throw new ArgumentException("The JWT is not in a valid format.");
+                throw new ArgumentException("The JWT is not in a valid format");
             }
 
             string base64 = parts[1].Replace('-', '+').Replace('_', '/');

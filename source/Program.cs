@@ -1,4 +1,6 @@
-﻿using System;
+﻿using LiteDB;
+using Maestro.source.commands.get;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -12,73 +14,59 @@ namespace Maestro
         {
             // Execution timer
             var timer = new Stopwatch();
+
+            // Database handler
             LiteDBHandler database = null;
 
             try
             {
-                // Start timer and begin execution
+                // Start timer
                 timer.Start();
 
                 // Parse arguments
+                var options = CommandLineOptions.Parse(args);
+                if (options == null || string.IsNullOrEmpty(options.Command)) 
+                    return;
+
                 Dictionary<string, string> parsedArguments = CommandLine.ParseCommands(args);
                 if (parsedArguments == null || !parsedArguments.ContainsKey("command")) return;
 
                 // Initialize the logger
                 ILogger logger = new ConsoleLogger();
-                if (parsedArguments.TryGetValue("--verbosity", out string logLevelString)
-                    && Enum.TryParse(logLevelString, true, out Logger.LogLevel logLevel))
-                {
-                    // Set log level if specified
-                    Logger.SetLogLevel(logger, logLevel);
-                } 
-                else
-                {
-                    // Log informational messages by default
-                    Logger.SetLogLevel(logger, Logger.LogLevel.Info);
-                }
+                Logger.LogLevel logLevel = (Logger.LogLevel)options.Verbosity;
+                Logger.SetLogLevel(logger, logLevel);
+
+                // Begin execution
                 Logger.Info("Execution started");
 
-                // Lookup credentials in database or force reauthentication
-                bool reauth = false;
-
                 // Use database file if option is specified
-                if (parsedArguments.TryGetValue("--database", out string databasePath))
+                if (!string.IsNullOrEmpty(options.DatabasePath))
                 {
-                    database = LiteDBHandler.CreateOrOpen(databasePath);
+                    database = LiteDBHandler.CreateOrOpen(options.DatabasePath);
                     if (database == null) return;
-
-                    Logger.Info($"Using database file: {Path.GetFullPath(databasePath)}");
-
-                    if (parsedArguments.TryGetValue("--reauth", out string reauthString))
-                    {
-                        reauth = bool.Parse(reauthString);
-                    }
-                }
-
-                // Specify whether to only show database information (no API calls)
-                bool databaseOnly = false;
-                if (parsedArguments.TryGetValue("--show", out string databaseOnlyString))
-                {
-                    databaseOnly = bool.Parse(databaseOnlyString);
-                }
-
-                int prtMethod = 0;
-                if (parsedArguments.TryGetValue("--prt-method", out string prtMethodString))
-                {
-                    prtMethod = int.Parse(prtMethodString);
+                    Logger.Info($"Using database file: {Path.GetFullPath(options.DatabasePath)}");
                 }
 
                 // Direct execution flow based on the command
-                switch (parsedArguments["command"])
+                switch (options.Command)
                 {
-                    case "tokens":
-                        await TokensCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                    case "delete":
+                        //await DeleteCommand.Execute(options, database);
                         break;
-                    case "entra":
-                        await EntraCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                    case "exec":
+                        //await ExecCommand.Execute(options, database);
                         break;
-                    case "intune":
-                        await IntuneCommand.Execute(parsedArguments, database, databaseOnly, reauth, prtMethod);
+                    case "get":
+                        await GetCommand.Execute(options, database);
+                        break;
+                    case "new":
+                        //await NewCommand.Execute(options, database);
+                        break;
+                    case "show":
+                        //await ShowCommand.Execute(options, database);
+                        break;
+                    case "store":
+                        StoreCommand.Execute(options, database);
                         break;
                     default:
                         Logger.Error($"Unknown command: {parsedArguments["command"]}");

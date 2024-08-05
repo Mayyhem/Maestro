@@ -20,6 +20,9 @@ namespace Maestro
             // Decode and parse properties of JWT and store in database
             Jwt = new Jwt("oid", base64BearerToken, database);
 
+            if (Jwt.Properties.Count == 0)
+                return;
+
             ClientId = (string)Jwt.Properties["appid"];
             Audience = (string)Jwt.Properties["aud"];
             Expiry = DateTimeHandler.ConvertFromUnixTimestamp((int)Jwt.Properties["exp"]);

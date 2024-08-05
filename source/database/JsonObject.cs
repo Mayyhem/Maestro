@@ -21,7 +21,17 @@ namespace Maestro
             Dictionary<string, object> properties = new Dictionary<string, object>();
             if (encoded)
             {
-                string decodedJson = StringHandler.DecodeJwt(jsonBlob);
+                string decodedJson = "";
+                try
+                {
+                    decodedJson = StringHandler.DecodeJwt(jsonBlob);
+                }
+                catch (ArgumentException ex)
+                {
+                    Logger.Error(ex.Message);
+                    return;
+                }
+
                 var serializer = new JavaScriptSerializer();
                 properties = serializer.Deserialize<Dictionary<string, object>>(decodedJson);
             }

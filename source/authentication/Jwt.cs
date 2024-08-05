@@ -11,6 +11,9 @@ namespace Maestro
         public Jwt(string primaryKey, string base64BearerToken, LiteDBHandler database) 
             : base(primaryKey, base64BearerToken, database, encoded: true)
         {
+            if (Properties.Count == 0)
+                return;
+
             AddProperty("bearerToken", base64BearerToken);
         }
     }
