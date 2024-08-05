@@ -1,9 +1,14 @@
-﻿using System.Net;
+﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.Collections.Generic;
+using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using System.Linq;
 
 namespace Maestro
 {
@@ -40,6 +45,105 @@ namespace Maestro
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             return await SendRequestAsync(request);
+        }
+
+        public async Task<List<T>> GetMSGraphEntities<T>(
+            string baseUrl,
+            Func<JObject, T> entityCreator,
+            bool count = false,
+            List<(string LogicalOperator, string Key, string ComparisonOperator, string Value)> filters = null,
+            string search = null,
+            string[] properties = null,
+            LiteDBHandler database = null,
+            bool printJson = true) where T : class
+        {
+            var entities = new List<T>();
+            var urlBuilder = new MSGraphUrlBuilder(baseUrl);
+
+            // Add count
+            if (count)
+            {
+                urlBuilder.AddCount();
+            }
+
+            // Add filters
+            if (filters != null && filters.Any())
+            {
+                string filterString = urlBuilder.BuildFilterString(filters);
+                urlBuilder.AddFilter(filterString);
+            }
+
+            // Add search
+            if (search != null)
+            {
+                urlBuilder.AddSearch(search);
+            }
+
+            // Add properties
+            if (properties != null)
+            {
+                urlBuilder.AddSelect(properties);
+            }
+
+            string url = urlBuilder.Build();
+
+            // Request entities from Graph API
+            Logger.Info($"Requesting {typeof(T).Name}s from Microsoft Graph");
+            HttpResponseMessage response = await GetAsync(url);
+            if (response == null)
+            {
+                Logger.Error($"Failed to get {typeof(T).Name}s from Microsoft Graph");
+                return null;
+            }
+
+            // Deserialize the JSON response
+            string responseContent = await response.Content.ReadAsStringAsync();
+
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                Logger.Error($"Bad request: {response.Content}");
+                return null;
+            }
+            JObject responseObject = JObject.Parse(responseContent);
+
+            var entitiesArray = responseObject["value"] as JArray ?? new JArray { responseObject };
+
+            if (entitiesArray.Count == 0)
+            {
+                Logger.Info($"No matching {typeof(T).Name}s found");
+                return null;
+            }
+
+            Logger.Info($"Found {entitiesArray.Count} matching {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} in Microsoft Graph");
+
+            foreach (JObject entityJson in entitiesArray)
+            {
+                var entity = entityCreator(entityJson);
+                entities.Add(entity);
+
+                // Upsert each entity to the database
+                if (database != null)
+                {
+                    bool upsertResult = database.Upsert(entity);
+                    if (!upsertResult)
+                    {
+                        Logger.Warning($"Failed to upsert {typeof(T).Name} to database");
+                    }
+                    else
+                    {
+                        Logger.Verbose($"Upserted {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} in the database");
+                    }
+                }
+            }
+
+            // Print the selected properties of the entities
+            if (printJson)
+            {
+                string entitiesJson = JsonConvert.SerializeObject(entitiesArray, Formatting.Indented);
+                JsonHandler.PrintProperties(entitiesJson, properties);
+            }
+
+            return entities;
         }
 
         public async Task<HttpResponseMessage> PatchAsync(string url, HttpContent content = null)

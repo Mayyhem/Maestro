@@ -56,8 +56,8 @@ namespace Maestro
 
                 if (intuneDevices.Count != 0)
                 {
-                    Logger.Info("Waiting 10 seconds before requesting device sync");
-                    await Task.Delay(10000);
+                    Logger.Info("Waiting 30 seconds before requesting device sync");
+                    await Task.Delay(30000);
                     await intuneClient.SyncDevices(intuneDevices, database);
                 }
                 else
@@ -65,8 +65,7 @@ namespace Maestro
                     Logger.Info("No devices found in Intune for the Entra group");
                 }
 
-                // Delete the application
-                await intuneClient.DeleteApplication(appId);
+                Logger.Info($"App with id {appId} has been deployed");
             }
             else
             {

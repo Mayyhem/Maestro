@@ -9,7 +9,11 @@ namespace Maestro
         {
             if (arguments.TryGetValue("subcommand1", out string subcommandName))
             {
-                if (subcommandName == "devices")
+                if (subcommandName == "apps")
+                {
+                    await IntuneAppsCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
+                }
+                else if (subcommandName == "devices")
                 {
                     await IntuneDevicesCommand.Execute(arguments, database, databaseOnly, reauth, prtMethod);
                 }

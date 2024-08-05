@@ -177,6 +177,41 @@ namespace Maestro
                 {
                     new Subcommand
                     {
+                        Name = "apps",
+                        Description = "Get information about Intune apps",
+                        Options = new List<Option>
+                        {
+                            new Option
+                            {
+                                LongName = "--delete",
+                                Description = "Delete the specified app from Intune",
+                                IsFlag = true
+                            },
+                            new Option
+                            {
+                                ShortName = "-i",
+                                LongName = "--id",
+                                ValuePlaceholder = "ID",
+                                Description = "ID of the app to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-n",
+                                LongName = "--name",
+                                ValuePlaceholder = "NAME",
+                                Description = "Name of the app to get information for"
+                            },
+                            new Option
+                            {
+                                ShortName = "-p",
+                                LongName = "--properties",
+                                ValuePlaceholder = "PROP,PROP | ALL",
+                                Description = "Comma-separated list of properties to get or ALL to get all properties"
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
                         Name = "devices",
                         Description = "Get information about enrolled devices",
                         Options = new List<Option>

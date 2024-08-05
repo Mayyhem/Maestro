@@ -19,12 +19,12 @@ namespace Maestro
     {
         private AuthClient _authClient;
         public HttpHandler HttpHandler;
-        public IntuneClient() 
+        public IntuneClient()
         {
             _authClient = new AuthClient();
         }
 
-        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "", 
+        public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
         {
             var intuneClient = new IntuneClient();
@@ -34,12 +34,46 @@ namespace Maestro
             string extensionName = "Microsoft_Intune_DeviceSettings";
             string resourceName = "microsoft.graph";
             string requiredScope = "DeviceManagementConfiguration.ReadWrite.All";
-            intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName, 
-                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, 
+            intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
+                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope,
                 prtMethod, accessTokenMethod: 1);
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
+        }
+
+        // intune apps
+        public async Task<List<IntuneApp>> GetApps(string appId = "", string appName = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+        {
+
+            var filters = new List<(string, string, string, string)>();
+            filters.Insert(0, ("", "microsoft.graph.managedApp/appAvailability", "eq", "null"));
+            filters.Insert(1, ("or", "microsoft.graph.managedApp/appAvailability", "eq", "'lineOfBusiness'"));
+            filters.Add(("and", "isAssigned", "eq", "true"));
+
+            List<IntuneApp> apps = await HttpHandler.GetMSGraphEntities<IntuneApp>(
+                baseUrl: "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps",
+                json => new IntuneApp(json, database),
+                filters: filters,
+                properties: properties,
+                database: database,
+                printJson: false);
+
+            if (apps is null) return null;
+            Logger.Info($"Found {apps.Count} total apps in Intune");
+
+            if (!string.IsNullOrEmpty(appId))
+            {
+                apps = apps.Where(app => app.Id == appId).ToList();
+            }
+
+            if (!string.IsNullOrEmpty(appName))
+            {
+                apps = apps.Where(app => app.DisplayName == appName).ToList();
+            }
+
+            Logger.Info($"Found {apps.Count} matching apps in Intune");
+            return apps;
         }
 
         // intune devices
@@ -540,7 +574,7 @@ namespace Maestro
                         ""settings"": 
                         {{
                             ""@odata.type"": ""#microsoft.graph.win32LobAppAssignmentSettings"",
-                            ""notifications"": ""showAll"",
+                            ""notifications"": ""hideAll"",
                             ""installTimeSettings"": null,
                             ""restartSettings"": null,
                             ""deliveryOptimizationPriority"": ""notConfigured""
