@@ -17,13 +17,13 @@ namespace Maestro
 
         // Options
         public string AccessToken { get; set; }
-        public int AccessTokenMethod { get; set; }
         public string AppName { get; set; }
         public string ClientId { get; set; }
         public bool Count { get; set; }
         public bool DryRun { get; set; }
         public string Extension { get; set; }
         public string Id { get; set; }
+        public int Method { get; set; }
         public string Name { get; set; }
         public string OrderBy { get; set; }
         public string Path { get; set; }

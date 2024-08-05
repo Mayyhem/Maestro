@@ -3,18 +3,17 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
-    public static class IntuneAppsCommand
+    public static class GetIntuneAppsCommand
     {
-        public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool databaseOnly, bool reauth, int prtMethod)
+        public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
             IntuneClient intuneClient = new IntuneClient();
-            if (!databaseOnly)
-            {
-                intuneClient = await IntuneClient.InitAndGetAccessToken(database, reauth: reauth, prtMethod: prtMethod);
-            }
+            intuneClient = await IntuneClient.InitAndGetAccessToken(options, database);
 
             // Set default properties to print
-            string[] properties = new[] {
+            if (options.Properties is null)
+            {
+                options.Properties = new List<string> {
                     "id",
                     "displayName",
                     "description",
@@ -24,7 +23,13 @@ namespace Maestro
                     "publishingState",
                     "isAssigned"
                 };
+            }
 
+            string[] properties = options.Properties.ToArray();
+            await intuneClient.GetApps(options.Id, options.Name, properties, database, true);
+
+
+            /*
             // User-specified properties
             if (arguments.TryGetValue("--properties", out string propertiesCsv))
             {
@@ -75,6 +80,7 @@ namespace Maestro
                 }
                 await intuneClient.GetApps(database: database, properties: properties);
             }
+            */
         }
     }
 }

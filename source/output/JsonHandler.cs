@@ -11,6 +11,7 @@ namespace Maestro
         {
             // Parse the JSON blob
             JToken parsedJson = JToken.Parse(jsonBlob);
+
             Formatting formatting = raw ? Formatting.None : Formatting.Indented;
 
             if (parsedJson is JArray jsonArray)

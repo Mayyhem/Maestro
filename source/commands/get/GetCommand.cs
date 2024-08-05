@@ -22,6 +22,9 @@ namespace Maestro.source.commands.get
                 case "access-token":
                     await GetAccessTokenCommand.Execute(options, database);
                     break;
+                 case "intune":
+                    await GetIntuneCommand.Execute(options, database);
+                    break;
                 case "prt-cookie":
                     break;
                 case "refresh-token":

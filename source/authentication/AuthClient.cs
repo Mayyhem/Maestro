@@ -43,7 +43,7 @@ namespace Maestro
         {
             return await InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
                 options.PrtCookie, options.RefreshToken, options.AccessToken, options.Reauth, options.Scope, options.PrtMethod, 
-                options.AccessTokenMethod, options.ClientId, options);
+                options.Method, options.ClientId, options);
         }
         public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resource, LiteDBHandler database = null,
@@ -112,6 +112,7 @@ namespace Maestro
                 }
                 else if (accessTokenMethod == 1)
                 {
+                    resource = "microsoft.graph";
                     // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
                     accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
                         client.PortalAuthorization, delegationTokenUrl, extensionName, resource, database);
@@ -351,8 +352,11 @@ namespace Maestro
                 return null;
 
             // Parse authorize URL for client_id and scope
-            //ClientId = StringHandler.GetMatch(authorizeUrl, "client_id=(.*?)&");
-            //Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
+            if (prtMethod == 1)
+            {
+                ClientId = StringHandler.GetMatch(authorizeUrl, "client_id=(.*?)&");
+                Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
+            }
 
             if (string.IsNullOrEmpty(prtCookie))
             {

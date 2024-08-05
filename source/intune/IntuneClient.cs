@@ -23,7 +23,12 @@ namespace Maestro
         {
             _authClient = new AuthClient();
         }
-
+        
+        public static async Task<IntuneClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database)
+        {
+            return await InitAndGetAccessToken(database, options.PrtCookie, options.RefreshToken, options.AccessToken, 
+                options.Reauth, options.PrtMethod);
+        }
         public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
         {
@@ -57,7 +62,7 @@ namespace Maestro
                 filters: filters,
                 properties: properties,
                 database: database,
-                printJson: false);
+                printJson: printJson);
 
             if (apps is null) return null;
             Logger.Info($"Found {apps.Count} total apps in Intune");
