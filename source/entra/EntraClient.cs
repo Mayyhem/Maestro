@@ -104,7 +104,7 @@ namespace Maestro
             if (groupsResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get groups from Entra");
-                JsonHandler.PrintProperties(groupsResponseContent);
+                JsonHandler.GetProperties(groupsResponseContent);
                 return entraGroups;
             }
 
@@ -146,7 +146,7 @@ namespace Maestro
             string groupsJson = JsonConvert.SerializeObject(groups, Formatting.Indented);
 
             // Print the selected properties of the devices
-            if (printJson) JsonHandler.PrintProperties(groupsJson, properties);
+            if (printJson) JsonHandler.GetProperties(groupsJson, false, properties);
             return entraGroups;
         }
 
@@ -160,7 +160,7 @@ namespace Maestro
                 if (group != null)
                 {
                     Logger.Info($"Found a matching group in the database");
-                    JsonHandler.PrintProperties(group.ToString(), properties);
+                    JsonHandler.GetProperties(group.ToString(), false, properties);
                     Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
                     entraGroups.Add(new EntraGroup(groupProperties, database));
                 }
@@ -177,7 +177,7 @@ namespace Maestro
                     Logger.Info($"Found {databaseGroups.Count()} matching groups in the database");
                     foreach (var group in databaseGroups)
                     {
-                        JsonHandler.PrintProperties(group.ToString(), properties);
+                        JsonHandler.GetProperties(group.ToString(), false, properties);
                         Dictionary<string, object> groupProperties = BsonDocumentHandler.ToDictionary(group);
                         entraGroups.Add(new EntraGroup(groupProperties, database));
                     }
@@ -283,7 +283,7 @@ namespace Maestro
             string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
 
             // Print the selected properties of the devices
-            if (printJson) JsonHandler.PrintProperties(devicesJson, properties);
+            if (printJson) JsonHandler.GetProperties(devicesJson, false, properties);
 
             return entraDevices;
         }
@@ -305,7 +305,7 @@ namespace Maestro
             if (groupMembersResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get group members from Entra");
-                JsonHandler.PrintProperties(groupMembersResponseContent);
+                JsonHandler.GetProperties(groupMembersResponseContent);
                 return null;
             }
 
@@ -353,7 +353,7 @@ namespace Maestro
             string groupsJson = JsonConvert.SerializeObject(members, Formatting.Indented);
 
             // Print the selected properties of the devices
-            if (printJson) JsonHandler.PrintProperties(groupsJson, properties);
+            if (printJson) JsonHandler.GetProperties(groupsJson, false, properties);
 
             if (searchForType != null)
             {
@@ -396,7 +396,7 @@ namespace Maestro
             if (usersResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get users from Entra");
-                JsonHandler.PrintProperties(usersResponseContent);
+                JsonHandler.GetProperties(usersResponseContent);
                 return entraUsers;
             }
 
@@ -420,7 +420,7 @@ namespace Maestro
                 string usersJson = JsonConvert.SerializeObject(users, Formatting.Indented);
 
                 // Print the selected properties of the devices
-                if (printJson) JsonHandler.PrintProperties(usersJson, properties);
+                if (printJson) JsonHandler.GetProperties(usersJson, false, properties);
             }
             else
             {
@@ -439,7 +439,7 @@ namespace Maestro
                 if (user != null)
                 {
                     Logger.Info($"Found a matching user in the database");
-                    JsonHandler.PrintProperties(user.ToString(), properties);
+                    JsonHandler.GetProperties(user.ToString(), false, properties);
                     Dictionary<string, object> userProperties = BsonDocumentHandler.ToDictionary(user);
                     entraUsers.Add(new EntraUser(userProperties, database));
                 }
@@ -456,7 +456,7 @@ namespace Maestro
                     Logger.Info($"Found {databaseUsers.Count()} matching users in the database");
                     foreach (var user in databaseUsers)
                     {
-                        JsonHandler.PrintProperties(user.ToString(), properties);
+                        JsonHandler.GetProperties(user.ToString(), false, properties);
                         Dictionary<string, object> userProperties = BsonDocumentHandler.ToDictionary(user);
                         entraUsers.Add(new EntraUser(userProperties, database));
                     }

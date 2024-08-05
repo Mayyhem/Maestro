@@ -1,6 +1,6 @@
 ﻿namespace Maestro
 {
-    public class StoreCommand
+    public class ShowCommand
     {
         public static void Execute(CommandLineOptions options, LiteDBHandler database)
         {
@@ -20,12 +20,12 @@
 
             switch (options.Subcommands[0])
             {
-                case "access-token":
-                    StoreAccessTokenCommand.Execute(options, database);
+                case "access-tokens":
+                    ShowAccessTokensCommand.Execute(options, database);
                     break;
-                case "prt-cookie":
+                case "prt-cookies":
                     break;
-                case "refresh-token":
+                case "refresh-tokens":
                     break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.Command}': {options.Subcommands[0]}");

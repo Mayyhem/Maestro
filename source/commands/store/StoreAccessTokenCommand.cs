@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Maestro
+﻿namespace Maestro
 {
     public class StoreAccessTokenCommand
     {

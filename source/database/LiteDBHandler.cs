@@ -30,8 +30,8 @@ namespace Maestro
             }
         }
 
-        public void Dispose() 
-        {             
+        public void Dispose()
+        {
             Database.Dispose();
         }
 
@@ -42,7 +42,7 @@ namespace Maestro
             {
                 return collection.FindAll();
             }
-            var query = Query.EQ(propertyName, propertyValue);
+            var query = LiteDB.Query.EQ(propertyName, propertyValue);
             return collection.Find(query);
         }
 
@@ -156,7 +156,41 @@ namespace Maestro
 
         public ILiteCollection<T> GetCollection<T>(string typeName)
         {
-            return Database.GetCollection<T>(typeName); 
+            return Database.GetCollection<T>(typeName);
+        }
+
+        public QueryResult Query(string table, CommandLineOptions options)
+        {
+           return Query(table, options.Properties, options.WhereCondition, options.OrderBy, options.Count, options.DryRun);
+        }
+
+        public QueryResult Query(string table, List<string> properties = null, string whereCondition = null, string orderBy = null, bool count = false, bool dryRun = false)
+        {
+            var collection = Database.GetCollection(table);
+            var query = collection.Query();
+
+            if (!string.IsNullOrWhiteSpace(whereCondition))
+                query = query.Where(whereCondition);
+
+            // Check if properties contains "ALL"
+            bool returnAllProperties = properties != null && properties.Any(p => p.Equals("ALL", StringComparison.OrdinalIgnoreCase));
+
+            if (properties != null && properties.Any() && !returnAllProperties)
+            {
+                string projection = string.Join(",", properties.Select(p => $"$.{p}"));
+                query = (ILiteQueryable<BsonDocument>)query.Select(projection);
+            }
+
+            if (!string.IsNullOrWhiteSpace(orderBy))
+                query = (ILiteQueryable<BsonDocument>)query.OrderBy(orderBy);
+
+            if (dryRun)
+                return new QueryResult(queryPlan: query.GetPlan());
+
+            if (count)
+                return new QueryResult(count: query.Count());
+
+            return new QueryResult(documents: query.ToList());
         }
 
         public bool Upsert<T>(T entity)
@@ -165,7 +199,7 @@ namespace Maestro
             {
                 var collection = Database.GetCollection<T>(typeof(T).Name);
                 collection.Upsert(entity);
-                Logger.Debug($"Upserted item in database: {typeof(T).Name}");
+                Logger.Info($"Upserted item in database: {typeof(T).Name}");
                 return true;
             }
             catch (Exception ex) 

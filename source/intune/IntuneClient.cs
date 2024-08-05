@@ -165,7 +165,7 @@ namespace Maestro
             string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
 
             // Print the selected properties of the devices
-            if (printJson) JsonHandler.PrintProperties(devicesJson, properties);
+            if (printJson) JsonHandler.GetProperties(devicesJson, false, properties);
 
             return intuneDevices;
         }
@@ -181,7 +181,7 @@ namespace Maestro
                 if (device != null)
                 {
                     Logger.Info($"Found a matching device in the database");
-                    JsonHandler.PrintProperties(device.ToString(), properties);
+                    JsonHandler.GetProperties(device.ToString(), false, properties);
                     Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
                     intuneDevices.Add(new IntuneDevice(deviceProperties, database));
                 }
@@ -199,7 +199,7 @@ namespace Maestro
                     Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
                     foreach (var device in databaseDevices)
                     {
-                        JsonHandler.PrintProperties(device.ToString(), properties);
+                        JsonHandler.GetProperties(device.ToString(), false, properties);
                         Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
                         intuneDevices.Add(new IntuneDevice(deviceProperties, database));
                     }
@@ -217,7 +217,7 @@ namespace Maestro
                     Logger.Info($"Found {databaseDevices.Count()} matching devices in the database");
                     foreach (var device in databaseDevices)
                     {
-                        JsonHandler.PrintProperties(device.ToString(), properties);
+                        JsonHandler.GetProperties(device.ToString(), false, properties);
                         Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(device);
                         intuneDevices.Add(new IntuneDevice(deviceProperties, database));
                     }
@@ -690,7 +690,7 @@ namespace Maestro
                 return;
             }
 
-            JsonHandler.PrintProperties(queryResults);
+            JsonHandler.GetProperties(queryResults);
             return;
         }
 
@@ -957,7 +957,7 @@ namespace Maestro
                 string scriptsJson = JsonConvert.SerializeObject(scripts, Formatting.Indented);
 
                 // Print the selected properties of the devices
-                if (printJson) JsonHandler.PrintProperties(scriptsJson, properties);
+                if (printJson) JsonHandler.GetProperties(scriptsJson, false, properties);
             }
             else
             {
@@ -976,7 +976,7 @@ namespace Maestro
                 if (script != null)
                 {
                     Logger.Info($"Found a matching script in the database");
-                    JsonHandler.PrintProperties(script.ToString(), properties);
+                    JsonHandler.GetProperties(script.ToString(), false, properties);
                     Dictionary<string, object> scriptProperties = BsonDocumentHandler.ToDictionary(script);
                     intuneScripts.Add(new IntuneScript(scriptProperties, database));
                 }
@@ -993,7 +993,7 @@ namespace Maestro
                     Logger.Info($"Found {databaseScripts.Count()} matching scripts in the database");
                     foreach (var script in databaseScripts)
                     {
-                        JsonHandler.PrintProperties(script.ToString(), properties);
+                        JsonHandler.GetProperties(script.ToString(), false, properties);
                         Dictionary<string, object> deviceProperties = BsonDocumentHandler.ToDictionary(script);
                         intuneScripts.Add(new IntuneScript(deviceProperties, database));
                     }

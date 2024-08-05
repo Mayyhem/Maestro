@@ -1,12 +1,15 @@
 ﻿using LiteDB;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 
 namespace Maestro
 {
     public static class BsonDocumentHandler
     {
-        private static object ConvertBsonValue(BsonValue bsonValue)
+        public static object ConvertBsonValue(BsonValue bsonValue)
         {
             if (bsonValue.IsInt32) return bsonValue.AsInt32;
             if (bsonValue.IsInt64) return bsonValue.AsInt64;

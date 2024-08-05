@@ -63,7 +63,7 @@ namespace Maestro
                         //await NewCommand.Execute(options, database);
                         break;
                     case "show":
-                        //await ShowCommand.Execute(options, database);
+                        ShowCommand.Execute(options, database);
                         break;
                     case "store":
                         StoreCommand.Execute(options, database);

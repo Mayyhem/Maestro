@@ -376,29 +376,54 @@ namespace Maestro
                 {
                     new Option
                     {
-                        ShortName = "-i",
-                        LongName = "--id",
-                        ValuePlaceholder = "ID",
-                        Description = "ID of the object to show information for"
+                        ShortName = "-c",
+                        LongName = "--count",
+                        Description = "Count results only",
+                        IsFlag = true
                     },
                     new Option
                     {
-                        ShortName = "-n",
-                        LongName = "--name",
-                        ValuePlaceholder = "NAME",
-                        Description = "Name of the object to show information for"
+                        ShortName = "-o",
+                        LongName = "--order-by",
+                        ValuePlaceholder = "PROP (ASC|DESC)",
+                        Description = "An ORDER BY clause to set the order of data returned by the query"
                     },
                     new Option
                     {
-
                         ShortName = "-p",
                         LongName = "--properties",
                         ValuePlaceholder = "PROP,PROP",
                         Description = "Comma-separated list of properties to get or ALL to get all properties"
-                    }
+                    },
+                    new Option
+                    {
+                        LongName = "--raw",
+                        Description = "Do not pretty print results",
+                        IsFlag = true
+                    },
+                    new Option
+                    {
+
+                        ShortName = "-w",
+                        LongName = "--where",
+                        ValuePlaceholder = "CONDITION",
+                        Description = "WHERE condition(s) to narrow the scope of data returned by the query"
+                    },
+                    new Option
+                    {
+                        ShortName = "-z",
+                        LongName = "--dry-run",
+                        Description = "Display the resulting query but do not run it",
+                        IsFlag = true
+                    },
                 },
                 Subcommands = new List<Subcommand>
                 {
+                    new Subcommand
+                    {
+                        Name = "access-tokens",
+                        Description = "Show stored access tokens"
+                    },
                     new Subcommand
                     {
                         Name = "devices",
@@ -699,14 +724,13 @@ namespace Maestro
             return parsedArguments;
         }
 
-        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth, Command command = null)
+        private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth, Command parentCommand = null)
         {
             if (args.Length == 0)
             {
                 return parsedArguments;
             }
 
-            // Check if the argument is a subcommand or an option
             string subcommandOrOptionNameArg = args[0];
 
             var subcommandOrOption = subcommands.FirstOrDefault(sc => sc.Name == subcommandOrOptionNameArg);
@@ -715,34 +739,42 @@ namespace Maestro
             {
                 parsedArguments[$"subcommand{depth}"] = subcommandOrOption.Name;
 
+                // Combine parent options with current subcommand options
+                var combinedOptions = new List<Option>();
+                if (parentCommand != null)
+                {
+                    combinedOptions.AddRange(parentCommand.Options);
+                }
+                combinedOptions.AddRange(subcommandOrOption.Options);
+
                 if (args.Length > 1)
                 {
-                    // See if there are nested subcommands
+                    // Check for nested subcommands
                     if (subcommandOrOption.Subcommands.Any())
                     {
                         var matchedSubcommand = FindSubcommand(subcommandOrOption.Subcommands, args[1]);
                         if (matchedSubcommand != null)
                         {
-                            return ParseSubcommands(subcommandOrOption.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1);
+                            return ParseSubcommands(subcommandOrOption.Subcommands, args.Skip(1).ToArray(), parsedArguments, depth + 1, parentCommand);
                         }
                     }
                 }
 
-                // If the argument is not a command option or subcommand, it must be a subcommand option
-                return ParseOptions(args.Skip(1).ToArray(), subcommandOrOption.Options, parsedArguments);
+                // Parse options including inherited parent options
+                return ParseOptions(args.Skip(1).ToArray(), combinedOptions, parsedArguments);
             }
 
             // Check for invalid subcommands
-            if (command != null && !command.Options.Any(o => o.LongName == subcommandOrOptionNameArg))
+            if (parentCommand != null && !parentCommand.Options.Any(o => o.LongName == subcommandOrOptionNameArg))
             {
                 Console.WriteLine($"\nInvalid subcommand: {subcommandOrOptionNameArg}\n");
                 return null;
             }
 
-            // Command options will be leftover after parsing subcommands
-            if (command != null && command.Options.Count > 0)
+            // Parse options including inherited parent options
+            if (parentCommand != null && parentCommand.Options.Count > 0)
             {
-                return ParseOptions(args.Skip(1).ToArray(), command.Options, parsedArguments);
+                return ParseOptions(args.Skip(1).ToArray(), parentCommand.Options, parsedArguments);
             }
 
             return parsedArguments;

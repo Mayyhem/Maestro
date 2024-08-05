@@ -58,7 +58,7 @@ namespace Maestro
             bool printJson = true) where T : class
         {
             var entities = new List<T>();
-            var urlBuilder = new MSGraphUrlBuilder(baseUrl);
+            var urlBuilder = new MSGraphUrl(baseUrl);
 
             // Add count
             if (count)
@@ -140,7 +140,7 @@ namespace Maestro
             if (printJson)
             {
                 string entitiesJson = JsonConvert.SerializeObject(entitiesArray, Formatting.Indented);
-                JsonHandler.PrintProperties(entitiesJson, properties);
+                JsonHandler.GetProperties(entitiesJson, false, properties);
             }
 
             return entities;
@@ -182,7 +182,7 @@ namespace Maestro
                 if (response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     Logger.Error("Unauthorized: try reauthenticating (--reauth) or providing different credentials");
-                    JsonHandler.PrintProperties(responseContent);
+                    JsonHandler.GetProperties(responseContent);
                     return null;
                 }
             }

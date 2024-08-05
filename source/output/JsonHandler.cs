@@ -7,10 +7,11 @@ namespace Maestro
 {
     internal static class JsonHandler
     {
-        public static string PrintProperties(string jsonBlob, string[] properties = null)
+        public static string GetProperties(string jsonBlob, bool raw = false, string[] properties = null, bool print = true)
         {
             // Parse the JSON blob
             JToken parsedJson = JToken.Parse(jsonBlob);
+            Formatting formatting = raw ? Formatting.None : Formatting.Indented;
 
             if (parsedJson is JArray jsonArray)
             {
@@ -20,16 +21,22 @@ namespace Maestro
                 {
                     filteredArray.Add(FilterProperties(obj, properties));
                 }
-                string prettyPrintedJson = filteredArray.ToString(Formatting.Indented);
-                Console.WriteLine(prettyPrintedJson);
+                string prettyPrintedJson = filteredArray.ToString(formatting);
+                if (print)
+                {
+                    Logger.InfoTextOnly(prettyPrintedJson);
+                }
                 return prettyPrintedJson;
             }
             else if (parsedJson is JObject jsonObject)
             {
                 // Handle JSON object
                 JObject filteredObject = FilterProperties(jsonObject, properties);
-                string prettyPrintedJson = filteredObject.ToString(Formatting.Indented);
-                Console.WriteLine(prettyPrintedJson);
+                string prettyPrintedJson = filteredObject.ToString(formatting);
+                if (print)
+                {
+                    Logger.InfoTextOnly(prettyPrintedJson);
+                }
                 return prettyPrintedJson;
             }
 

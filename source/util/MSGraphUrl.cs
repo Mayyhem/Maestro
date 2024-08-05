@@ -5,54 +5,54 @@ using System.Linq;
 
 namespace Maestro
 {
-    public class MSGraphUrlBuilder
+    public class MSGraphUrl
     {
         private string baseUrl;
         private Dictionary<string, string> parameters;
 
-        public MSGraphUrlBuilder(string baseUrl)
+        public MSGraphUrl(string baseUrl)
         {
             this.baseUrl = baseUrl;
             this.parameters = new Dictionary<string, string>();
         }
 
-        public MSGraphUrlBuilder AddFilter(string filter)
+        public MSGraphUrl AddFilter(string filter)
         {
             parameters["$filter"] = filter;
             return this;
         }
 
-        public MSGraphUrlBuilder AddSearch(string search)
+        public MSGraphUrl AddSearch(string search)
         {
             parameters["$search"] = search;
             return this;
         }
 
-        public MSGraphUrlBuilder AddSelect(params string[] properties)
+        public MSGraphUrl AddSelect(params string[] properties)
         {
             parameters["$select"] = string.Join(",", properties);
             return this;
         }
 
-        public MSGraphUrlBuilder AddCount()
+        public MSGraphUrl AddCount()
         {
             parameters["$count"] = "true";
             return this;
         }
 
-        public MSGraphUrlBuilder AddExpand(params string[] expand)
+        public MSGraphUrl AddExpand(params string[] expand)
         {
             parameters["$expand"] = string.Join(",", expand);
             return this;
         }
 
-        public MSGraphUrlBuilder AddTop(int top)
+        public MSGraphUrl AddTop(int top)
         {
             parameters["$top"] = top.ToString();
             return this;
         }
 
-        public MSGraphUrlBuilder AddOrderBy(params string[] properties)
+        public MSGraphUrl AddOrderBy(params string[] properties)
         {
             parameters["$orderby"] = string.Join(",", properties);
             return this;
