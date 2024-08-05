@@ -46,7 +46,7 @@ namespace Maestro
                     intuneClient.ShowIntuneDevices(database, properties, intuneDeviceId);
                     return;
                 }
-                await intuneClient.GetDevices(deviceId: intuneDeviceId, properties: properties, database: database);
+                await intuneClient.GetDevicesA(deviceId: intuneDeviceId, properties: properties, database: database);
             }
             else if (arguments.TryGetValue("--name", out string intuneDeviceName))
             {
@@ -55,7 +55,7 @@ namespace Maestro
                     intuneClient.ShowIntuneDevices(database, properties, deviceName: intuneDeviceName);
                     return;
                 }
-                await intuneClient.GetDevices(deviceName: intuneDeviceName, properties: properties, database: database);
+                await intuneClient.GetDevicesA(deviceName: intuneDeviceName, properties: properties, database: database);
             }
 
             // Get information from all devices by default
@@ -66,7 +66,7 @@ namespace Maestro
                     intuneClient.ShowIntuneDevices(database, properties);
                     return;
                 }
-                await intuneClient.GetDevices(database: database, properties: properties);
+                await intuneClient.GetDevicesA(database: database, properties: properties);
             }
         }
     }

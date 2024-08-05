@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Linq;
+using LiteDB;
 
 namespace Maestro
 {
@@ -57,6 +58,24 @@ namespace Maestro
             LiteDBHandler database = null,
             bool printJson = true) where T : class
         {
+            // Get all fields of type T -- can't use class properties because they need to be automatically generated
+            var typeFields = typeof(T).GetFields().Select(f => f.Name).ToList();
+
+            // Don't add "Properties" inherited from JsonObject
+            typeFields.Remove("Properties");
+            
+            // Combine user-specified properties with type properties, ensuring uniqueness
+            var propertiesFilter = new HashSet<string>(typeFields, StringComparer.OrdinalIgnoreCase);
+
+
+            if (properties != null)
+            {
+                foreach (var prop in properties)
+                {
+                     propertiesFilter.Add(prop);
+                }
+            }
+
             var entities = new List<T>();
             var urlBuilder = new MSGraphUrl(baseUrl);
 
@@ -80,9 +99,11 @@ namespace Maestro
             }
 
             // Add properties
-            if (properties != null)
+            bool returnAllProperties = properties != null && properties.Any(p => p.Equals("ALL", StringComparison.OrdinalIgnoreCase));
+
+            if (properties != null && properties.Any() && !returnAllProperties)
             {
-                urlBuilder.AddSelect(properties);
+                urlBuilder.AddSelect(propertiesFilter.ToArray());
             }
 
             string url = urlBuilder.Build();
@@ -98,16 +119,14 @@ namespace Maestro
 
             // Deserialize the JSON response
             string responseContent = await response.Content.ReadAsStringAsync();
-
             if (response.StatusCode == HttpStatusCode.BadRequest)
             {
-                Logger.Error($"Bad request: {response.Content}");
+                Logger.Error($"Bad request: {responseContent}");
                 return null;
             }
+
             JObject responseObject = JObject.Parse(responseContent);
-
             var entitiesArray = responseObject["value"] as JArray ?? new JArray { responseObject };
-
             if (entitiesArray.Count == 0)
             {
                 Logger.Info($"No matching {typeof(T).Name}s found");
@@ -131,7 +150,7 @@ namespace Maestro
                     }
                     else
                     {
-                        Logger.Verbose($"Upserted {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} in the database");
+                        Logger.Verbose($"Upserted {typeof(T).Name} in the database");
                     }
                 }
             }
@@ -140,7 +159,7 @@ namespace Maestro
             if (printJson)
             {
                 string entitiesJson = JsonConvert.SerializeObject(entitiesArray, Formatting.Indented);
-                JsonHandler.GetProperties(entitiesJson, false, properties);
+                JsonHandler.GetProperties(entitiesJson, false, propertiesFilter.ToArray());
             }
 
             return entities;

@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Maestro
@@ -11,7 +12,6 @@ namespace Maestro
         {
             // Parse the JSON blob
             JToken parsedJson = JToken.Parse(jsonBlob);
-
             Formatting formatting = raw ? Formatting.None : Formatting.Indented;
 
             if (parsedJson is JArray jsonArray)
@@ -40,7 +40,6 @@ namespace Maestro
                 }
                 return prettyPrintedJson;
             }
-
             return null;
         }
 
@@ -57,26 +56,23 @@ namespace Maestro
                 selectedElements[primaryKey] = jsonObject[primaryKey];
             }
 
-            // No specific properties provided, print all properties
-            if (properties == null || properties.Length == 0 || properties.Contains("ALL", StringComparer.OrdinalIgnoreCase))
+            // Create a case-insensitive HashSet for property matching
+            var propertySet = properties != null
+                ? new HashSet<string>(properties, StringComparer.OrdinalIgnoreCase)
+                : null;
+
+            bool includeAll = propertySet == null || propertySet.Count == 0 || propertySet.Contains("ALL", StringComparer.OrdinalIgnoreCase);
+
+            foreach (var property in jsonObject.Properties())
             {
-                foreach (var property in jsonObject.Properties())
+                if (property.Name == "_id" || property.Name == "primaryKey" || property.Name == primaryKey)
                 {
-                    if (property.Name != "_id" && property.Name != "primaryKey" && property.Name != primaryKey)
-                    {
-                        selectedElements[property.Name] = property.Value;
-                    }
+                    continue; // Skip these special properties
                 }
-            }
-            // Print specified properties and primary key only
-            else
-            {
-                foreach (var prop in properties)
+
+                if (includeAll || (propertySet != null && propertySet.Contains(property.Name, StringComparer.OrdinalIgnoreCase)))
                 {
-                    if (jsonObject[prop] != null && prop != "_id" && prop != "primaryKey" && prop != primaryKey)
-                    {
-                        selectedElements[prop] = jsonObject[prop];
-                    }
+                    selectedElements[property.Name] = property.Value;
                 }
             }
 

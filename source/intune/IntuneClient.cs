@@ -48,7 +48,8 @@ namespace Maestro
         }
 
         // intune apps
-        public async Task<List<IntuneApp>> GetApps(string appId = "", string appName = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+        public async Task<List<IntuneApp>> GetApps(string appId = "", string appName = "", string[] properties = null,
+            LiteDBHandler database = null, bool printJson = true)
         {
 
             var filters = new List<(string, string, string, string)>();
@@ -58,34 +59,62 @@ namespace Maestro
 
             List<IntuneApp> apps = await HttpHandler.GetMSGraphEntities<IntuneApp>(
                 baseUrl: "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps",
-                json => new IntuneApp(json, database),
+                entityCreator: json => new IntuneApp(json, database),
                 filters: filters,
                 properties: properties,
                 database: database,
                 printJson: printJson);
 
             if (apps is null) return null;
-            Logger.Info($"Found {apps.Count} total apps in Intune");
+            Logger.Info($"Found {apps.Count} apps in Intune");
 
             if (!string.IsNullOrEmpty(appId))
             {
-                apps = apps.Where(app => app.Id == appId).ToList();
+                apps = apps.Where(app => app.Properties["id"].ToString() == appId).ToList();
             }
 
             if (!string.IsNullOrEmpty(appName))
             {
-                apps = apps.Where(app => app.DisplayName == appName).ToList();
+                apps = apps.Where(app => app.Properties["displayName"].ToString() == appName).ToList();
             }
 
             Logger.Info($"Found {apps.Count} matching apps in Intune");
             return apps;
+        }
+        
+        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string aadDeviceId = "",
+            string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+        {
+            List<IntuneDevice> devices = await HttpHandler.GetMSGraphEntities<IntuneDevice>(
+                baseUrl: "https://graph.microsoft.com/beta/deviceManagement/manageddevices",
+                entityCreator: json => new IntuneDevice(json, database),
+                filters: null,
+                properties: properties,
+                database: database,
+                printJson: printJson);
+
+            if (devices is null) return null;
+            Logger.Info($"Found {devices.Count} devices in Intune");
+
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                devices = devices.Where(device => device.Properties["id"].ToString() == deviceId).ToList();
+            }
+
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                devices = devices.Where(device => device.Properties["deviceName"].ToString() == deviceName).ToList();
+            }
+
+            Logger.Info($"Found {devices.Count} matching devices in Intune");
+            return devices;
         }
 
         // intune devices
         public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string aadDeviceId = "", 
             string[] properties = null, LiteDBHandler database = null)
         {
-            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, aadDeviceId, properties, database, printJson: false);
+            List<IntuneDevice> devices = await GetDevicesA(deviceId, deviceName, aadDeviceId, properties, database, printJson: false);
             if (devices is null) return null;
 
             if (devices.Count > 1)
@@ -102,7 +131,7 @@ namespace Maestro
             return devices.FirstOrDefault();
         }
 
-        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string aadDeviceId = "", string[] properties = null,
+        public async Task<List<IntuneDevice>> GetDevicesA(string deviceId = "", string deviceName = "", string aadDeviceId = "", string[] properties = null,
             LiteDBHandler database = null, bool printJson = true)
         {
             List<IntuneDevice> intuneDevices = new List<IntuneDevice>();

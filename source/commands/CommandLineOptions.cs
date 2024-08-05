@@ -14,6 +14,7 @@ namespace Maestro
         // Command and subcommands
         public string Command { get; set; }
         public List<string> Subcommands { get; set; } = new List<string>();
+        public string FullCommand { get; private set; }
 
         // Options
         public string AccessToken { get; set; }
@@ -100,6 +101,9 @@ namespace Maestro
             // Populate subcommands
             options.Command = commandName;
             options.Subcommands = subcommands.Select(s => s.Name).ToList();
+
+            // Set FullCommand at the end of parsing
+            options.FullCommand = string.Join(" ", new[] { options.Command }.Concat(options.Subcommands));
 
             return options;
         }
