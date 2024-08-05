@@ -40,11 +40,11 @@ namespace Maestro
                 Logger.Info("Execution started");
 
                 // Use database file if option is specified
-                if (!string.IsNullOrEmpty(options.DatabasePath))
+                if (!string.IsNullOrEmpty(options.Database))
                 {
-                    database = LiteDBHandler.CreateOrOpen(options.DatabasePath);
+                    database = LiteDBHandler.CreateOrOpen(options.Database);
                     if (database == null) return;
-                    Logger.Info($"Using database file: {Path.GetFullPath(options.DatabasePath)}");
+                    Logger.Info($"Using database file: {Path.GetFullPath(options.Database)}");
                 }
 
                 // Direct execution flow based on the command
@@ -58,6 +58,11 @@ namespace Maestro
                         break;
                     case "get":
                         await GetCommand.Execute(options, database);
+                        break;
+                    case "list":
+                        ListCommand.Execute(options);
+                        break;
+                    case "local":
                         break;
                     case "new":
                         //await NewCommand.Execute(options, database);

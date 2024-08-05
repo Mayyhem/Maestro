@@ -7,7 +7,7 @@ namespace Maestro
     public class CommandLineOptions
     {
         // Global options
-        public string DatabasePath { get; set; }
+        public string Database { get; set; }
         public bool Help { get; set; }
         public int Verbosity { get; set; }
 
@@ -58,9 +58,10 @@ namespace Maestro
                 return null;
             }
 
-            // Get the command and subcommands
-            string commandName = parsedArgs["command"];
-            var command = CommandLine.commands.FirstOrDefault(c => c.Name == commandName);
+            // Try to get the command and subcommands, accounting for null
+            string thisCommandName = parsedArgs.TryGetValue("command", out string commandName) ? commandName : null;
+
+            var command = CommandLine.commands.FirstOrDefault(c => c.Name == thisCommandName);
             if (command == null)
             {
                 return null;

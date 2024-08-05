@@ -48,7 +48,6 @@ namespace Maestro
 
         public static List<Command> commands = new List<Command>
         {
-
             new Command
             {
                 Name = "delete",
@@ -306,8 +305,8 @@ namespace Maestro
                                 ShortName = "-r",
                                 LongName = "--resource",
                                 ValuePlaceholder = "RESOURCE",
-                                Description = "Name of the resource to request an access token for",
-                                Default = "microsoft.graph"
+                                Description = "Name or ID of the resource to request an access token for (default: MSGraph)",
+                                Default = "https://graph.microsoft.com"
                             },
                             new Option
                             {
@@ -315,7 +314,7 @@ namespace Maestro
                                 LongName = "--scope",
                                 ValuePlaceholder = "SCOPE",
                                 Description = "The scope to request",
-                                Default = ".default openid profile offline_access"
+                                Default = ".default"
                             },
                         }
                     },
@@ -373,7 +372,24 @@ namespace Maestro
                     },
                 }
             },
-
+            new Command
+            {
+                Name = "list",
+                Description = "List common object values",
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "client-ids",
+                        Description = "List common client IDs"
+                    },
+                    new Subcommand
+                    {
+                        Name = "resource-ids",
+                        Description = "List resource IDs"
+                    },
+                }
+            },
             new Command
             {
                 Name = "local",
@@ -390,6 +406,7 @@ namespace Maestro
                 {
                 }
             },
+
             new Command
             {
                 Name = "show",
@@ -444,7 +461,7 @@ namespace Maestro
                     {
                         Name = "devices",
                         Description = "Show information about Intune enrolled devices (default: all devices)"
-                    }
+                    },
                 }
             },
             new Command

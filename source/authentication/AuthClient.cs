@@ -30,10 +30,11 @@ namespace Maestro
             HttpHandler = new HttpHandler();
         }
 
-        public AuthClient(string clientId, string scope, string refreshToken = "")
+        public AuthClient(string clientId, string resource, string scope, string refreshToken = "")
         {
             HttpHandler = new HttpHandler();
             ClientId = clientId;
+            Resource = resource;
             Scope = scope;
             RefreshToken = refreshToken;
         }
@@ -45,12 +46,12 @@ namespace Maestro
                 options.AccessTokenMethod, options.ClientId, options);
         }
         public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
-            string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null,
+            string delegationTokenUrl, string extensionName, string resource, LiteDBHandler database = null,
             string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
-            bool reauth = false, string requiredScope = "", int prtMethod = 0, int accessTokenMethod = 0, 
+            bool reauth = false, string scope = "", int prtMethod = 0, int accessTokenMethod = 0, 
             string clientId = "", CommandLineOptions options = null)
         {
-            var client = new AuthClient(clientId, requiredScope, providedRefreshToken);
+            var client = new AuthClient(clientId, resource, scope, providedRefreshToken);
             AccessToken accessToken = null;
 
             // Use the provided access token if available
@@ -64,7 +65,7 @@ namespace Maestro
             // Check the database for a stored access token before fetching from Intune
             if (database != null && !reauth)
             {
-                client.FindStoredAccessToken(database, requiredScope);
+                client.FindStoredAccessToken(database, scope);
             }
 
             // Get a new access token if none is found in the database
@@ -83,15 +84,29 @@ namespace Maestro
 
                 if (accessTokenMethod == 0)
                 {
-                    // Get user_impersonation access token from /oauth/v2.0/token endpoint (requires spaAuthCode)
-                    accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
-                        client.Scope, client.TenantId, client.SpaAuthCode);
+                    // Get user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)
+                    accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                        null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
+                    if (accessToken is null)
+                        return null;
+
+                    // Get access token for Azure Portal to Azure Portal (requires refreshToken)
+                    accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                        "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId, 
+                        client.SpaAuthCode);
+                    if (accessToken is null)
+                        return null;
+
+                    // Get user_impersonation token for Azure Portal to desired client (client = resource)
+                    accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                        client.ClientId, ".default openid profile offline_access", client.TenantId,
+                        client.SpaAuthCode);
                     if (accessToken is null)
                         return null;
 
                     // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
                     accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
-                        requiredScope, client.TenantId, null, client.RefreshToken);
+                        client.Resource, client.Scope, client.TenantId, null, client.RefreshToken);
                     if (accessToken is null)
                         return null;
                 }
@@ -99,7 +114,7 @@ namespace Maestro
                 {
                     // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
                     accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
-                        client.PortalAuthorization, delegationTokenUrl, extensionName, resourceName, database);
+                        client.PortalAuthorization, delegationTokenUrl, extensionName, resource, database);
                     if (accessToken is null)
                         return null;
                 }
@@ -170,7 +185,9 @@ namespace Maestro
             return accessToken;
         }
 
-        public async Task<AccessToken> AuthToTokenEndpoint(CommandLineOptions options, LiteDBHandler database, string clientId = "", string scope = "", string tenantId = "", string spaAuthCode = "", string refreshToken = "")
+        public async Task<AccessToken> AuthToTokenEndpoint(CommandLineOptions options, LiteDBHandler database, 
+            string clientId = "", string resource = "", string scope = "", string tenantId = "", 
+            string spaAuthCode = "", string refreshToken = "")
         {
             string url = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
             OAuthTokenResponse tokenResponse = null;
@@ -179,10 +196,15 @@ namespace Maestro
             {
                 Logger.Info($"Requesting access token from /oauth2/v2.0/token endpoint with {(string.IsNullOrEmpty(spaAuthCode) ? "refreshToken" : "spaAuthCode")}");
 
+                if (!string.IsNullOrEmpty(resource))
+                {
+                    resource += "/";
+                }
+
                 var content = new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("client_id", clientId),
-                    new KeyValuePair<string, string>("scope", string.IsNullOrEmpty(spaAuthCode) ? scope : clientId + "/" + scope),
+                    new KeyValuePair<string, string>("scope", string.IsNullOrEmpty(spaAuthCode) ? scope : resource + scope),
                     new KeyValuePair<string, string>(string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "code", string.IsNullOrEmpty(spaAuthCode) ? refreshToken : spaAuthCode),
                     new KeyValuePair<string, string>("grant_type", string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "authorization_code")
                 });
