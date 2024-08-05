@@ -166,7 +166,10 @@ namespace Maestro
 
         public void RemoveHeader(string headerName)
         {
-            _httpClient.DefaultRequestHeaders.Remove(headerName);
+            if (_httpClient.DefaultRequestHeaders.Contains(headerName))
+            {
+                _httpClient.DefaultRequestHeaders.Remove(headerName);
+            }
         }
 
         public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request)
@@ -200,7 +203,11 @@ namespace Maestro
 
         public void SetHeader(string headerName, string headerValue)
         {
-            _httpClient.DefaultRequestHeaders.Add(headerName, headerValue);
+            if (!_httpClient.DefaultRequestHeaders.Contains(headerName))
+            {
+                _httpClient.DefaultRequestHeaders.Add(headerName, headerValue);
+
+            }
         }
     }
 }

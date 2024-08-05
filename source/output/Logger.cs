@@ -79,6 +79,11 @@ namespace Maestro
             Log(LogLevel.Error, message);
         }
 
+        public static void ErrorJson(string message, CommandLineOptions options = null)
+        {
+            ErrorTextOnly(JsonHandler.GetProperties(message, options.Raw, null, false));
+        }
+
         public static void ErrorTextOnly(string message)
         {
             WriteTextOnly(LogLevel.Error, message);

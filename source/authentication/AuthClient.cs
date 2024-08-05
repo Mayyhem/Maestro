@@ -30,12 +30,27 @@ namespace Maestro
             HttpHandler = new HttpHandler();
         }
 
+        public AuthClient(string clientId, string scope, string refreshToken = "")
+        {
+            HttpHandler = new HttpHandler();
+            ClientId = clientId;
+            Scope = scope;
+            RefreshToken = refreshToken;
+        }
+
+        public static async Task<AuthClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database, string authRedirectUrl, string delegationTokenUrl)
+        {
+            return await InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
+                options.PrtCookie, options.RefreshToken, options.AccessToken, options.Reauth, options.Scope, options.PrtMethod, 
+                options.AccessTokenMethod, options.ClientId, options);
+        }
         public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resourceName, LiteDBHandler database = null,
             string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
-            bool reauth = false, string requiredScope = "", int prtMethod = 0, int accessTokenMethod = 0)
+            bool reauth = false, string requiredScope = "", int prtMethod = 0, int accessTokenMethod = 0, 
+            string clientId = "", CommandLineOptions options = null)
         {
-            var client = new AuthClient();
+            var client = new AuthClient(clientId, requiredScope, providedRefreshToken);
             AccessToken accessToken = null;
 
             // Use the provided access token if available
@@ -62,20 +77,31 @@ namespace Maestro
                 string sessionId = newGuid.ToString("N");
                 client.SessionId = sessionId;
 
-                string authRedirectUrlWithSessionId = $"{authRedirectUrl}/?sessionId={sessionId}";
-                await client.Authenticate(authRedirectUrlWithSessionId, database, providedPrtCookie, prtMethod);
+                string authRedirectUrlWithParams = $"{authRedirectUrl}/?sessionId={sessionId}";
+
+                await client.Authenticate(authRedirectUrlWithParams, database, providedPrtCookie, prtMethod);
 
                 if (accessTokenMethod == 0)
                 {
-                    // Get access token from oauth/v2.0/token endpoint (requires spaAuthCode)
-                    accessToken = await client.GetAccessTokenFromTokenEndpoint(database, client.ClientId,
-                        client.Scope, client.SpaAuthCode, client.RefreshToken, client.TenantId);
+                    // Get user_impersonation access token from /oauth/v2.0/token endpoint (requires spaAuthCode)
+                    accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
+                        client.Scope, client.TenantId, client.SpaAuthCode);
+                    if (accessToken is null)
+                        return null;
+
+                    // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
+                    accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
+                        requiredScope, client.TenantId, null, client.RefreshToken);
+                    if (accessToken is null)
+                        return null;
                 }
                 else if (accessTokenMethod == 1)
                 {
                     // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
                     accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
                         client.PortalAuthorization, delegationTokenUrl, extensionName, resourceName, database);
+                    if (accessToken is null)
+                        return null;
                 }
                 client.BearerToken = accessToken.Value;
                 client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
@@ -144,64 +170,75 @@ namespace Maestro
             return accessToken;
         }
 
-        public async Task<AccessToken> GetAccessTokenFromTokenEndpoint(LiteDBHandler database, string clientId = "", string scope = "", string spaAuthCode = "", string refreshToken = "", string tenantId = "")
+        public async Task<AccessToken> AuthToTokenEndpoint(CommandLineOptions options, LiteDBHandler database, string clientId = "", string scope = "", string tenantId = "", string spaAuthCode = "", string refreshToken = "")
         {
-            if (!string.IsNullOrEmpty(spaAuthCode))
+            string url = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
+            OAuthTokenResponse tokenResponse = null;
+
+            if (!string.IsNullOrEmpty(spaAuthCode) || !string.IsNullOrEmpty(refreshToken))
             {
-                Logger.Info("Requesting access token from /oauth2/v2.0/token endpoint with spaAuthCode");
-                string url = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
+                Logger.Info($"Requesting access token from /oauth2/v2.0/token endpoint with {(string.IsNullOrEmpty(spaAuthCode) ? "refreshToken" : "spaAuthCode")}");
 
                 var content = new FormUrlEncodedContent(new[]
                 {
                     new KeyValuePair<string, string>("client_id", clientId),
-                    new KeyValuePair<string, string>("scope", scope),
-                    new KeyValuePair<string, string>("code", spaAuthCode),
-                    new KeyValuePair<string, string>("grant_type", "authorization_code")
+                    new KeyValuePair<string, string>("scope", string.IsNullOrEmpty(spaAuthCode) ? scope : clientId + "/" + scope),
+                    new KeyValuePair<string, string>(string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "code", string.IsNullOrEmpty(spaAuthCode) ? refreshToken : spaAuthCode),
+                    new KeyValuePair<string, string>("grant_type", string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "authorization_code")
                 });
 
                 // AADSTS9002327: Tokens issued for the 'Single-Page Application' client-type may only be redeemed via cross-origin requests. 
                 HttpHandler.SetHeader("Origin", "https://portal.azure.com");
                 HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+                string responseContent = await response.Content.ReadAsStringAsync();
 
-                OAuthTokenResponse tokenResponse = null;
                 if (response.StatusCode == HttpStatusCode.OK)
                 {
-                    string responseContent = await response.Content.ReadAsStringAsync();
+                    // Create objects and store tokens in database if specified
                     tokenResponse = new OAuthTokenResponse(responseContent, database);
+                    if (tokenResponse is null)
+                    {
+                        Logger.Error("No tokens were found in the /oauth2/v2.0/token response");
+                        Logger.ErrorJson(responseContent, options);
+                        return null;
+                    }
 
+                    // Set AuthClient properties
                     BearerToken = tokenResponse.AccessToken.Value;
                     if (string.IsNullOrEmpty(BearerToken))
                     {
                         Logger.Error("No access token was found in the /oauth2/v2.0/token response");
+                        Logger.ErrorJson(responseContent, options);
+                        return null;
                     }
 
                     RefreshToken = tokenResponse.RefreshToken.Value;
                     if (string.IsNullOrEmpty(RefreshToken))
                     {
                         Logger.Error("No refresh token was found in the /oauth2/v2.0/token response");
+                        Logger.ErrorJson(responseContent, options);
+                        return null;
                     }
                 }
+                else
+                {
+                    Logger.Error("Unable to get tokens from /oauth2/v2.0/token endpoint");
+                    Logger.ErrorJson(responseContent, options);
+                    return null;
+                }
 
-                Logger.Info($"Found tokens in /oauth2/v2.0/token response");
+                Logger.Info($"Found access token in /oauth2/v2.0/token response");
                 Logger.Info($"Access token: {BearerToken}");
+                Logger.Info($"Found refresh token in /oauth2/v2.0/token response");
                 Logger.Info($"Refresh token: {RefreshToken}");
-                return tokenResponse.AccessToken;
-            }
 
-            else if (!string.IsNullOrEmpty(refreshToken))
-            {
-                Logger.Info("Requesting access token from /oauth2/v2.0/token endpoint with refreshToken");
+                return tokenResponse.AccessToken;
             }
             else
             {
-                Logger.Error("No spaAuthCode or refreshToken was provided");
+                Logger.Error("Neither spaAuthCode nor refreshToken was provided");
                 return null;
             }
-
-            Logger.Info($"Found access token in /oauth2/v2.0/token response: ");
-            //AccessToken accessToken = new AccessToken(authHeader, database);
-            //return accessToken;
-            return null;
         }
 
         private async Task<string> GetAuthHeader(string tenantId, string portalAuthorization, string delegationTokenUrl, string extensionName, 
@@ -223,11 +260,11 @@ namespace Maestro
             return authHeader;
         }
 
-        private async Task<string> GetAuthorizeUrl(string authRedirectUrl)
+        private async Task<string> GetAuthorizeUrl(string idpRedirectUrl)
         {
-            Logger.Info($"Requesting authorize URL from: {authRedirectUrl}");
+            Logger.Info($"Requesting authorize URL from: {idpRedirectUrl}");
 
-            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(authRedirectUrl);
+            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(idpRedirectUrl);
             idpRedirectResponse.EnsureSuccessStatusCode();
 
             if (idpRedirectResponse is null)
@@ -282,7 +319,8 @@ namespace Maestro
             return prtCookie.Value;
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database, string prtCookie = "", int prtMethod = 0)
+        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database = null, 
+            string prtCookie = "", int prtMethod = 0)
         {
 
             // Get authorize endpoint from redirect
@@ -291,8 +329,8 @@ namespace Maestro
                 return null;
 
             // Parse authorize URL for client_id and scope
-            ClientId = StringHandler.GetMatch(authorizeUrl, "client_id=(.*?)&");
-            Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
+            //ClientId = StringHandler.GetMatch(authorizeUrl, "client_id=(.*?)&");
+            //Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
 
             if (string.IsNullOrEmpty(prtCookie))
             {

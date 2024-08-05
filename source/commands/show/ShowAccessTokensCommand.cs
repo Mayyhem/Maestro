@@ -7,8 +7,6 @@ namespace Maestro
         public static void Execute(CommandLineOptions options, LiteDBHandler database)
         {
             // Show all access tokens in the database
-            //var accessTokenDocs = database.FindInCollection<AccessToken>("AccessToken");
-
             var accessTokens = database.Query("AccessToken", options);
 
             if (accessTokens == null)

@@ -20,7 +20,7 @@ namespace Maestro.source.commands.get
             switch (options.Subcommands[0])
             {
                 case "access-token":
-                    StoreAccessTokenCommand.Execute(options, database);
+                    await GetAccessTokenCommand.Execute(options, database);
                     break;
                 case "prt-cookie":
                     break;

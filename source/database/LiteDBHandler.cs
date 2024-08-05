@@ -78,13 +78,13 @@ namespace Maestro
 
             if (farthestExpiryAccessToken != null)
             {
-                Logger.Info($"Found JWT with the required scope {scope} in the database");
+                Logger.Info($"Found valid JWT with the required scope {scope} in the database");
                 bearerToken = farthestExpiryAccessToken["Value"];
-                Logger.DebugTextOnly(bearerToken);
+                Logger.InfoTextOnly(bearerToken);
             }
             else
             {
-                Logger.Info($"No JWTs with the required scope {scope} found in the database");
+                Logger.Info($"No valid JWTs with the required scope {scope} found in the database");
             }
             return bearerToken;
         }

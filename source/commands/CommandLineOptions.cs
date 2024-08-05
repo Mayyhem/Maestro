@@ -17,12 +17,13 @@ namespace Maestro
 
         // Options
         public string AccessToken { get; set; }
+        public int AccessTokenMethod { get; set; }
         public string AppName { get; set; }
+        public string ClientId { get; set; }
         public bool Count { get; set; }
         public bool DryRun { get; set; }
         public string Extension { get; set; }
         public string Id { get; set; }
-        public int Method { get; set; }
         public string Name { get; set; }
         public string OrderBy { get; set; }
         public string Path { get; set; }
@@ -36,6 +37,7 @@ namespace Maestro
         public string Resource { get; set; }
         public int Retries { get; set; }
         public bool RunAsUser { get; set; }
+        public string Scope { get; set; }
         public string Script { get; set; }
         public string TenantId { get; set; }
         public int Wait { get; set; }
@@ -43,6 +45,8 @@ namespace Maestro
 
         // Additional dictionary for any extra or custom options
         public Dictionary<string, string> AdditionalOptions { get; } = new Dictionary<string, string>();
+
+        public CommandLineOptions() { }
 
         public static CommandLineOptions Parse(string[] args)
         {
@@ -54,67 +58,78 @@ namespace Maestro
                 return null;
             }
 
-            // Populate properties based on parsed arguments
-            options.DatabasePath = GetOptionValue(parsedArgs, "--database");
-            options.Help = parsedArgs.ContainsKey("--help");
-            options.Verbosity = int.Parse(GetOptionValue(parsedArgs, "--verbosity", "2"));
-
-            options.Command = GetOptionValue(parsedArgs, "command");
-
-            // Populate subcommands
-            for (int i = 1; i <= 5; i++) // Assuming max 5 levels of subcommands
+            // Get the command and subcommands
+            string commandName = parsedArgs["command"];
+            var command = CommandLine.commands.FirstOrDefault(c => c.Name == commandName);
+            if (command == null)
             {
-                string subcommand = GetOptionValue(parsedArgs, $"subcommand{i}");
-                if (string.IsNullOrEmpty(subcommand)) break;
-                options.Subcommands.Add(subcommand);
+                return null;
             }
 
-            // Populate other properties
-            options.AccessToken = GetOptionValue(parsedArgs, "--access-token");
-            options.AppName = GetOptionValue(parsedArgs, "--name");
-            options.Count = parsedArgs.ContainsKey("--count");
-            options.DryRun = parsedArgs.ContainsKey("--dry-run");
-            options.Extension = GetOptionValue(parsedArgs, "--extension", "Microsoft_AAD_IAM");
-            options.Id = GetOptionValue(parsedArgs, "--id");
-            options.Method = int.Parse(GetOptionValue(parsedArgs, "--method", "0"));
-            options.Name = GetOptionValue(parsedArgs, "--name");
-            options.OrderBy = GetOptionValue(parsedArgs, "--order-by");
-            options.Path = GetOptionValue(parsedArgs, "--path");
-            options.Properties = ParseList(GetOptionValue(parsedArgs, "--properties"));
-            options.PrtCookie = GetOptionValue(parsedArgs, "--prt-cookie");
-            options.PrtMethod = int.Parse(GetOptionValue(parsedArgs, "--prt-method", "0"));
-            options.Query = GetOptionValue(parsedArgs, "--query");
-            options.Raw = parsedArgs.ContainsKey("--raw");
-            options.Reauth = parsedArgs.ContainsKey("--reauth");
-            options.RefreshToken = GetOptionValue(parsedArgs, "--refresh-token");
-            options.Resource = GetOptionValue(parsedArgs, "--resource", "microsoft.graph");
-            options.Retries = int.Parse(GetOptionValue(parsedArgs, "--retries", "10"));
-            options.RunAsUser = parsedArgs.ContainsKey("--user");
-            options.Script = GetOptionValue(parsedArgs, "--script");
-            options.TenantId = GetOptionValue(parsedArgs, "--tenant-id");
-            options.Wait = int.Parse(GetOptionValue(parsedArgs, "--wait", "3"));
-            options.WhereCondition = GetOptionValue(parsedArgs, "--where");
+            List<Option> allOptions = new List<Option>(CommandLine.GlobalOptions);
+            allOptions.AddRange(command.Options);
 
-            // Store any additional options
-            foreach (var kvp in parsedArgs)
+            var subcommands = new List<Subcommand>();
+            var currentSubcommands = command.Subcommands;
+            for (int i = 1; parsedArgs.TryGetValue($"subcommand{i}", out string subcommandName); i++)
             {
-                if (!typeof(CommandLineOptions).GetProperty(ToPascalCase(kvp.Key))?.CanWrite ?? true)
+                var subcommand = currentSubcommands.FirstOrDefault(s => s.Name == subcommandName);
+                if (subcommand == null)
                 {
-                    options.AdditionalOptions[kvp.Key] = kvp.Value;
+                    break;
+                }
+                subcommands.Add(subcommand);
+                allOptions.AddRange(subcommand.Options);
+                currentSubcommands = subcommand.Subcommands;
+            }
+
+            // Populate properties based on parsed arguments and defaults
+            foreach (var option in allOptions)
+            {
+                if (parsedArgs.TryGetValue(option.LongName, out string value))
+                {
+                    SetPropertyValue(options, option.LongName, value);
+                }
+                else if (!string.IsNullOrEmpty(option.Default))
+                {
+                    SetPropertyValue(options, option.LongName, option.Default);
                 }
             }
+
+            // Populate subcommands
+            options.Command = commandName;
+            options.Subcommands = subcommands.Select(s => s.Name).ToList();
 
             return options;
         }
 
-        private static string GetOptionValue(Dictionary<string, string> parsedArgs, string key, string defaultValue = null)
+        private static void SetPropertyValue(CommandLineOptions options, string propertyName, string value)
         {
-            return parsedArgs.TryGetValue(key, out string value) ? value : defaultValue;
-        }
-
-        private static List<string> ParseList(string value)
-        {
-            return value?.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList() ?? new List<string>();
+            propertyName = ToPascalCase(propertyName.TrimStart('-'));
+            var property = typeof(CommandLineOptions).GetProperty(propertyName);
+            if (property != null)
+            {
+                if (property.PropertyType == typeof(bool))
+                {
+                    property.SetValue(options, bool.Parse(value));
+                }
+                else if (property.PropertyType == typeof(int))
+                {
+                    property.SetValue(options, int.Parse(value));
+                }
+                else if (property.PropertyType == typeof(List<string>))
+                {
+                    property.SetValue(options, value.Split(',').ToList());
+                }
+                else
+                {
+                    property.SetValue(options, value);
+                }
+            }
+            else
+            {
+                options.AdditionalOptions[propertyName] = value;
+            }
         }
 
         private static string ToPascalCase(string s)

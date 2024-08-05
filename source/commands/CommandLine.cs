@@ -8,7 +8,7 @@ namespace Maestro
     {
         private const int DescriptionPadding = 40;
 
-        private static readonly List<Option> GlobalOptions = new List<Option>
+        public static readonly List<Option> GlobalOptions = new List<Option>
         {
             new Option
             {
@@ -22,6 +22,12 @@ namespace Maestro
                 ShortName = "-h",
                 LongName = "--help",
                 Description = "Display usage",
+                IsFlag = true
+            },
+            new Option
+            {
+                LongName = "--raw",
+                Description = "Do not pretty print results",
                 IsFlag = true
             },
             new Option
@@ -270,6 +276,14 @@ namespace Maestro
                         {
                             new Option
                             {
+                                ShortName = "-c",
+                                LongName = "--client-id",
+                                ValuePlaceholder = "VALUE",
+                                Description = "The client ID / app ID to request an access token for (default: Azure Portal)",
+                                Default = "c44b4083-3bb0-49c1-b47d-974e53cbdf3c"
+                            },
+                            new Option
+                            {
                                 ShortName = "-e",
                                 LongName = "--extension",
                                 ValuePlaceholder = "NAME",
@@ -294,6 +308,14 @@ namespace Maestro
                                 ValuePlaceholder = "RESOURCE",
                                 Description = "Name of the resource to request an access token for",
                                 Default = "microsoft.graph"
+                            },
+                            new Option
+                            {
+                                ShortName = "-s",
+                                LongName = "--scope",
+                                ValuePlaceholder = "SCOPE",
+                                Description = "The scope to request",
+                                Default = ".default openid profile offline_access"
                             },
                         }
                     },
@@ -394,12 +416,6 @@ namespace Maestro
                         LongName = "--properties",
                         ValuePlaceholder = "PROP,PROP",
                         Description = "Comma-separated list of properties to get or ALL to get all properties"
-                    },
-                    new Option
-                    {
-                        LongName = "--raw",
-                        Description = "Do not pretty print results",
-                        IsFlag = true
                     },
                     new Option
                     {
