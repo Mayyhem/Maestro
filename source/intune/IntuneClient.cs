@@ -50,9 +50,10 @@ namespace Maestro
         }
 
         // intune apps
-        public async Task<List<IntuneApp>> GetApps(string appId = "", string appName = "", string[] properties = null,
+        public async Task<List<IntuneApp>> GetApps(string id = "", string displayName = "", string[] properties = null,
             LiteDBHandler database = null, bool printJson = true)
         {
+            Logger.Info($"Requesting apps from Intune");
             string baseUrl = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps";
 
             var filters = new List<(string, string, string, string)>();
@@ -60,14 +61,14 @@ namespace Maestro
             filters.Insert(1, ("or", "microsoft.graph.managedApp/appAvailability", "eq", "'lineOfBusiness'"));
             filters.Add(("and", "isAssigned", "eq", "true"));
 
-            if (!string.IsNullOrEmpty(appName))
+            if (!string.IsNullOrEmpty(displayName))
             {
                 Logger.Warning("Filtering by displayName is not supported for Intune apps, filtering results instead");
             }
 
-            if (!string.IsNullOrEmpty(appId))
+            if (!string.IsNullOrEmpty(id))
             {
-                baseUrl += $"('{appId}')";
+                baseUrl += $"('{id}')";
             }
 
             List<IntuneApp> apps = await HttpHandler.GetMSGraphEntities<IntuneApp>(
@@ -81,9 +82,9 @@ namespace Maestro
             if (apps is null) return null;
 
 
-            if (!string.IsNullOrEmpty(appName))
+            if (!string.IsNullOrEmpty(displayName))
             {
-                apps = apps.Where(app => app.Properties["displayName"].ToString() == appName).ToList();
+                apps = apps.Where(app => app.Properties["displayName"].ToString() == displayName).ToList();
             }
 
             Logger.Info($"Found {apps.Count} apps in filtered results");
@@ -98,16 +99,17 @@ namespace Maestro
             return apps;
         }
         
-        public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string aadDeviceId = "",
+        public async Task<List<IntuneDevice>> GetDevices(string id = "", string deviceName = "", string aadDeviceId = "",
             string[] properties = null, LiteDBHandler database = null, bool printJson = true)
         {
+            Logger.Info($"Requesting devices from Intune");
             string baseUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
 
             var filters = new List<(string, string, string, string)>();
 
-            if (!string.IsNullOrEmpty(deviceId))
+            if (!string.IsNullOrEmpty(id))
             {
-                baseUrl += $"('{deviceId}')";
+                baseUrl += $"('{id}')";
             }
             if (!string.IsNullOrEmpty(deviceName))
             {
@@ -131,11 +133,45 @@ namespace Maestro
             return devices;
         }
 
+        public async Task<List<IntuneScript>> GetScripts(string id = "", string displayName = "", string[] properties = null, 
+            LiteDBHandler database = null, bool printJson = true)
+        {
+            Logger.Info($"Requesting scripts from Intune");
+            string baseUrl = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
+
+            var filters = new List<(string, string, string, string)>();
+
+            if (!string.IsNullOrEmpty(id))
+            {
+                baseUrl += $"('{id}')";
+            }
+            if (!string.IsNullOrEmpty(displayName))
+            {
+                filters.Add(("and", "name", "eq", $"'{displayName}'"));
+            }
+
+            List<IntuneScript> scripts = await HttpHandler.GetMSGraphEntities<IntuneScript>(
+                baseUrl: baseUrl,
+                entityCreator: json => new IntuneScript(json, database),
+                filters: filters,
+                properties: properties,
+                database: database,
+                printJson: printJson);
+
+            if (scripts is null)
+            {
+                Logger.Warning("Found 0 matching scripts in Intune");
+                return null;
+            }
+            Logger.Info($"Found {scripts.Count} scripts in filtered results");
+            return scripts;
+        }
+
         // intune devices
         public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string aadDeviceId = "", 
             string[] properties = null, LiteDBHandler database = null)
         {
-            List<IntuneDevice> devices = await GetDevicesA(deviceId, deviceName, aadDeviceId, properties, database, printJson: false);
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, aadDeviceId, properties, database, printJson: false);
             if (devices is null) return null;
 
             if (devices.Count > 1)
@@ -973,7 +1009,7 @@ namespace Maestro
 
  
         // intune scripts
-        public async Task<List<IntuneScript>> GetScripts(string scriptId = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+        public async Task<List<IntuneScript>> GetScriptsA(string scriptId = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
         {
             List<IntuneScript> intuneScripts = new List<IntuneScript>();
 

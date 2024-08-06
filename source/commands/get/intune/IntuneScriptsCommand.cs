@@ -36,7 +36,7 @@ namespace Maestro
                         return;
                     }
                 }
-                await intuneClient.GetScripts(scriptId, properties, database);
+                await intuneClient.GetScriptsA(scriptId, properties, database);
             }
             else
             {
@@ -45,7 +45,7 @@ namespace Maestro
                     intuneClient.ShowIntuneScripts(database, properties);
                     return;
                 }
-                await intuneClient.GetScripts(database: database, properties: properties);
+                await intuneClient.GetScriptsA(database: database, properties: properties);
             }
         }
     }

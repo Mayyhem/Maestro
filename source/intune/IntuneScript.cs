@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 
 namespace Maestro
 {
@@ -8,5 +9,10 @@ namespace Maestro
         // Primary key: id
         public IntuneScript(Dictionary<string, object> properties, LiteDBHandler database) 
             : base("id", properties, database) { }
+
+        public IntuneScript(JObject jObject, LiteDBHandler database)
+    : base("id", jObject.ToString(), database)
+        {
+        }
     }
 }
