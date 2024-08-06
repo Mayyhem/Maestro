@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Maestro
 {
@@ -92,11 +93,12 @@ namespace Maestro
         public static void ExceptionDetails(Exception ex)
         {
             Error($"An exception occurred!\n");
+
             while (ex != null)
             {
-                Console.WriteLine($"  Exception type: {ex.GetType().Name}\n");
-                Console.WriteLine($"  Message: {ex.Message}\n");
-                Console.WriteLine($"  Stack Trace:\n {ex.StackTrace}\n");
+                Error($"  Exception type: {ex.GetType().Name}\n");
+                Error($"  Message: {ex.Message}\n");
+                Debug($"  Stack Trace:\n {ex.StackTrace}\n");
                 ex = ex.InnerException;
             }
         }

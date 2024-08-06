@@ -142,7 +142,7 @@ namespace Maestro
             // Ensure the primary key is set as _id in BsonDocument
             doc["_id"] = new BsonValue(primaryKeyValue);
             collection.Upsert(doc);
-            Logger.Info($"Upserted item in database: {GetType().Name}");
+            Logger.Verbose($"Upserted item in database: {GetType().Name}");
         }
     }
 }

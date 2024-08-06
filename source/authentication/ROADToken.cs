@@ -17,7 +17,7 @@ namespace Maestro
         {
             PrtCookie prtCookie = null;
 
-            Logger.Info("Requesting PRT cookie" + (nonce != null ? " with nonce " : " ") + "for this user/device from LSA/CloudAP");
+            Logger.Info("Requesting PRT cookie" + (nonce != null ? " with nonce " : " ") + "for this user/device from LSA/CloudAP via BrowserCore.exe");
 
             string[] filelocs = {
                 @"C:\Program Files\Windows Security\BrowserCore\browsercore.exe",
@@ -47,7 +47,7 @@ namespace Maestro
                 string stuff;
                 if (!string.IsNullOrEmpty(nonce))
                 {
-                    Logger.Info($"Using supplied nonce: {nonce}");
+                    Logger.Verbose($"Using supplied nonce: {nonce}");
                     stuff = "{" +
                     "\"method\":\"GetCookies\"," +
                     $"\"uri\":\"https://login.microsoftonline.com/common/oauth2/authorize?sso_nonce={nonce}\"," +
@@ -99,7 +99,8 @@ namespace Maestro
                     return null;
                 }
                 string xMsRefreshtokencredential = match.Groups[1].Value;
-                Logger.Info($"Obtained x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce" : " ") + $": {xMsRefreshtokencredential}");
+                Logger.Verbose($"Obtained x-Ms-Refreshtokencredential" + (nonce != null ? " with nonce" : " "));
+                Logger.VerboseTextOnly(xMsRefreshtokencredential);
                 prtCookie = new PrtCookie(xMsRefreshtokencredential, database);
                 return prtCookie;
             }

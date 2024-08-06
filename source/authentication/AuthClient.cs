@@ -72,15 +72,15 @@ namespace Maestro
             if (string.IsNullOrEmpty(client.BearerToken))
             {
                 // Generate a new GUID for the session ID
-                Guid newGuid = Guid.NewGuid();
+                //Guid newGuid = Guid.NewGuid();
 
                 // Format the GUID as a 32-character lowercase string without hyphens
-                string sessionId = newGuid.ToString("N");
-                client.SessionId = sessionId;
+                //string sessionId = newGuid.ToString("N");
+                //client.SessionId = sessionId;
 
-                string authRedirectUrlWithParams = $"{authRedirectUrl}/?sessionId={sessionId}";
+                //string authRedirectUrlWithParams = $"{authRedirectUrl}/?sessionId={sessionId}";
 
-                await client.Authenticate(authRedirectUrlWithParams, database, providedPrtCookie, prtMethod);
+                await client.Authenticate(authRedirectUrl, database, providedPrtCookie, prtMethod);
 
                 if (accessTokenMethod == 0)
                 {
@@ -300,7 +300,7 @@ namespace Maestro
             string authorizeUrl = StringHandler.GetMatch(idpRedirectResponseContent, authorizeUrlPattern, false);
 
             if (authorizeUrl is null) return null;
-            Logger.Info("Found authorize URL");
+            Logger.Verbose("Found authorize URL");
             Logger.DebugTextOnly(authorizeUrl);
             return authorizeUrl;
         }
@@ -325,18 +325,17 @@ namespace Maestro
                 Logger.Error("No nonce was found in the response");
                 return null;
             }
-            Logger.Info($"Found nonce in the response: {ssoNonce}");
+            Logger.Verbose($"Found nonce in the response: {ssoNonce}");
 
             // Local request to mint PRT cookie with nonce
             PrtCookie prtCookie = null;
             if (method == 0)
             {
-                Logger.Info("Requesting PRT cookie from LSA/CloudAP with nonce");
+                Logger.Info("Requesting PRT cookie with nonce for this user/device from LSA/CloudAP via COM");
                 prtCookie = RequestAADRefreshToken.GetPrtCookies(database, ssoNonce).First();
             }
             else if (method == 1)
             {
-                Logger.Info("Requesting PRT cookie via BrowserCore.exe with nonce");
                 prtCookie = ROADToken.GetPrtCookie(database, ssoNonce);
             }
             return prtCookie.Value;
@@ -367,7 +366,7 @@ namespace Maestro
             }
 
             // Use PRT cookie to obtain code+id_token required for signin
-            Logger.Info("Using PRT cookie with nonce to obtain code+id_token required for signin");
+            Logger.Info("Requesting code+id_token required for signin using PRT cookie with nonce");
             HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, prtCookie);
             if (authorizeWithSsoNonceResponse is null)
                 return null;
@@ -382,7 +381,7 @@ namespace Maestro
                 Logger.Error("No hidden form action URLs were found in the response");
                 return null;
             }
-            Logger.Info($"Found hidden form action URL in the response: {actionUrl}");
+            Logger.Verbose($"Found hidden form action URL in the response: {actionUrl}");
 
             // Parse response for POST body with code+id_token
             FormUrlEncodedContent formData = ParseFormDataFromHtml(authorizeWithSsoNonceResponseContent);
@@ -396,7 +395,7 @@ namespace Maestro
                 Logger.Error("Could not sign in");
                 return null;
             }
-            Logger.Info("Obtained response from signin URL");
+            Logger.Verbose("Obtained response from signin URL");
             return signinResponse;
         }
 
@@ -423,8 +422,8 @@ namespace Maestro
                 Logger.Error("No portalAuthorization was found in the DelegationToken response");
                 return null;
             }
-            Logger.Info($"Found portalAuthorization in DelegationToken response: {StringHandler.Truncate(portalAuthorization, 12)}");
-            Logger.Debug(portalAuthorization);
+            Logger.Verbose($"Found portalAuthorization in DelegationToken response: {StringHandler.Truncate(portalAuthorization, 12)}");
+            Logger.DebugTextOnly(portalAuthorization);
             return portalAuthorization;
         }
 
@@ -458,7 +457,7 @@ namespace Maestro
                 Logger.Error("No hidden input fields were found in the response");
                 return null;
             }
-            Logger.Info("Found hidden input fields in the response");
+            Logger.Verbose("Found hidden input fields in the response");
             var formDataPairs = new Dictionary<string, string>();
             foreach (Match input in inputs)
             {
@@ -484,7 +483,7 @@ namespace Maestro
             // Replace Unicode in URL with corresponding characters and placeholder with "organizations"
             string ssoNonceUrl = Regex.Unescape(authorizeUrlWithSsoNonceMatch.Value).Replace(
                 "{0}", "organizations");
-            Logger.Info($"Found authorize URL in the response: {ssoNonceUrl}");
+            Logger.Verbose($"Found authorize URL in the response: {ssoNonceUrl}");
             return ssoNonceUrl;
         }
 
@@ -497,8 +496,8 @@ namespace Maestro
                 Logger.Error("No oAuthToken was found in the response");
                 return null;        
             }
-            Logger.Info($"Found oAuthToken in response");
-            Logger.Debug(oAuthTokenBlob);
+            Logger.Verbose($"Found oAuthToken in response");
+            Logger.DebugTextOnly(oAuthTokenBlob);
             OAuthTokenDynamic oAuthToken = new OAuthTokenDynamic(oAuthTokenBlob, database);
             return oAuthToken;
         }
@@ -512,9 +511,9 @@ namespace Maestro
                 Logger.Error("No portal authorization (refreshToken) was found in the response");
                 return null;
             }
-            Logger.Info($"Found portal authorization (refreshToken) in response: {StringHandler.Truncate(portalAuthorization, 12)}");
+            Logger.Verbose($"Found portal authorization (refreshToken) in response: {StringHandler.Truncate(portalAuthorization, 12)}");
             PortalAuthorization = portalAuthorization;
-            Logger.Debug(portalAuthorization);
+            Logger.DebugTextOnly(portalAuthorization);
             return portalAuthorization;
         }
 
@@ -527,9 +526,9 @@ namespace Maestro
                 Logger.Error("No spaAuthCode was found in the response");
                 return null;
             }
-            Logger.Info($"Found spaAuthCode in response: {StringHandler.Truncate(spaAuthTokenBlob, 12)}");
+            Logger.Verbose($"Found spaAuthCode in response: {StringHandler.Truncate(spaAuthTokenBlob, 12)}");
             SpaAuthCode = spaAuthTokenBlob;
-            Logger.Debug(spaAuthTokenBlob);
+            Logger.DebugTextOnly(spaAuthTokenBlob);
             return spaAuthTokenBlob;
         }
 
@@ -542,7 +541,7 @@ namespace Maestro
                 Logger.Error("No tenantId was found in the response");
                 return null;
             }
-            Logger.Info($"Found tenantId in the response: {tenantId}");
+            Logger.Verbose($"Found tenantId in the response: {tenantId}");
             TenantId = tenantId;
             return tenantId;
         }

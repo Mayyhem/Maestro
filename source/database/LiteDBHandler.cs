@@ -78,9 +78,9 @@ namespace Maestro
 
             if (farthestExpiryAccessToken != null)
             {
-                Logger.Info($"Found valid JWT with the required scope {scope} in the database");
+                Logger.Info($"Found valid access token with the required scope {scope} in the database");
                 bearerToken = farthestExpiryAccessToken["Value"];
-                Logger.InfoTextOnly(bearerToken);
+                Logger.VerboseTextOnly(bearerToken);
             }
             else
             {
@@ -120,7 +120,7 @@ namespace Maestro
             {
                 Logger.Info($"Found JWT with the required scope in the database");
                 bearerToken = farthestExpJwt["bearerToken"];
-                Logger.DebugTextOnly(bearerToken);
+                Logger.VerboseTextOnly(bearerToken);
             }
             else
             {
@@ -193,26 +193,20 @@ namespace Maestro
             return new QueryResult(documents: query.ToList());
         }
 
+        // Upsert known objects with a primary key
         public bool Upsert<T>(T entity)
         {
             try
             {
                 var collection = Database.GetCollection<T>(typeof(T).Name);
                 collection.Upsert(entity);
-                Logger.Info($"Upserted item in database: {typeof(T).Name}");
+                Logger.Verbose($"Upserted item in database: {typeof(T).Name}");
                 return true;
             }
             catch (Exception ex) 
             {
                 Logger.Error($"Failed to upsert item in database: {typeof(T).Name}");
-                while (ex != null)
-                {
-                    Logger.Debug($"  Exception type: {ex.GetType().Name}\n");
-                    Logger.Debug($"  Message: {ex.Message}\n");
-                    Logger.Debug($"  Stack Trace:\n {ex.StackTrace}\n");
-                    ex = ex.InnerException;
-                }
-                Logger.Error($"  Message: {ex.Message}");
+                Logger.ExceptionDetails(ex);
                 return false;
             }
         }
