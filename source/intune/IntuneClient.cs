@@ -53,40 +53,48 @@ namespace Maestro
         public async Task<List<IntuneApp>> GetApps(string appId = "", string appName = "", string[] properties = null,
             LiteDBHandler database = null, bool printJson = true)
         {
+            string baseUrl = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps";
 
             var filters = new List<(string, string, string, string)>();
             filters.Insert(0, ("", "microsoft.graph.managedApp/appAvailability", "eq", "null"));
             filters.Insert(1, ("or", "microsoft.graph.managedApp/appAvailability", "eq", "'lineOfBusiness'"));
             filters.Add(("and", "isAssigned", "eq", "true"));
 
-            if (!string.IsNullOrEmpty(appId) || !string.IsNullOrEmpty(appName))
+            if (!string.IsNullOrEmpty(appName))
             {
-                Logger.Warning("Filtering by id or displayName is not supported for Intune apps, filtering results instead");
+                Logger.Warning("Filtering by displayName is not supported for Intune apps, filtering results instead");
+            }
+
+            if (!string.IsNullOrEmpty(appId))
+            {
+                baseUrl += $"('{appId}')";
             }
 
             List<IntuneApp> apps = await HttpHandler.GetMSGraphEntities<IntuneApp>(
-                baseUrl: "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps",
+                baseUrl: baseUrl,
                 entityCreator: json => new IntuneApp(json, database),
                 filters: filters,
                 properties: properties,
                 database: database,
-                printJson: printJson);
+                printJson: false);
 
             if (apps is null) return null;
 
-            Logger.Info($"Found {apps.Count} apps in Intune");
-
-            if (!string.IsNullOrEmpty(appId))
-            {
-                apps = apps.Where(app => app.Properties["id"].ToString() == appId).ToList();
-            }
 
             if (!string.IsNullOrEmpty(appName))
             {
                 apps = apps.Where(app => app.Properties["displayName"].ToString() == appName).ToList();
             }
 
-            Logger.Info($"Found {apps.Count} matching apps in Intune");
+            Logger.Info($"Found {apps.Count} apps in filtered results");
+            if (printJson)
+            {
+                foreach (IntuneApp app in apps)
+                {
+                    Logger.InfoTextOnly(app.Properties["jsonBlob"].ToString());
+                }
+            }
+
             return apps;
         }
         
@@ -119,7 +127,7 @@ namespace Maestro
                 Logger.Warning("Found 0 matching devices in Intune");
                 return null;
             }
-            Logger.Info($"Found {devices.Count} matching devices in Intune");
+            Logger.Info($"Found {devices.Count} devices in filtered results");
             return devices;
         }
 

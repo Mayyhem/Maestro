@@ -129,7 +129,7 @@ namespace Maestro
                 return null;
             }
 
-            Logger.Info($"Found {entitiesArray.Count} matching {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} in Microsoft Graph");
+            Logger.Info($"Found {entitiesArray.Count} {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} matching query in Microsoft Graph");
 
             // Add each item to the database
             foreach (JObject entityJson in entitiesArray)
