@@ -57,6 +57,11 @@ namespace Maestro
             filters.Insert(1, ("or", "microsoft.graph.managedApp/appAvailability", "eq", "'lineOfBusiness'"));
             filters.Add(("and", "isAssigned", "eq", "true"));
 
+            if (!string.IsNullOrEmpty(appId) || !string.IsNullOrEmpty(appName))
+            {
+                Logger.Warning("Filtering by id or displayName is not supported for Intune apps, filtering results instead");
+            }
+
             List<IntuneApp> apps = await HttpHandler.GetMSGraphEntities<IntuneApp>(
                 baseUrl: "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps",
                 entityCreator: json => new IntuneApp(json, database),
@@ -66,6 +71,7 @@ namespace Maestro
                 printJson: printJson);
 
             if (apps is null) return null;
+
             Logger.Info($"Found {apps.Count} apps in Intune");
 
             if (!string.IsNullOrEmpty(appId))

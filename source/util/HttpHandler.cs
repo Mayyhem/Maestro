@@ -130,7 +130,7 @@ namespace Maestro
             var entitiesArray = responseObject["value"] as JArray ?? new JArray { responseObject };
             if (entitiesArray.Count == 0)
             {
-                Logger.Info($"No matching {typeof(T).Name}s found");
+                Logger.Warning($"No matching {typeof(T).Name}s found");
                 return null;
             }
 
