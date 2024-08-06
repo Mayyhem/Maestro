@@ -7,7 +7,6 @@ namespace Maestro
     {
         public string Id;
         public string DisplayName;
-        public string PrimaryKey = "id";
 
         // Class instances will be stored in the collection in the database
         // Primary key: id
