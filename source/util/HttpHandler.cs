@@ -125,6 +125,7 @@ namespace Maestro
                 return null;
             }
 
+            // Parse the response
             JObject responseObject = JObject.Parse(responseContent);
             var entitiesArray = responseObject["value"] as JArray ?? new JArray { responseObject };
             if (entitiesArray.Count == 0)
@@ -135,24 +136,11 @@ namespace Maestro
 
             Logger.Info($"Found {entitiesArray.Count} matching {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} in Microsoft Graph");
 
+            // Add each item to the database
             foreach (JObject entityJson in entitiesArray)
             {
                 var entity = entityCreator(entityJson);
                 entities.Add(entity);
-
-                // Upsert each entity to the database
-                if (database != null)
-                {
-                    bool upsertResult = database.Upsert(entity);
-                    if (!upsertResult)
-                    {
-                        Logger.Warning($"Failed to upsert {typeof(T).Name} to database");
-                    }
-                    else
-                    {
-                        Logger.Verbose($"Upserted {typeof(T).Name} in the database");
-                    }
-                }
             }
 
             // Print the selected properties of the entities

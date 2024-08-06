@@ -37,11 +37,11 @@ namespace Maestro
                 ValuePlaceholder = "LEVEL",
                 Description =
                     "Set the log verbosity level (default: 2)\n" +
-                    new string(' ', DescriptionPadding) + "  0: Error\n" +
-                    new string(' ', DescriptionPadding) + "  1: Warning\n" +
-                    new string(' ', DescriptionPadding) + "  2: Info\n" +
-                    new string(' ', DescriptionPadding) + "  3: Verbose\n" +
-                    new string(' ', DescriptionPadding) + "  4: Debug",
+                    new string(' ', DescriptionPadding) + "  0: Error (critical failures)\n" +
+                    new string(' ', DescriptionPadding) + "  1: Warning (non-critical failures)\n" +
+                    new string(' ', DescriptionPadding) + "  2: Info (need to know)\n" +
+                    new string(' ', DescriptionPadding) + "  3: Verbose (useful)\n" +
+                    new string(' ', DescriptionPadding) + "  4: Debug (detailed requests/responses)",
                 Default = "2"
             }
         };

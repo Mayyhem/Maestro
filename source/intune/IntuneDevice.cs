@@ -15,8 +15,6 @@ namespace Maestro
         {
             Id = Properties["id"].ToString();
             DeviceName = Properties["deviceName"].ToString();
-
-            Upsert(database);
         }
 
         public IntuneDevice(JObject jObject, LiteDBHandler database)
@@ -24,8 +22,6 @@ namespace Maestro
         {
             Id = Properties["id"].ToString();
             DeviceName = Properties["deviceName"].ToString();
-
-            Upsert(database);
         }
     }
 }
