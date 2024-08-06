@@ -42,10 +42,10 @@ namespace Maestro
             return await SendRequestAsync(request);
         }
 
-        public async Task<HttpResponseMessage> GetAsync(string url)
+        public async Task<HttpResponseMessage> GetAsync(string url, bool jsonResponse = false)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            return await SendRequestAsync(request);
+            return await SendRequestAsync(request, jsonResponse);
         }
 
         public async Task<List<T>> GetMSGraphEntities<T>(
@@ -110,7 +110,7 @@ namespace Maestro
 
             // Request entities from Graph API
             Logger.Info($"Requesting {typeof(T).Name}s from Microsoft Graph");
-            HttpResponseMessage response = await GetAsync(url);
+            HttpResponseMessage response = await GetAsync(url, true);
             if (response == null)
             {
                 Logger.Error($"Failed to get {typeof(T).Name}s from Microsoft Graph");
@@ -119,11 +119,6 @@ namespace Maestro
 
             // Deserialize the JSON response
             string responseContent = await response.Content.ReadAsStringAsync();
-            if (response.StatusCode == HttpStatusCode.BadRequest)
-            {
-                Logger.Error($"Bad request: {responseContent}");
-                return null;
-            }
 
             // Parse the response
             JObject responseObject = JObject.Parse(responseContent);
@@ -179,22 +174,30 @@ namespace Maestro
             }
         }
 
-        public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request)
+        public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, bool jsonResponse = false)
         {
             Logger.Verbose($"Sending {request.Method} request to: {request.RequestUri}");
             HttpResponseMessage response = await _httpClient.SendAsync(request);
 
             if (response != null)
             {
-                Logger.Verbose($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
                 string responseContent = await response.Content.ReadAsStringAsync();
-                Logger.Debug($"Response:\n {responseContent}");
-                if (response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)
+                if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.NotFound
+                    || response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    Logger.Error("Unauthorized: try reauthenticating (--reauth) or providing different credentials");
-                    JsonHandler.GetProperties(responseContent);
+                    Logger.Error($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
+                    if (jsonResponse)
+                    {
+                        JsonHandler.GetProperties(responseContent);
+                    }
+                    else
+                    {
+                        Logger.Error(responseContent);
+                    }
                     return null;
                 }
+                Logger.Verbose($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
+                Logger.Debug($"Response:\n{responseContent}");
             }
             else
             {

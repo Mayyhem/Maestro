@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -11,6 +12,7 @@ using System.Security.Permissions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Script.Serialization;
 
 namespace Maestro
@@ -91,27 +93,32 @@ namespace Maestro
         public async Task<List<IntuneDevice>> GetDevices(string deviceId = "", string deviceName = "", string aadDeviceId = "",
             string[] properties = null, LiteDBHandler database = null, bool printJson = true)
         {
+            string baseUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
+
+            var filters = new List<(string, string, string, string)>();
+
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                baseUrl += $"('{deviceId}')";
+            }
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                filters.Add(("and", "deviceName", "eq", $"'{deviceName}'"));
+            }
+
             List<IntuneDevice> devices = await HttpHandler.GetMSGraphEntities<IntuneDevice>(
-                baseUrl: "https://graph.microsoft.com/beta/deviceManagement/manageddevices",
+                baseUrl: baseUrl,
                 entityCreator: json => new IntuneDevice(json, database),
-                filters: null,
+                filters: filters,
                 properties: properties,
                 database: database,
                 printJson: printJson);
 
-            if (devices is null) return null;
-            Logger.Info($"Found {devices.Count} devices in Intune");
-
-            if (!string.IsNullOrEmpty(deviceId))
+            if (devices is null)
             {
-                devices = devices.Where(device => device.Properties["id"].ToString() == deviceId).ToList();
+                Logger.Warning("Found 0 matching devices in Intune");
+                return null;
             }
-
-            if (!string.IsNullOrEmpty(deviceName))
-            {
-                devices = devices.Where(device => device.Properties["deviceName"].ToString() == deviceName).ToList();
-            }
-
             Logger.Info($"Found {devices.Count} matching devices in Intune");
             return devices;
         }
