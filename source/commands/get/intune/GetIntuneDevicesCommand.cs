@@ -36,7 +36,7 @@ namespace Maestro
             }
 
             string[] properties = options.Properties.ToArray();
-            await intuneClient.GetDevices(options.Id, options.Name, null, properties, database, true);
+            await intuneClient.GetDevices(options.Id, options.Name, null, properties, database, true, options.Raw);
         }
     }
 }

@@ -3,42 +3,68 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+//using System.Xml;
 
 namespace Maestro
 {
     internal static class JsonHandler
     {
+        public static string GetProperties(JArray jsonArray, bool raw = false, string[] properties = null, bool print = true)
+        {
+            // Handle JSON array
+            JArray filteredArray = new JArray();
+            foreach (JObject obj in jsonArray)
+            {
+                filteredArray.Add(FilterProperties(obj, properties));
+            }
+
+            // Don't print empty results
+            if (filteredArray.Count == 0)
+            {
+                return null;
+            }
+
+            string prettyPrintedJson = filteredArray.ToString(raw ? Formatting.None : Formatting.Indented);
+            if (print)
+            {
+                Logger.InfoTextOnly(prettyPrintedJson);
+            }
+            return prettyPrintedJson;
+        }
+
+        public static string GetProperties(JObject jsonObject, bool raw = false, string[] properties = null, bool print = true)
+        {
+            // Handle JSON object
+            JObject filteredObject = FilterProperties(jsonObject, properties);
+
+            // Don't print empty results
+            if (filteredObject.Count == 0)
+            {
+                return null;
+            }
+            string prettyPrintedJson = filteredObject.ToString(raw ? Formatting.None : Formatting.Indented);
+            if (print)
+            {
+                Logger.InfoTextOnly(prettyPrintedJson);
+            }
+            return prettyPrintedJson;
+        }
+
         public static string GetProperties(string jsonBlob, bool raw = false, string[] properties = null, bool print = true)
         {
             // Parse the JSON blob
             JToken parsedJson = JToken.Parse(jsonBlob);
-            Formatting formatting = raw ? Formatting.None : Formatting.Indented;
 
             if (parsedJson is JArray jsonArray)
             {
-                // Handle JSON array
-                JArray filteredArray = new JArray();
-                foreach (JObject obj in jsonArray)
-                {
-                    filteredArray.Add(FilterProperties(obj, properties));
-                }
-                string prettyPrintedJson = filteredArray.ToString(formatting);
-                if (print)
-                {
-                    Logger.InfoTextOnly(prettyPrintedJson);
-                }
-                return prettyPrintedJson;
+                // Handle JArray
+                GetProperties(jsonArray, raw, properties, print);
             }
+
             else if (parsedJson is JObject jsonObject)
             {
-                // Handle JSON object
-                JObject filteredObject = FilterProperties(jsonObject, properties);
-                string prettyPrintedJson = filteredObject.ToString(formatting);
-                if (print)
-                {
-                    Logger.InfoTextOnly(prettyPrintedJson);
-                }
-                return prettyPrintedJson;
+                // Handle JObject
+                GetProperties(jsonObject, raw, properties, print);
             }
             return null;
         }

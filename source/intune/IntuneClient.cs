@@ -51,7 +51,7 @@ namespace Maestro
 
         // intune apps
         public async Task<List<IntuneApp>> GetApps(string id = "", string displayName = "", string[] properties = null,
-            LiteDBHandler database = null, bool printJson = true)
+            LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting apps from Intune");
             string baseUrl = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps";
@@ -77,7 +77,8 @@ namespace Maestro
                 filters: filters,
                 properties: properties,
                 database: database,
-                printJson: false);
+                printJson: false,
+                raw: raw);
 
             if (apps is null) return null;
 
@@ -100,7 +101,7 @@ namespace Maestro
         }
         
         public async Task<List<IntuneDevice>> GetDevices(string id = "", string deviceName = "", string aadDeviceId = "",
-            string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+            string[] properties = null, LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting devices from Intune");
             string baseUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
@@ -122,7 +123,8 @@ namespace Maestro
                 filters: filters,
                 properties: properties,
                 database: database,
-                printJson: printJson);
+                printJson: printJson,
+                raw: raw);
 
             if (devices is null)
             {
@@ -134,7 +136,7 @@ namespace Maestro
         }
 
         public async Task<List<IntuneScript>> GetScripts(string id = "", string displayName = "", string[] properties = null, 
-            LiteDBHandler database = null, bool printJson = true)
+            LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting scripts from Intune");
             string baseUrl = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
@@ -150,16 +152,17 @@ namespace Maestro
                 filters.Add(("and", "displayName", "eq", $"'{displayName}'"));
             }
 
-            string expand = "assignments,runSummary";
+            //string expand = "assignments,runSummary";
 
             List<IntuneScript> scripts = await HttpHandler.GetMSGraphEntities<IntuneScript>(
                 baseUrl: baseUrl,
                 entityCreator: json => new IntuneScript(json, database),
                 filters: filters,
-                expand: expand,
+                //expand: expand,
                 properties: properties,
                 database: database,
-                printJson: printJson);
+                printJson: printJson,
+                raw: raw);
 
             if (scripts is null)
             {

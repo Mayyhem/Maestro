@@ -58,8 +58,12 @@ namespace Maestro
             string search = null,
             string[] properties = null,
             LiteDBHandler database = null,
-            bool printJson = true) where T : class
+            bool printJson = true,
+            bool raw = false) where T : class
         {
+            // Only print if the entities contain properties specified by the user
+            List<string> userSpecifiedProperties = properties?.ToList() ?? new List<string>();
+
             // Get all fields of type T -- can't use class properties because they need to be automatically generated
             var typeFields = typeof(T).GetFields().Select(f => f.Name).ToList();
 
@@ -110,7 +114,6 @@ namespace Maestro
                 urlBuilder.AddSearch(search);
             }
 
-            // Add properties
             bool returnAllProperties = properties != null && properties.Any(p => p.Equals("ALL", StringComparison.OrdinalIgnoreCase));
 
             if (properties != null && properties.Any() && !returnAllProperties)
@@ -143,9 +146,21 @@ namespace Maestro
 
             Logger.Info($"Found {entitiesArray.Count} {(entitiesArray.Count == 1 ? typeof(T).Name : typeof(T).Name + "s")} matching query in Microsoft Graph");
 
+            List<string> propsRequiringExpansion = new List<string>();
+
             // Add each item to the database
             foreach (JObject entityJson in entitiesArray)
             {
+                // Check if any user-specified properties are not present in the entity
+                if (userSpecifiedProperties.Any())
+                {
+                    var entityProperties = entityJson.Properties().Select(p => p.Name).ToList();
+
+                    if (!userSpecifiedProperties.All(entityProperties.Contains))
+                    {
+                        propsRequiringExpansion = userSpecifiedProperties.Except(entityProperties).ToList();
+                    }
+                }
                 var entity = entityCreator(entityJson);
                 entities.Add(entity);
             }
@@ -153,8 +168,17 @@ namespace Maestro
             // Print the selected properties of the entities
             if (printJson)
             {
-                string entitiesJson = JsonConvert.SerializeObject(entitiesArray, Formatting.Indented);
-                JsonHandler.GetProperties(entitiesJson, false, propertiesFilter.ToArray());
+                JsonHandler.GetProperties(entitiesArray, raw, propertiesFilter.ToArray());
+            }
+
+            // Remove "all" (case-insensitive) from the properties list
+            propsRequiringExpansion = propsRequiringExpansion
+                .Where(prop => !prop.Equals("all", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (propsRequiringExpansion.Any())
+            {
+                Logger.Warning($"The following properties were present but may require expansion: {string.Join(", ", propsRequiringExpansion)}");
             }
 
             return entities;

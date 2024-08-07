@@ -257,6 +257,15 @@ namespace Maestro
                         ValuePlaceholder = "VALUE",
                         Description = "The refresh token to use (default: request a refresh token)"
                     },
+                    /*
+                    new Option
+                    {
+                        ShortName = "-q",
+                        LongName = "--query",
+                        ValuePlaceholder = "ODATA",
+                        Description = "Append the MSGraph request URL with arbitrary OData system query options"
+                    },
+                    */
                     new Option
                     {
                         ShortName = "-t",

@@ -5,12 +5,24 @@ namespace Maestro
 {
     public class IntuneDevice : JsonObject
     {
+        // Fields to always display
+        public string Id;
+        public string DeviceName;
+
         // Class instances will be stored in the collection in the database
         // Primary key: id
         public IntuneDevice(Dictionary<string, object> deviceProperties, LiteDBHandler database)
-            : base("id", deviceProperties, database) { }
+            : base("id", deviceProperties, database)
+        {
+            Id = Properties["id"].ToString();
+            DeviceName = Properties["deviceName"].ToString();
+        }
 
         public IntuneDevice(JObject jObject, LiteDBHandler database)
-            : base("id", jObject.ToString(), database) { }
+            : base("id", jObject.ToString(), database)
+        {
+            Id = Properties["id"].ToString();
+            DeviceName = Properties["deviceName"].ToString();
+        }
     }
 }
