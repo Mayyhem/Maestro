@@ -2,14 +2,14 @@
 
 namespace Maestro
 {
-    public class GetIntuneCommand
+    public class GetEntraCommand
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
             // Remove the parent item from subcommands, then process the next subcommand
             options.Subcommands.RemoveAt(0);
 
-            if (options.Subcommands.Count == 0) 
+            if (options.Subcommands.Count == 0)
             {
                 Logger.Error($"No subcommand specified for '{options.FullCommand}' command.");
                 CommandLine.PrintUsage($"{options.FullCommand}");
@@ -18,14 +18,12 @@ namespace Maestro
 
             switch (options.Subcommands[0])
             {
-                case "apps":
-                    await GetIntuneAppsCommand.Execute(options, database);
+
+                case "groups":
+                    await GetEntraGroupsCommand.Execute(options, database);
                     break;
-                case "devices":
-                    await GetIntuneDevicesCommand.Execute(options, database);
-                    break;
-                case "scripts":
-                    await GetIntuneScriptsCommand.Execute(options, database);
+                case "users":
+                    //await GetEntraUsersCommand.Execute(options, database);
                     break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.FullCommand}");

@@ -1,6 +1,4 @@
-﻿using LiteDB;
-using Maestro.source.commands.get;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -54,7 +52,7 @@ namespace Maestro
                         //await DeleteCommand.Execute(options, database);
                         break;
                     case "exec":
-                        //await ExecCommand.Execute(options, database);
+                        await ExecCommand.Execute(options, database);
                         break;
                     case "get":
                         await GetCommand.Execute(options, database);

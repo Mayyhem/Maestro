@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
-namespace Maestro.source.commands.get
+namespace Maestro
 {
-    public class GetCommand
+    public class ExecCommand
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
@@ -19,15 +15,8 @@ namespace Maestro.source.commands.get
 
             switch (options.Subcommands[0])
             {
-                case "access-token":
-                    await GetAccessTokenCommand.Execute(options, database);
-                    break;
-                 case "intune":
-                    await GetIntuneCommand.Execute(options, database);
-                    break;
-                case "prt-cookie":
-                    break;
-                case "refresh-token":
+                case "intune":
+                    await ExecIntuneCommand.Execute(options, database);
                     break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.Command}': {options.Subcommands[0]}");

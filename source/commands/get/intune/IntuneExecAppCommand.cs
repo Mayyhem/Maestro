@@ -1,11 +1,9 @@
 ﻿using System.Collections.Generic;
-using System.Runtime.InteropServices.ComTypes;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Maestro
 {
-    internal class IntuneExecAppCommand
+    public class IntuneExecAppCommand
     {
         public static async Task Execute(Dictionary<string, string> arguments, LiteDBHandler database, bool reauth)
         {
@@ -27,7 +25,7 @@ namespace Maestro
 
                 // Authenticate and get an access token for EntraID 
                 var entraClient = new EntraClient();
-                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth, accessTokenMethod: 1);
+                entraClient = await EntraClient.InitAndGetAccessToken(database, reauth: reauth);
 
                 // Find the specified group
                 EntraGroup group = await entraClient.GetGroup(groupId, database: database);

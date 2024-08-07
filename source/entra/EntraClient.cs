@@ -21,9 +21,14 @@ namespace Maestro
             _authClient = new AuthClient();
         }
 
-        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database,
-            string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "",
-            bool reauth = false, int prtMethod = 0, int accessTokenMethod = 0)
+        public static async Task<EntraClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database)
+        {
+            return await InitAndGetAccessToken(database, options.PrtCookie, options.RefreshToken, options.AccessToken,
+                options.Reauth, options.PrtMethod);
+        }
+
+        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "", 
+            string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
         {
             var entraClient = new EntraClient();
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
@@ -32,7 +37,9 @@ namespace Maestro
             string resourceName = "microsoft.graph";
             string requiredScope = "Directory.Read.All";
             entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
-                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, prtMethod, accessTokenMethod);
+                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, 
+                prtMethod, accessTokenMethod: 1);
+
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             entraClient.HttpHandler = entraClient._authClient.HttpHandler;
             return entraClient;
@@ -58,7 +65,7 @@ namespace Maestro
         }
 
         public async Task<List<EntraGroup>> GetGroups(string groupId = "", string[] properties = null, LiteDBHandler database = null,
-            bool printJson = true)
+            bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting groups from Entra");
             List<EntraGroup> entraGroups = new List<EntraGroup>();
@@ -104,7 +111,7 @@ namespace Maestro
             if (groupsResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get groups from Entra");
-                JsonHandler.GetProperties(groupsResponseContent);
+                JsonHandler.GetProperties(groupsResponseContent, raw);
                 return entraGroups;
             }
 
