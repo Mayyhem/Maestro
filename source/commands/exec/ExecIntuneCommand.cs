@@ -28,7 +28,7 @@ namespace Maestro
                     await ExecIntuneScriptCommand.Execute(options, database);
                     break;
                 case "sync":
-                    //await GetIntuneScriptsCommand.Execute(options, database);
+                    await ExecIntuneSyncCommand.Execute(options, database);
                     break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.FullCommand}");

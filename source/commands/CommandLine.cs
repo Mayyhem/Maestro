@@ -380,7 +380,7 @@ namespace Maestro
                     new Subcommand
                     {
                         Name = "prt-cookie",
-                        Description = "Get a PRT cookie"
+                        Description = "Get a nonce and PRT cookie"
                     },
                     new Subcommand
                     {

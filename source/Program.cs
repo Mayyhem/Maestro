@@ -61,6 +61,7 @@ namespace Maestro
                         ListCommand.Execute(options);
                         break;
                     case "local":
+                        await LocalCommand.Execute(options, database);
                         break;
                     case "new":
                         //await NewCommand.Execute(options, database);

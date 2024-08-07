@@ -2,7 +2,7 @@
 
 namespace Maestro
 {
-    public class GetCommand
+    public class LocalCommand
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
@@ -15,20 +15,6 @@ namespace Maestro
 
             switch (options.Subcommands[0])
             {
-                case "access-token":
-                    await GetAccessTokenCommand.Execute(options, database);
-                    break;
-                case "entra":
-                    await GetEntraCommand.Execute(options, database);
-                    break;
-                case "intune":
-                    await GetIntuneCommand.Execute(options, database);
-                    break;
-                case "prt-cookie":
-                    await GetPrtCookieCommand.Execute(options, database);
-                    break;
-                case "refresh-token":
-                    break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.Command}': {options.Subcommands[0]}");
                     CommandLine.PrintUsage($"{options.Command}");
