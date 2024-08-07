@@ -100,7 +100,7 @@ namespace Maestro
                                     },
                                     new Option
                                     {
-                                        LongName = "--user",
+                                        LongName = "--as-user",
                                         Description = "Run as the currently logged in user (default: SYSTEM)",
                                         IsFlag = true
                                     }

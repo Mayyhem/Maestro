@@ -3,16 +3,11 @@ using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
-using System.Security.Permissions;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Script.Serialization;
 
 namespace Maestro
@@ -116,6 +111,10 @@ namespace Maestro
             if (!string.IsNullOrEmpty(deviceName))
             {
                 filters.Add(("and", "deviceName", "eq", $"'{deviceName}'"));
+            }
+            if (!string.IsNullOrEmpty(aadDeviceId))
+            {
+                filters.Add(("and", "azureADDeviceId", "eq", $"'{aadDeviceId}'"));
             }
 
             List<IntuneDevice> devices = await HttpHandler.GetMSGraphEntities<IntuneDevice>(
@@ -556,7 +555,7 @@ namespace Maestro
                 return false;
             }
 
-            Logger.Info("Successfully uploaded content file to Azure storage");
+            Logger.Verbose("Successfully uploaded content file to Azure storage");
             return true;
         }
 
@@ -577,7 +576,7 @@ namespace Maestro
                 Logger.Error($"Failed to send block list: {response.StatusCode} {response.Content}");
                 return false;
             }
-            Logger.Info("Successfully sent content block list to Azure storage");
+            Logger.Verbose("Successfully sent content block list to Azure storage");
             return true;
         }
 
@@ -610,7 +609,7 @@ namespace Maestro
                 return false;
             }
 
-            Logger.Info("Successfully saved file encryption info");
+            Logger.Verbose("Successfully saved file encryption info");
             return true;
         }
 
@@ -695,7 +694,7 @@ namespace Maestro
                 Logger.Error($"Failed to assign app: {response.StatusCode} {response.Content}");
                 return false;
             }
-            Logger.Info("Successfully assigned app to group");
+            Logger.Verbose("Successfully assigned app to group");
             return true;
         }
 

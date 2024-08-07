@@ -221,23 +221,21 @@ namespace Maestro
                 if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.NotFound
                     || response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    Logger.Error($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
+                    Logger.Warning($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
                     if (jsonResponse)
                     {
                         JsonHandler.GetProperties(responseContent);
                     }
-                    else
-                    {
-                        Logger.Error(responseContent);
-                    }
-                    return null;
                 }
-                Logger.Verbose($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
-                Logger.Debug($"Response:\n{responseContent}");
+                else
+                {
+                    Logger.Verbose($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
+                }
+                Logger.DebugTextOnly(responseContent);
             }
             else
             {
-                Logger.Error($"No response received from {request.RequestUri}");
+                Logger.Warning($"No response received from {request.RequestUri}");
             }
             return response;
         }
