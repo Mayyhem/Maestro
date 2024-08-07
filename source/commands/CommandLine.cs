@@ -48,14 +48,14 @@ namespace Maestro
 
         public static List<Command> commands = new List<Command>
         {
-            new Command
+            /*new Command
             {
                 Name = "delete",
                 Description = "Delete objects from Azure",
                 Subcommands = new List<Subcommand>
                 {
                 }
-            },
+            },*/
             new Command
             {
                 Name = "exec",
@@ -225,6 +225,13 @@ namespace Maestro
                     },
                     new Option
                     {
+                        ShortName = "-f",
+                        LongName = "--filter",
+                        ValuePlaceholder = "FILTER",
+                        Description = "OData query filter (e.g., userPrincipalName eq 'x@x.onmicrosoft.com')",
+                    },
+                    new Option
+                    {
                         ShortName = "-n",
                         LongName = "--name",
                         ValuePlaceholder = "NAME",
@@ -382,11 +389,11 @@ namespace Maestro
                         Name = "prt-cookie",
                         Description = "Get a nonce and PRT cookie"
                     },
-                    new Subcommand
+                    /*new Subcommand
                     {
                         Name = "refresh-token",
                         Description = "Get a refresh token"
-                    },
+                    },*/
                 }
             },
             new Command
@@ -407,7 +414,7 @@ namespace Maestro
                     },
                 }
             },
-            new Command
+            /*new Command
             {
                 Name = "local",
                 Description = "Execute actions on the local device",
@@ -422,7 +429,7 @@ namespace Maestro
                 Subcommands = new List<Subcommand>
                 {
                 }
-            },
+            },*/
 
             new Command
             {
@@ -453,7 +460,6 @@ namespace Maestro
                     },
                     new Option
                     {
-
                         ShortName = "-w",
                         LongName = "--where",
                         ValuePlaceholder = "CONDITION",

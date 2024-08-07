@@ -47,7 +47,7 @@ namespace Maestro
 
         // intune apps
         public async Task<List<IntuneApp>> GetApps(string id = "", string displayName = "", string[] properties = null,
-            LiteDBHandler database = null, bool printJson = true, bool raw = false)
+            string filter = "", LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting apps from Intune");
             string baseUrl = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps";
@@ -65,6 +65,11 @@ namespace Maestro
             if (!string.IsNullOrEmpty(id))
             {
                 baseUrl += $"('{id}')";
+            }
+            if (!string.IsNullOrEmpty(filter))
+            {
+                // Split the filter string into three parts: property, operator, value
+                filters.Add(("and", filter.Split(' ')[0], filter.Split(' ')[1], filter.Split(' ')[2]));
             }
 
             List<IntuneApp> apps = await HttpHandler.GetMSGraphEntities<IntuneApp>(
@@ -97,7 +102,7 @@ namespace Maestro
         }
         
         public async Task<List<IntuneDevice>> GetDevices(string id = "", string deviceName = "", string aadDeviceId = "",
-            string[] properties = null, LiteDBHandler database = null, bool printJson = true, bool raw = false)
+            string[] properties = null, string filter = "", LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting devices from Intune");
             string baseUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
@@ -115,6 +120,11 @@ namespace Maestro
             if (!string.IsNullOrEmpty(aadDeviceId))
             {
                 filters.Add(("and", "azureADDeviceId", "eq", $"'{aadDeviceId}'"));
+            }
+            if (!string.IsNullOrEmpty(filter))
+            {
+                // Split the filter string into three parts: property, operator, value
+                filters.Add(("and", filter.Split(' ')[0], filter.Split(' ')[1], filter.Split(' ')[2]));
             }
 
             List<IntuneDevice> devices = await HttpHandler.GetMSGraphEntities<IntuneDevice>(
@@ -136,7 +146,7 @@ namespace Maestro
         }
 
         public async Task<List<IntuneScript>> GetScripts(string id = "", string displayName = "", string[] properties = null, 
-            LiteDBHandler database = null, bool printJson = true, bool raw = false)
+            string filter = "", LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting scripts from Intune");
             string baseUrl = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
@@ -150,6 +160,11 @@ namespace Maestro
             if (!string.IsNullOrEmpty(displayName))
             {
                 filters.Add(("and", "displayName", "eq", $"'{displayName}'"));
+            }
+            if (!string.IsNullOrEmpty(filter))
+            {
+                // Split the filter string into three parts: property, operator, value
+                filters.Add(("and", filter.Split(' ')[0], filter.Split(' ')[1], filter.Split(' ')[2]));
             }
 
             //string expand = "assignments,runSummary";
@@ -175,9 +190,9 @@ namespace Maestro
 
         // intune devices
         public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string aadDeviceId = "", 
-            string[] properties = null, LiteDBHandler database = null)
+            string[] properties = null, string whereCondition = "", LiteDBHandler database = null)
         {
-            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, aadDeviceId, properties, database, printJson: false);
+            List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, aadDeviceId, properties, whereCondition, database, printJson: false);
             if (devices is null) return null;
 
             if (devices.Count > 1)
@@ -192,79 +207,6 @@ namespace Maestro
             }
             deviceId = devices.FirstOrDefault()?.Properties["id"].ToString();
             return devices.FirstOrDefault();
-        }
-
-        public async Task<List<IntuneDevice>> GetDevicesA(string deviceId = "", string deviceName = "", string aadDeviceId = "", string[] properties = null,
-            LiteDBHandler database = null, bool printJson = true)
-        {
-            List<IntuneDevice> intuneDevices = new List<IntuneDevice>();
-
-            // Get all devices by default
-            string intuneDevicesUrl = "https://graph.microsoft.com/beta/deviceManagement/manageddevices";
-
-            // Filter to specific devices
-            if (!string.IsNullOrEmpty(deviceId))
-            {
-                intuneDevicesUrl += $"('{deviceId}')";
-            }
-            else if (!string.IsNullOrEmpty(deviceName))
-            {
-                intuneDevicesUrl += $"?filter=deviceName%20eq%20%27{deviceName}%27";
-            }
-            else if (!string.IsNullOrEmpty(aadDeviceId))
-            {
-                intuneDevicesUrl += $"?filter=azureADDeviceId%20eq%20%27{aadDeviceId}%27";
-            }
-
-            // Request devices from Intune
-            Logger.Info("Requesting devices from Intune");
-            HttpResponseMessage devicesResponse = await HttpHandler.GetAsync(intuneDevicesUrl);
-            if (devicesResponse is null)
-            {
-                Logger.Error("Failed to get devices from Intune");
-                return null;
-            }
-
-            // Deserialize the JSON response to a dictionary
-            string devicesResponseContent = await devicesResponse.Content.ReadAsStringAsync();
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
-            var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponseContent);
-            if (deviceResponseDict is null) return null;
-
-            var devices = new ArrayList();
-            if (deviceResponseDict.ContainsKey("value"))
-            {
-                devices = (ArrayList)deviceResponseDict["value"];
-            }
-            else
-            {
-                devices.Add(deviceResponseDict);
-            }
-
-            if (devices.Count == 0)
-            {
-                Logger.Info("No matching devices found");
-                return intuneDevices;
-            }
-
-            Logger.Info($"Found {devices.Count} matching {(devices.Count == 1 ? "device" : "devices")} in Intune");
-            foreach (Dictionary<string, object> device in devices)
-            {
-                // Create an object for each item in the response
-                var intuneDevice = new IntuneDevice(device, database);
-                intuneDevices.Add(intuneDevice);
-            }
-            if (database != null)
-            {
-                Logger.Info($"Upserted {(devices.Count == 1 ? "device" : "devices")} in the database");
-            }
-            // Convert the devices ArrayList to JSON blob string
-            string devicesJson = JsonConvert.SerializeObject(devices, Formatting.Indented);
-
-            // Print the selected properties of the devices
-            if (printJson) JsonHandler.GetProperties(devicesJson, false, properties);
-
-            return intuneDevices;
         }
 
         public List<IntuneDevice> ShowIntuneDevices(LiteDBHandler database, string[] properties, string deviceId = "",
@@ -1015,54 +957,6 @@ namespace Maestro
 
  
         // intune scripts
-        public async Task<List<IntuneScript>> GetScriptsA(string scriptId = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
-        {
-            List<IntuneScript> intuneScripts = new List<IntuneScript>();
-
-            Logger.Info($"Requesting scripts from Intune");
-            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts";
-            if (!string.IsNullOrEmpty(scriptId))
-            {
-                url += $"/{scriptId}";
-            }
-            HttpResponseMessage scriptsResponse = await HttpHandler.GetAsync(url);
-            if (scriptsResponse.StatusCode != HttpStatusCode.OK)
-            {
-                Logger.Error("Failed to get scripts from Intune");
-                return intuneScripts;
-            }
-
-            // Deserialize the JSON response to a dictionary
-            string scriptsResponseContent = await scriptsResponse.Content.ReadAsStringAsync();
-            JavaScriptSerializer serializer = new JavaScriptSerializer();
-            var scriptsResponseDict = serializer.Deserialize<Dictionary<string, object>>(scriptsResponseContent);
-            if (scriptsResponseDict is null) return null;
-
-            var scripts = (ArrayList)scriptsResponseDict["value"];
-
-            if (scripts.Count > 0)
-            {
-                Logger.Info($"Found {scripts.Count} {(scripts.Count == 1 ? "script" : "scripts")} in Intune");
-                foreach (Dictionary<string, object> script in scripts)
-                {
-                    // Create an object for each item in the response
-                    var intuneScript = new IntuneScript(script, database);
-                    intuneScripts.Add(intuneScript);
-                }
-
-                // Convert the devices ArrayList to JSON blob string
-                string scriptsJson = JsonConvert.SerializeObject(scripts, Formatting.Indented);
-
-                // Print the selected properties of the devices
-                if (printJson) JsonHandler.GetProperties(scriptsJson, false, properties);
-            }
-            else
-            {
-                Logger.Info("No scripts found");
-            }
-            return intuneScripts;
-        }
-
         public List<IntuneScript> ShowIntuneScripts(LiteDBHandler database, string[] properties, string scriptId = "")
         {
             List<IntuneScript> intuneScripts = new List<IntuneScript>();

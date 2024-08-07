@@ -26,7 +26,7 @@ namespace Maestro
             }
 
             string[] properties = options.Properties.ToArray();
-            await intuneClient.GetScripts(options.Id, options.Name, properties, database, 
+            await intuneClient.GetScripts(options.Id, options.Name, properties, options.Filter, database, 
                 true, options.Raw);
         }
     }

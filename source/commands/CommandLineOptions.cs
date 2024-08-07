@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.SqlServer.Server;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -24,6 +25,7 @@ namespace Maestro
         public bool Count { get; set; }
         public bool DryRun { get; set; }
         public string Extension { get; set; }
+        public string Filter { get; set; }
         public string Id { get; set; }
         public int Method { get; set; }
         public string Name { get; set; }
@@ -43,7 +45,6 @@ namespace Maestro
         public string Script { get; set; }
         public string TenantId { get; set; }
         public int Wait { get; set; }
-        public string WhereCondition { get; set; }
 
         // Additional dictionary for any extra or custom options
         public Dictionary<string, string> AdditionalOptions { get; } = new Dictionary<string, string>();

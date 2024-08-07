@@ -137,6 +137,14 @@ namespace Maestro
 
             // Parse the response
             JObject responseObject = JObject.Parse(responseContent);
+
+            // Check for errors in the response
+            if (responseObject.ContainsKey("error"))
+            {
+                Logger.Error($"Error in Microsoft Graph response: {responseObject["error"]["message"]}");
+                return null;
+            }
+
             var entitiesArray = responseObject["value"] as JArray ?? new JArray { responseObject };
             if (entitiesArray.Count == 0)
             {

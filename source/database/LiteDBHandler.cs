@@ -161,7 +161,7 @@ namespace Maestro
 
         public QueryResult Query(string table, CommandLineOptions options)
         {
-           return Query(table, options.Properties, options.WhereCondition, options.OrderBy, options.Count, options.DryRun);
+           return Query(table, options.Properties, options.Filter, options.OrderBy, options.Count, options.DryRun);
         }
 
         public QueryResult Query(string table, List<string> properties = null, string whereCondition = null, string orderBy = null, bool count = false, bool dryRun = false)

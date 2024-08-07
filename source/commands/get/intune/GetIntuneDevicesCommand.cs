@@ -17,26 +17,38 @@ namespace Maestro
             if (options.Properties is null)
             {
                 options.Properties = new List<string> {
+
+                    // Device info
                     "id",
                     "deviceName",
+                    "managedDeviceName",
                     "managementState",
+                    "enrolledDateTime",
                     "lastSyncDateTime",
+                    "configurationManagerClientEnabledFeatures",
+                    "model",
                     "operatingSystem",
+                    "skuFamily",
                     "osVersion",
+
+                    // Entra info
+                    "joinType",
                     "azureADRegistered",
                     "deviceEnrollmentType",
-                    "azureActiveDirectoryDeviceId",
+                    "azureADDeviceId",
                     "deviceRegistrationState",
-                    "model",
-                    "managedDeviceName",
-                    "joinType",
-                    "skuFamily",
-                    "usersLoggedOn"
+
+                    // User info
+                    "userId",
+                    "userPrincipalName",
+                    "userDisplayName",
+                    "enrolledByUserPrincipalName",
+                    "usersLoggedOn",
                 };
             }
 
             string[] properties = options.Properties.ToArray();
-            await intuneClient.GetDevices(options.Id, options.Name, null, properties, database, true, options.Raw);
+            await intuneClient.GetDevices(options.Id, options.Name, null, properties, options.Filter, database, true, options.Raw);
         }
     }
 }
