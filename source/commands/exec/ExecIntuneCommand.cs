@@ -22,7 +22,7 @@ namespace Maestro
                     await ExecIntuneAppCommand.Execute(options, database);
                     break;
                 case "device-query":
-                    //await GetIntuneDevicesCommand.Execute(options, database);
+                    await ExecIntuneDeviceQueryCommand.Execute(options, database);
                     break;
                 case "script":
                     await ExecIntuneScriptCommand.Execute(options, database);
