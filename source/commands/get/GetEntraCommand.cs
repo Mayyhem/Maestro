@@ -23,7 +23,7 @@ namespace Maestro
                     await GetEntraGroupsCommand.Execute(options, database);
                     break;
                 case "users":
-                    //await GetEntraUsersCommand.Execute(options, database);
+                    await GetEntraUsersCommand.Execute(options, database);
                     break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.FullCommand}");

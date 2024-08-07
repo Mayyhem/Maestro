@@ -1,9 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Maestro
 {
-    public static class GetEntraGroupsCommand
+    public class GetEntraUsersCommand
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
@@ -15,21 +18,24 @@ namespace Maestro
             {
                 options.Properties = new List<string> {
                     "id",
-                    "description",
+                    "accountEnabled",
+                    "createdDateTime",
                     "displayName",
                     "onPremisesDomainName",
                     "onPremisesLastSyncDateTime",
-                    "onPremisesNetBiosName",
-                    "onPremisesSamAccountName",
                     "onPremisesSecurityIdentifier",
+                    "onPremisesSamAccountName",
                     "onPremisesSyncEnabled",
-                    "securityEnabled",
+                    "onPremisesUserPrincipalName",
                     "securityIdentifier",
+                    "userPrincipalName",
+                    "userType",
+                    "identities",
                 };
             }
 
             string[] properties = options.Properties.ToArray();
-            await entraClient.GetGroups(options.Id, properties, database, true);
+            await entraClient.GetUsers(options.Id, properties, database, true);
         }
     }
 }
