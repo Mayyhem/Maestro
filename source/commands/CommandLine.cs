@@ -169,6 +169,14 @@ namespace Maestro
                                     new Option
                                     {
                                         Required = true,
+                                        ShortName = "-n",
+                                        LongName = "-name",
+                                        ValuePlaceholder = "NAME",
+                                        Description = "A name for the script"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
                                         ShortName = "-s",
                                         LongName = "--script",
                                         ValuePlaceholder = "B64_SCRIPT",

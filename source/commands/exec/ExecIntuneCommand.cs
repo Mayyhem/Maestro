@@ -25,7 +25,7 @@ namespace Maestro
                     //await GetIntuneDevicesCommand.Execute(options, database);
                     break;
                 case "script":
-                    //await GetIntuneScriptsCommand.Execute(options, database);
+                    await ExecIntuneScriptCommand.Execute(options, database);
                     break;
                 case "sync":
                     //await GetIntuneScriptsCommand.Execute(options, database);
