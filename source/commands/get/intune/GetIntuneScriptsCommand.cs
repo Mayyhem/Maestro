@@ -15,6 +15,13 @@ namespace Maestro
             {
                 options.Properties = new List<string> {
                     "id",
+                    "displayName",
+                    "description",
+                    "detectionScriptContent",
+                    "remediationScriptContent",
+                    "createdDateTime",
+                    "lastModifiedDateTime",
+                    "runAsAccount",
                 };
             }
 

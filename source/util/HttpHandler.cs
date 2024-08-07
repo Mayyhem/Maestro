@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Linq;
 using LiteDB;
+using System.ComponentModel;
 
 namespace Maestro
 {
@@ -53,6 +54,7 @@ namespace Maestro
             Func<JObject, T> entityCreator,
             bool count = false,
             List<(string LogicalOperator, string Key, string ComparisonOperator, string Value)> filters = null,
+            string expand = null,
             string search = null,
             string[] properties = null,
             LiteDBHandler database = null,
@@ -90,6 +92,16 @@ namespace Maestro
             {
                 string filterString = urlBuilder.BuildFilterString(filters);
                 urlBuilder.AddFilter(filterString);
+            }
+
+            // Add expand
+            if (expand != null)
+            {
+                urlBuilder.AddExpand(expand);
+                foreach (var expandProperty in expand.Split(','))
+                {
+                    propertiesFilter.Add(expandProperty);
+                }
             }
 
             // Add search

@@ -11,8 +11,6 @@ namespace Maestro
             : base("id", properties, database) { }
 
         public IntuneScript(JObject jObject, LiteDBHandler database)
-    : base("id", jObject.ToString(), database)
-        {
-        }
+            : base("id", jObject.ToString(), database) { }
     }
 }

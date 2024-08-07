@@ -147,13 +147,16 @@ namespace Maestro
             }
             if (!string.IsNullOrEmpty(displayName))
             {
-                filters.Add(("and", "name", "eq", $"'{displayName}'"));
+                filters.Add(("and", "displayName", "eq", $"'{displayName}'"));
             }
+
+            string expand = "assignments,runSummary";
 
             List<IntuneScript> scripts = await HttpHandler.GetMSGraphEntities<IntuneScript>(
                 baseUrl: baseUrl,
                 entityCreator: json => new IntuneScript(json, database),
                 filters: filters,
+                expand: expand,
                 properties: properties,
                 database: database,
                 printJson: printJson);
