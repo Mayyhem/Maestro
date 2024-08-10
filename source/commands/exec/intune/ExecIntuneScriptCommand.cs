@@ -15,7 +15,7 @@ namespace Maestro
             IntuneDevice device = await intuneClient.GetDevice(deviceId, database: database);
             if (device is null) return;
 
-            string filterId = await intuneClient.NewDeviceAssignmentFilter(deviceId);
+            string filterId = await intuneClient.NewDeviceAssignmentFilter(device.DeviceName);
             if (filterId is null) return;
 
             string scriptId = await intuneClient.NewScriptPackage(options.Name, options.Script);

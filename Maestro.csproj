@@ -106,6 +106,9 @@
     <Compile Include="source\authentication\RefreshToken.cs" />
     <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\OAuthToken.cs" />
+    <Compile Include="source\commands\DeleteCommand.cs" />
+    <Compile Include="source\commands\delete\DeleteIntuneCommand.cs" />
+    <Compile Include="source\commands\delete\intune\DeleteIntuneScriptCommand.cs" />
     <Compile Include="source\commands\LocalCommand.cs" />
     <Compile Include="source\commands\ExecCommand.cs" />
     <Compile Include="source\commands\exec\ExecIntuneCommand.cs" />
@@ -166,7 +169,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="source\commands\delete\" />
     <Folder Include="source\commands\local\" />
     <Folder Include="source\commands\new\" />
   </ItemGroup>

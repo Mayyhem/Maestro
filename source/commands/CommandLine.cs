@@ -48,14 +48,38 @@ namespace Maestro
 
         public static List<Command> commands = new List<Command>
         {
-            /*new Command
+            new Command
             {
                 Name = "delete",
                 Description = "Delete objects from Azure",
                 Subcommands = new List<Subcommand>
                 {
+                    new Subcommand
+                    {
+                        Name = "intune",
+                        Description = "Execute actions on devices enrolled in Intune",
+                        Subcommands = new List<Subcommand>
+                        {
+                            new Subcommand
+                            {
+                                Name = "script",
+                                Description = "Delete an Intune script",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the script to delete"
+                                    },
+                                }
+                            }
+                        }
+                    }
                 }
-            },*/
+            },
             new Command
             {
                 Name = "exec",

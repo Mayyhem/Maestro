@@ -49,7 +49,7 @@ namespace Maestro
                 switch (options.Command)
                 {
                     case "delete":
-                        //await DeleteCommand.Execute(options, database);
+                        await DeleteCommand.Execute(options, database);
                         break;
                     case "exec":
                         await ExecCommand.Execute(options, database);
