@@ -21,6 +21,8 @@ namespace Maestro
 
         public HttpHandler()
         {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
             var httpClientHandler = new HttpClientHandler
             {
                 CookieContainer = new CookieContainer()

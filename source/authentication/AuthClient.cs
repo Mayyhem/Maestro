@@ -429,7 +429,6 @@ namespace Maestro
 
         public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, string prtCookie = "", int prtMethod = 0)
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtCookie, prtMethod);
             if (signinResponse is null) return;
 

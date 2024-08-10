@@ -878,6 +878,7 @@ namespace Maestro
             {
                 PrintSubcommandUsage(subSubCommand, depth + 2);
             }
+            Console.WriteLine();
         }
 
         private static void PrintOptionUsage(Option option, int depth)
