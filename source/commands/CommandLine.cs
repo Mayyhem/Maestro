@@ -170,7 +170,7 @@ namespace Maestro
                                     {
                                         ShortName = "-w",
                                         LongName = "--wait",
-                                        ValuePlaceholder = "INT",
+                                        ValuePlaceholder = "SECONDS",
                                         Description = "Number of seconds between each attempt to fetch query results",
                                         Default = "3"
                                     }
@@ -205,6 +205,22 @@ namespace Maestro
                                         LongName = "--script",
                                         ValuePlaceholder = "B64_SCRIPT",
                                         Description = "Base64-encoded PowerShell script to execute"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-t",
+                                        LongName = "--timeout",
+                                        ValuePlaceholder = "SECONDS",
+                                        Description = "Seconds to wait for script execution results before deleting (0 to wait indefinitely)",
+                                        Default = "300"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-w",
+                                        LongName = "--wait",
+                                        ValuePlaceholder = "SECONDS",
+                                        Description = "Number of seconds between each attempt to fetch script execution status",
+                                        Default = "10"
                                     }
                                 }
                             },

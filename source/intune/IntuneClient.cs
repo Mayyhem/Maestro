@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -922,16 +923,57 @@ namespace Maestro
             await HttpHandler.PostAsync(url, content);
         }
 
-        public async Task InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
+        public async Task<HttpResponseMessage> InitiateOnDemandProactiveRemediation(string deviceId, string scriptId)
         {
-            Logger.Info($"Initiating on demand proactive remediation - execution script {scriptId} on device {deviceId}");
+            Logger.Info($"Executing on demand proactive remediation script {scriptId} on device {deviceId}");
             string url =
                 $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')/initiateOnDemandProactiveRemediation";
+
             var content = HttpHandler.CreateJsonContent(new
             {
                 ScriptPolicyId = scriptId,
             });
-            await HttpHandler.PostAsync(url);
+
+            return await HttpHandler.PostAsync(url, content); 
+        }
+
+        public async Task<bool> CheckWhetherProactiveRemediationScriptExecuted(string deviceId, int timeout, int retryDelay)
+        {
+            Logger.Info($"Checking status of proactive remediation script execution for device {deviceId}");
+
+            bool successful = false;
+            int tries = 0;
+            string maxRequests = (timeout == 0) ? "∞" : (timeout / retryDelay).ToString();
+
+            if (timeout == 0)
+            {
+                Logger.Info("Unlimited timeout specified, trying forever");
+            }
+
+            while (!successful && (tries < timeout / retryDelay || timeout == 0))
+            {
+                Logger.Info($"Attempt {tries + 1} of {maxRequests}");
+
+                HttpHandler.SetHeader("X-Ms-Command-Name", "fetchMDMDeviceActionResults");
+
+                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')?$select=deviceactionresults";
+                HttpResponseMessage response = await HttpHandler.GetAsync(url);
+                HttpHandler.RemoveHeader("X-Ms-Command-Name");
+                string responseContent = await response.Content.ReadAsStringAsync();
+                string actionState = StringHandler.GetMatch(responseContent, "\"actionState\":\"([^\"]+)\"");
+
+                if (actionState == "done")
+                {
+                    Logger.Info($"The proactive remediation script was executed on {deviceId}");
+                    return true;
+                }
+
+                await Task.Delay(retryDelay * 1000);
+                tries++;
+            }
+
+            Logger.Info($"The proactive remediation script was not executed within the specified timeout period");
+            return false;
         }
 
         public async Task DeleteDeviceAssignmentFilter(string filterId)

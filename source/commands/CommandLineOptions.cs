@@ -44,6 +44,7 @@ namespace Maestro
         public string Scope { get; set; }
         public string Script { get; set; }
         public string TenantId { get; set; }
+        public int Timeout { get; set; }
         public int Wait { get; set; }
 
         // Additional dictionary for any extra or custom options
