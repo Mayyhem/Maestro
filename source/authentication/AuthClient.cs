@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -58,29 +56,31 @@ namespace Maestro
             if (!string.IsNullOrEmpty(providedAccessToken))
             {
                 client.BearerToken = providedAccessToken;
-                accessToken = new AccessToken(providedAccessToken, database);
+                _ = new AccessToken(providedAccessToken, database);
                 return client;
             }
 
-            // Check the database for a stored access token before fetching from Intune
+            // Use the provided PRT cookie if available
+            else if (!string.IsNullOrEmpty(providedPrtCookie))
+            {
+                client.PrtCookie = providedPrtCookie;
+                _ = new PrtCookie(providedPrtCookie, database);
+            }
+
+            // Check the database for a stored tokens before fetching from Intune
             if (database != null && !reauth)
             {
-                client.FindStoredAccessToken(database, scope);
+                bool foundAccessToken = client.FindStoredAccessToken(database, scope);
+                if (!foundAccessToken)
+                {
+                    client.FindStoredPrtCookie(database);
+                }
             }
 
             // Get a new access token if none is found in the database
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                // Generate a new GUID for the session ID
-                //Guid newGuid = Guid.NewGuid();
-
-                // Format the GUID as a 32-character lowercase string without hyphens
-                //string sessionId = newGuid.ToString("N");
-                //client.SessionId = sessionId;
-
-                //string authRedirectUrlWithParams = $"{authRedirectUrl}/?sessionId={sessionId}";
-
-                await client.Authenticate(authRedirectUrl, database, providedPrtCookie, prtMethod);
+                await client.Authenticate(authRedirectUrl, database, prtMethod);
 
                 if (accessTokenMethod == 0)
                 {
@@ -141,6 +141,21 @@ namespace Maestro
                     HttpHandler.SetAuthorizationHeader(BearerToken);
                     return true;
                 }
+            }
+            return false;
+        }
+
+        public bool FindStoredPrtCookie(LiteDBHandler database)
+        {
+            if (!string.IsNullOrEmpty(PrtCookie))
+            {
+                Logger.Info("Using PRT cookie from prior request");
+                return true;
+            }
+            if (database != null)
+            {
+                PrtCookie = database.FindValidPrtCookie();
+                return true;
             }
             return false;
         }
@@ -342,7 +357,7 @@ namespace Maestro
         }
 
         public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database = null, 
-            string prtCookie = "", int prtMethod = 0)
+            int prtMethod = 0)
         {
 
             // Get authorize endpoint from redirect
@@ -357,17 +372,17 @@ namespace Maestro
                 Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
             }
 
-            if (string.IsNullOrEmpty(prtCookie))
+            if (string.IsNullOrEmpty(PrtCookie))
             {
                 // Get a nonce and primary refresh token cookie (x-Ms-Refreshtokencredential)
-                prtCookie = await GetPrtCookie(prtMethod, database);
-                if (prtCookie is null)
+                PrtCookie = await GetPrtCookie(prtMethod, database);
+                if (PrtCookie is null)
                     return null;
             }
 
             // Use PRT cookie to obtain code+id_token required for signin
             Logger.Info("Requesting code+id_token required for signin using PRT cookie with nonce");
-            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, prtCookie);
+            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, PrtCookie);
             if (authorizeWithSsoNonceResponse is null)
                 return null;
 
@@ -427,9 +442,9 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, string prtCookie = "", int prtMethod = 0)
+        public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, int prtMethod = 0)
         {
-            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtCookie, prtMethod);
+            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtMethod);
             if (signinResponse is null) return;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();

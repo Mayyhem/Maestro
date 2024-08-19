@@ -135,9 +135,6 @@ namespace Maestro
             // Get the Jwt collection (or create, if doesn't exist)
             var collection = Database.GetCollection<BsonDocument>("OAuthToken");
 
-            // Define current Unix timestamp
-            var nowUnixTimestamp = DateTimeHandler.ConvertToUnixTimestamp(DateTime.UtcNow);
-
             // Use a single query to filter documents and find the matching JWT
             var oAuthTokens = collection.FindAll();
 
@@ -152,6 +149,47 @@ namespace Maestro
                 Logger.Info("No OAuth tokens found in the database");
             }
             return refreshToken;
+        }
+
+        public string FindValidPrtCookie()
+        {
+            string prtCookie = "";
+
+            // Get the Jwt collection (or create, if doesn't exist)
+            var collection = Database.GetCollection<BsonDocument>("PrtCookie");
+
+            // Use a single query to filter documents and find the matching JWT
+            var prtCookies = collection.FindAll();
+
+            if (prtCookies != null)
+            {
+                // Use a single query to filter documents and find a matching cookie
+                var farthestExpPrtCookie = collection.FindAll()
+                    .Where(doc =>
+                        doc.ContainsKey("Expiry") &&
+                        doc["Expiry"].IsDateTime &&
+                        // Check if the cookie is currently valid
+                        doc["Expiry"].AsDateTime >= DateTime.Now)
+                    // Find the JWT with the farthest expiration date
+                    .OrderByDescending(doc => doc["Expiry"])
+                    .FirstOrDefault();
+
+                if (farthestExpPrtCookie != null)
+                {
+                    Logger.Info($"Found a PRT cookie in the database that should still be valid");
+                    prtCookie = farthestExpPrtCookie["Value"];
+                    Logger.VerboseTextOnly(prtCookie);
+                }
+                else
+                {
+                    Logger.Info("No PRT cookies found in the database");
+                }
+            }
+            else
+            {
+                Logger.Info("No PRT cookies found in the database");
+            }
+            return prtCookie;
         }
 
         public ILiteCollection<T> GetCollection<T>(string typeName)
