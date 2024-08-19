@@ -194,7 +194,7 @@ namespace Maestro
                                     {
                                         Required = true,
                                         ShortName = "-n",
-                                        LongName = "-name",
+                                        LongName = "--name",
                                         ValuePlaceholder = "NAME",
                                         Description = "A name for the script"
                                     },
@@ -660,10 +660,10 @@ namespace Maestro
             {
                 var result = ParseSubcommands(command.Subcommands, remainingArgs.Skip(1).ToArray(), parsedArguments, depth + 1, command);
 
-                // Invalid command or subcommand
+                // Invalid command, subcommand, or missing required options
                 if (result == null)
                 {
-                    PrintCommandUsage(command, depth);
+                    PrintFullCommandUsage(parsedArguments);
                     Console.WriteLine();
                     return null;
                 }
@@ -681,6 +681,16 @@ namespace Maestro
                 PrintUsage(commandName);
             }
             return null;
+        }
+
+        private static void PrintFullCommandUsage(Dictionary<string, string> parsedArguments)
+        {
+            string fullCommandPath = parsedArguments["command"];
+            for (int i = 1; parsedArguments.ContainsKey($"subcommand{i}"); i++)
+            {
+                fullCommandPath += $" {parsedArguments[$"subcommand{i}"]}";
+            }
+            PrintUsage(fullCommandPath);
         }
 
         private static string[] ParseGlobalOptions(string[] args, Dictionary<string, string> parsedArguments)
@@ -751,7 +761,7 @@ namespace Maestro
                         i++;
                     }
                 }
-                
+
                 else
                 {
                     // Global options
@@ -801,7 +811,24 @@ namespace Maestro
                 }
             }
 
+            // Check for missing required options
+            var missingRequiredOptions = CheckRequiredOptions(options, parsedArguments);
+            if (missingRequiredOptions.Any())
+            {
+                Console.WriteLine("\nMissing required options:");
+                foreach (var missingOption in missingRequiredOptions)
+                {
+                    Console.WriteLine($"  {missingOption.LongName}");
+                }
+                return null;
+            }
+
             return parsedArguments;
+        }
+
+        private static List<Option> CheckRequiredOptions(List<Option> options, Dictionary<string, string> parsedArguments)
+        {
+            return options.Where(o => o.Required && !parsedArguments.ContainsKey(o.LongName)).ToList();
         }
 
         private static Dictionary<string, string> ParseSubcommands(List<Subcommand> subcommands, string[] args, Dictionary<string, string> parsedArguments, int depth, Command parentCommand = null)
