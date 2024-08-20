@@ -147,7 +147,7 @@ namespace Maestro
         {
             if (!string.IsNullOrEmpty(BearerToken))
             {
-                Logger.Info("Using bearer token from prior request");
+                Logger.Info($"Using bearer token from prior request with scope: {scope}");
                 return true;
             }
             if (database != null)
@@ -167,7 +167,7 @@ namespace Maestro
         {
             if (!string.IsNullOrEmpty(RefreshToken))
             {
-                Logger.Info("Using refresh token from prior request");
+                Logger.Info($"Using refresh token from prior request with client ID: {clientId}");
                 return true;
             }
             if (database != null)
@@ -214,7 +214,7 @@ namespace Maestro
             };
 
             HttpHandler.CookiesContainer.Add(prtCookie);
-            HttpResponseMessage authorizeResponse = await HttpHandler.GetAsync(url);
+            HttpResponseMessage authorizeResponse = await HttpHandler.GetAsync(url, isJsonResponse: false);
 
             if (!authorizeResponse.IsSuccessStatusCode)
             {
@@ -250,7 +250,7 @@ namespace Maestro
 
             if (!string.IsNullOrEmpty(spaAuthCode) || !string.IsNullOrEmpty(refreshToken))
             {
-                Logger.Info($"Requesting access token from /oauth2/v2.0/token endpoint with {(string.IsNullOrEmpty(spaAuthCode) ? "refreshToken" : "spaAuthCode")}");
+                Logger.Info($"Requesting access token from /oauth2/v2.0/token endpoint with {(string.IsNullOrEmpty(spaAuthCode) ? "refreshToken" : "spaAuthCode")} for scope: {scope}");
 
                 if (!string.IsNullOrEmpty(resource))
                 {
@@ -342,7 +342,7 @@ namespace Maestro
         {
             Logger.Info($"Requesting authorize URL from: {idpRedirectUrl}");
 
-            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(idpRedirectUrl);
+            HttpResponseMessage idpRedirectResponse = await HttpHandler.GetAsync(idpRedirectUrl, isJsonResponse: false);
             idpRedirectResponse.EnsureSuccessStatusCode();
 
             if (idpRedirectResponse is null)

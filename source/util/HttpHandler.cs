@@ -39,16 +39,16 @@ namespace Maestro
             return new StringContent(json, Encoding.UTF8, "application/json");
         }
 
-        public async Task<HttpResponseMessage> DeleteAsync(string url)
+        public async Task<HttpResponseMessage> DeleteAsync(string url, bool isJsonResponse = true)
         {
             var request = new HttpRequestMessage(HttpMethod.Delete, url);
-            return await SendRequestAsync(request);
+            return await SendRequestAsync(request, isJsonResponse);
         }
 
-        public async Task<HttpResponseMessage> GetAsync(string url, bool jsonResponse = false)
+        public async Task<HttpResponseMessage> GetAsync(string url, bool isJsonResponse = true)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            return await SendRequestAsync(request, jsonResponse);
+            return await SendRequestAsync(request, isJsonResponse);
         }
 
         public async Task<List<T>> GetMSGraphEntities<T>(
@@ -127,7 +127,7 @@ namespace Maestro
 
             // Request entities from Graph API
             Logger.Info($"Requesting {typeof(T).Name}s from Microsoft Graph");
-            HttpResponseMessage response = await GetAsync(url, true);
+            HttpResponseMessage response = await GetAsync(url, isJsonResponse: true);
             if (response == null)
             {
                 Logger.Error($"Failed to get {typeof(T).Name}s from Microsoft Graph");
@@ -194,22 +194,22 @@ namespace Maestro
             return entities;
         }
 
-        public async Task<HttpResponseMessage> PatchAsync(string url, HttpContent content = null)
+        public async Task<HttpResponseMessage> PatchAsync(string url, HttpContent content = null, bool isJsonResponse = true)
         {
             var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) { Content = content };
-            return await SendRequestAsync(request);
+            return await SendRequestAsync(request, isJsonResponse);
         }
 
-        public async Task<HttpResponseMessage> PostAsync(string url, HttpContent content = null)
+        public async Task<HttpResponseMessage> PostAsync(string url, HttpContent content = null, bool isJsonResponse = true)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
-            return await SendRequestAsync(request);
+            return await SendRequestAsync(request, isJsonResponse);
         }
 
-        public async Task<HttpResponseMessage> PutAsync(string url, HttpContent content = null)
+        public async Task<HttpResponseMessage> PutAsync(string url, HttpContent content = null, bool isJsonResponse = true)
         {
             var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = content };
-            return await SendRequestAsync(request);
+            return await SendRequestAsync(request, isJsonResponse);
         }
 
         public void RemoveHeader(string headerName)
@@ -220,7 +220,7 @@ namespace Maestro
             }
         }
 
-        public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, bool jsonResponse = false)
+        public async Task<HttpResponseMessage> SendRequestAsync(HttpRequestMessage request, bool isJsonResponse = true)
         {
             Logger.Verbose($"Sending {request.Method} request to: {request.RequestUri}");
             HttpResponseMessage response = await _httpClient.SendAsync(request);
@@ -232,9 +232,10 @@ namespace Maestro
                     || response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     Logger.Warning($"Received {response.StatusCode.GetHashCode()} ({response.StatusCode}) status code from: {request.RequestUri}");
-                    if (jsonResponse)
+                    if (isJsonResponse)
                     {
-                        JsonHandler.GetProperties(responseContent);
+                        string formattedJson = JsonHandler.GetProperties(responseContent, print: false);
+                        Logger.DebugTextOnly(formattedJson);
                     }
                 }
                 else

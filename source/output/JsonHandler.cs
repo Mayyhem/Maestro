@@ -24,12 +24,12 @@ namespace Maestro
                 return null;
             }
 
-            string prettyPrintedJson = filteredArray.ToString(raw ? Formatting.None : Formatting.Indented);
+            string formattedJson = filteredArray.ToString(raw ? Formatting.None : Formatting.Indented);
             if (print)
             {
-                Logger.InfoTextOnly(prettyPrintedJson);
+                Logger.InfoTextOnly(formattedJson);
             }
-            return prettyPrintedJson;
+            return formattedJson;
         }
 
         public static string GetProperties(JObject jsonObject, bool raw = false, string[] properties = null, bool print = true)
@@ -42,12 +42,12 @@ namespace Maestro
             {
                 return null;
             }
-            string prettyPrintedJson = filteredObject.ToString(raw ? Formatting.None : Formatting.Indented);
+            string formattedJson = filteredObject.ToString(raw ? Formatting.None : Formatting.Indented);
             if (print)
             {
-                Logger.InfoTextOnly(prettyPrintedJson);
+                Logger.InfoTextOnly(formattedJson);
             }
-            return prettyPrintedJson;
+            return formattedJson;
         }
 
         public static string GetProperties(string jsonBlob, bool raw = false, string[] properties = null, bool print = true)
@@ -58,13 +58,13 @@ namespace Maestro
             if (parsedJson is JArray jsonArray)
             {
                 // Handle JArray
-                GetProperties(jsonArray, raw, properties, print);
+                return GetProperties(jsonArray, raw, properties, print);
             }
 
             else if (parsedJson is JObject jsonObject)
             {
                 // Handle JObject
-                GetProperties(jsonObject, raw, properties, print);
+                return GetProperties(jsonObject, raw, properties, print);
             }
             return null;
         }
