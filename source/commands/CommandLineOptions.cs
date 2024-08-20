@@ -27,7 +27,6 @@ namespace Maestro
         public string Extension { get; set; }
         public string Filter { get; set; }
         public string Id { get; set; }
-        public int Method { get; set; }
         public string Name { get; set; }
         public string OrderBy { get; set; }
         public string Path { get; set; }
@@ -45,6 +44,7 @@ namespace Maestro
         public string Script { get; set; }
         public string TenantId { get; set; }
         public int Timeout { get; set; }
+        public int TokenMethod { get; set; }
         public int Wait { get; set; }
 
         // Additional dictionary for any extra or custom options

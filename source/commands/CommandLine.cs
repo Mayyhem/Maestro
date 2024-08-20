@@ -357,7 +357,7 @@ namespace Maestro
                             new Option
                             {
                                 ShortName = "-m",
-                                LongName = "--method",
+                                LongName = "--token-method",
                                 ValuePlaceholder = "METHOD",
                                 Description =
                                     "Method used to request access tokens (default: 0)\n" +

@@ -28,28 +28,29 @@ namespace Maestro
             HttpHandler = new HttpHandler();
         }
 
-        public AuthClient(string clientId, string resource, string scope, string refreshToken = "")
+        public AuthClient(string clientId, string resource, string scope, string refreshToken = "", string tenantId = "")
         {
             HttpHandler = new HttpHandler();
             ClientId = clientId;
             Resource = resource;
             Scope = scope;
             RefreshToken = refreshToken;
+            TenantId = tenantId;
         }
 
-        public static async Task<AuthClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database, string authRedirectUrl, string delegationTokenUrl)
+        public static async Task<AuthClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database, string authRedirectUrl = "", string delegationTokenUrl = "")
         {
             return await InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
                 options.PrtCookie, options.RefreshToken, options.AccessToken, options.Reauth, options.Scope, options.PrtMethod, 
-                options.Method, options.ClientId, options);
+                options.TokenMethod, options.ClientId, options.TenantId, options);
         }
         public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resource, LiteDBHandler database = null,
             string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
             bool reauth = false, string scope = "", int prtMethod = 0, int accessTokenMethod = 0, 
-            string clientId = "", CommandLineOptions options = null)
+            string clientId = "", string tenantId = "", CommandLineOptions options = null)
         {
-            var client = new AuthClient(clientId, resource, scope, providedRefreshToken);
+            var client = new AuthClient(clientId, resource, scope, providedRefreshToken, tenantId);
             AccessToken accessToken = null;
 
             // Use the provided access token if available

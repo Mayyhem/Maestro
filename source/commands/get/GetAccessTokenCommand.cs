@@ -18,11 +18,15 @@ namespace Maestro
 
             if (!string.IsNullOrEmpty(options.RefreshToken))
             {
-                Logger.Error("The --refresh-token option is not yet implemented");
+                // Use the /token endpoint
+                options.TokenMethod = 0;
+
+                // Authenticate and get an access token
+                authClient = await AuthClient.InitAndGetAccessToken(options, database);
                 return;
             }
 
-            if (options.Method > 1 || options.Method < 0)
+            if (options.TokenMethod > 1 || options.TokenMethod < 0)
             {
                 Logger.Error("Invalid method (-m) specified");
                 CommandLine.PrintUsage("get access-token");
