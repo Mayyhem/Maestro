@@ -310,7 +310,8 @@ namespace Maestro
                     {
                         LongName = "--refresh-token",
                         ValuePlaceholder = "VALUE",
-                        Description = "The refresh token to use (default: request a refresh token)"
+                        Description = "The refresh token to use (default: request a refresh token)",
+                        Dependencies = new List<string> { "--tenant-id" }
                     },
                     /*
                     new Option
@@ -839,7 +840,40 @@ namespace Maestro
                 return null;
             }
 
+            // Check for dependencies
+            var missingDependencies = CheckDependencies(options, parsedArguments);
+            if (missingDependencies.Any())
+            {
+                Console.WriteLine("\nMissing required dependent options:");
+                foreach (var (option, dependency) in missingDependencies)
+                {
+                    Console.WriteLine($"  {dependency} is required when using {option}");
+                }
+                return null;
+            }
+
             return parsedArguments;
+        }
+
+        private static List<(string, string)> CheckDependencies(List<Option> options, Dictionary<string, string> parsedArguments)
+        {
+            var missingDependencies = new List<(string, string)>();
+
+            foreach (var option in options)
+            {
+                if (parsedArguments.ContainsKey(option.LongName) && option.Dependencies.Any())
+                {
+                    foreach (var dependency in option.Dependencies)
+                    {
+                        if (!parsedArguments.ContainsKey(dependency))
+                        {
+                            missingDependencies.Add((option.LongName, dependency));
+                        }
+                    }
+                }
+            }
+
+            return missingDependencies;
         }
 
         private static List<Option> CheckRequiredOptions(List<Option> options, Dictionary<string, string> parsedArguments)

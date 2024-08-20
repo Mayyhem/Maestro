@@ -60,6 +60,13 @@ namespace Maestro
                 return client;
             }
 
+            // Use the provided refresh token if available
+            else if (!string.IsNullOrEmpty(providedRefreshToken))
+            {
+                client.RefreshToken = providedRefreshToken;
+                _ = new RefreshToken(providedRefreshToken, "", client.TenantId, client.ClientId, null, database);
+            }
+
             // Use the provided PRT cookie if available
             else if (!string.IsNullOrEmpty(providedPrtCookie))
             {
@@ -70,39 +77,49 @@ namespace Maestro
             // Check the database for a stored tokens before fetching from Intune
             if (database != null && !reauth)
             {
-                bool foundAccessToken = client.FindStoredAccessToken(database, scope);
+                bool foundAccessToken = client.FindStoredAccessToken(database, client.Scope);
                 if (!foundAccessToken)
                 {
-                    client.FindStoredPrtCookie(database);
+                    bool foundRefreshToken = client.FindStoredRefreshToken(database, client.ClientId);
+                    if (!foundRefreshToken)
+                    {
+                        client.FindStoredPrtCookie(database);
+                    }
                 }
             }
 
             // Get a new access token if none is found in the database
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                await client.Authenticate(authRedirectUrl, database, prtMethod);
+                if (string.IsNullOrEmpty(client.RefreshToken))
+                {
+                    await client.Authenticate(authRedirectUrl, database, prtMethod);
+                }
 
                 if (accessTokenMethod == 0)
                 {
-                    // Get user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)
-                    accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                        null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
-                    if (accessToken is null)
-                        return null;
+                    if (string.IsNullOrEmpty(client.RefreshToken))
+                    {
+                        // Get user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)
+                        accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                            null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
+                        if (accessToken is null)
+                            return null;
 
-                    // Get access token for Azure Portal to Azure Portal (requires refreshToken)
-                    accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                        "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId, 
-                        client.SpaAuthCode);
-                    if (accessToken is null)
-                        return null;
+                        // Get access token for Azure Portal to Azure Portal (requires refreshToken)
+                        accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                            "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId,
+                            client.SpaAuthCode);
+                        if (accessToken is null)
+                            return null;
 
-                    // Get user_impersonation token for Azure Portal to desired client (client = resource)
-                    accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                        client.ClientId, ".default openid profile offline_access", client.TenantId,
-                        client.SpaAuthCode);
-                    if (accessToken is null)
-                        return null;
+                        // Get user_impersonation token for Azure Portal to desired client (client = resource)
+                        accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                            client.ClientId, ".default openid profile offline_access", client.TenantId,
+                            client.SpaAuthCode);
+                        if (accessToken is null)
+                            return null;
+                    }
 
                     // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
                     accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
@@ -145,6 +162,25 @@ namespace Maestro
             return false;
         }
 
+        public bool FindStoredRefreshToken(LiteDBHandler database, string clientId)
+        {
+            if (!string.IsNullOrEmpty(RefreshToken))
+            {
+                Logger.Info("Using refresh token from prior request");
+                return true;
+            }
+            if (database != null)
+            {
+                RefreshToken = database.FindValidRefreshToken(clientId);
+
+                if (!string.IsNullOrEmpty(RefreshToken))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public bool FindStoredPrtCookie(LiteDBHandler database)
         {
             if (!string.IsNullOrEmpty(PrtCookie))
@@ -155,7 +191,10 @@ namespace Maestro
             if (database != null)
             {
                 PrtCookie = database.FindValidPrtCookie();
-                return true;
+                if (!string.IsNullOrEmpty(PrtCookie))
+                {
+                   return true;
+                }
             }
             return false;
         }

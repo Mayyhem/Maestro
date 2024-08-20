@@ -170,7 +170,7 @@ namespace Maestro
                         doc["Expiry"].IsDateTime &&
                         // Check if the cookie is currently valid
                         doc["Expiry"].AsDateTime >= DateTime.Now)
-                    // Find the JWT with the farthest expiration date
+                    // Find the token with the farthest expiration date
                     .OrderByDescending(doc => doc["Expiry"])
                     .FirstOrDefault();
 
@@ -182,7 +182,7 @@ namespace Maestro
                 }
                 else
                 {
-                    Logger.Info("No PRT cookies found in the database");
+                    Logger.Info("No valid PRT cookies found in the database");
                 }
             }
             else
@@ -190,6 +190,51 @@ namespace Maestro
                 Logger.Info("No PRT cookies found in the database");
             }
             return prtCookie;
+        }
+
+        public string FindValidRefreshToken(string clientId)
+        {
+            string refreshToken = "";
+
+            // Get the Jwt collection (or create, if doesn't exist)
+            var collection = Database.GetCollection<BsonDocument>("RefreshToken");
+
+            // Use a single query to filter documents and find the matching JWT
+            var refreshTokens = collection.FindAll();
+
+            if (refreshTokens != null)
+            {
+                // Use a single query to filter documents and find a matching token
+                var farthestExpRefreshToken = collection.FindAll()
+                    .Where(doc =>
+                        doc.ContainsKey("Expiry") &&
+                        doc["Expiry"].IsDateTime &&
+                        // Check if the token is currently valid
+                        doc["Expiry"].AsDateTime >= DateTime.Now &&
+                        // Check if the token has the required client ID
+                        doc.ContainsKey("ClientId") &&
+                        doc["ClientId"].IsString &&
+                        doc["ClientId"].AsString == clientId)
+                    // Find the token with the farthest expiration date
+                    .OrderByDescending(doc => doc["Expiry"])
+                    .FirstOrDefault();
+
+                if (farthestExpRefreshToken != null)
+                {
+                    Logger.Info($"Found a refresh token in the database that should still be valid");
+                    refreshToken = farthestExpRefreshToken["Value"];
+                    Logger.VerboseTextOnly(refreshToken);
+                }
+                else
+                {
+                    Logger.Info("No valid refresh tokens found in the database");
+                }
+            }
+            else
+            {
+                Logger.Info("No refresh tokens found in the database");
+            }
+            return refreshToken;
         }
 
         public ILiteCollection<T> GetCollection<T>(string typeName)
