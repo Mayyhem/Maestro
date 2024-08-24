@@ -174,7 +174,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)* labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:C:\Users\cthompson\git\Maestro\bin\Debug\</PostBuildEvent>
+    <PostBuildEvent></PostBuildEvent>
   </PropertyGroup>
   <Import Project="packages\dnMerge.0.5.15\build\dnMerge.targets" Condition="Exists('packages\dnMerge.0.5.15\build\dnMerge.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
