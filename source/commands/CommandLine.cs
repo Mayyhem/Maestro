@@ -171,7 +171,7 @@ namespace Maestro
                                         ShortName = "-w",
                                         LongName = "--wait",
                                         ValuePlaceholder = "SECONDS",
-                                        Description = "Number of seconds between each attempt to fetch query results",
+                                        Description = "Time between each attempt to fetch query results",
                                         Default = "3"
                                     }
                                 }
@@ -211,7 +211,7 @@ namespace Maestro
                                         ShortName = "-t",
                                         LongName = "--timeout",
                                         ValuePlaceholder = "SECONDS",
-                                        Description = "Seconds to wait for script execution results before deleting (0 to wait indefinitely)",
+                                        Description = "Time to wait for results before deleting (0 to wait forever)",
                                         Default = "300"
                                     },
                                     new Option
@@ -219,7 +219,7 @@ namespace Maestro
                                         ShortName = "-w",
                                         LongName = "--wait",
                                         ValuePlaceholder = "SECONDS",
-                                        Description = "Number of seconds between each attempt to fetch script execution status",
+                                        Description = "Time between each attempt to fetch script execution status",
                                         Default = "10"
                                     }
                                 }
@@ -343,7 +343,7 @@ namespace Maestro
                                 ShortName = "-c",
                                 LongName = "--client-id",
                                 ValuePlaceholder = "VALUE",
-                                Description = "The client ID / app ID to request an access token for (default: Azure Portal)",
+                                Description = "Client/app ID to request a token for",
                                 Default = "c44b4083-3bb0-49c1-b47d-974e53cbdf3c"
                             },
                             new Option
@@ -351,7 +351,7 @@ namespace Maestro
                                 ShortName = "-e",
                                 LongName = "--extension",
                                 ValuePlaceholder = "NAME",
-                                Description = "Name of the extension to request an access token for",
+                                Description = "Extension to request an access token for",
                                 Default = "Microsoft_AAD_IAM"
                             },
                             new Option
@@ -370,7 +370,7 @@ namespace Maestro
                                 ShortName = "-r",
                                 LongName = "--resource",
                                 ValuePlaceholder = "RESOURCE",
-                                Description = "Name or ID of the resource to request an access token for (default: MSGraph)",
+                                Description = "Name/ID to request an access token for",
                                 Default = "https://graph.microsoft.com"
                             },
                             new Option
@@ -655,14 +655,14 @@ namespace Maestro
                 return parsedArguments;
             }
 
-            if (parsedArguments.ContainsKey("--help"))
-            {
-                PrintUsage();
-                return null;
-            }
-
             string commandName = remainingArgs[0];
             var command = commands.FirstOrDefault(c => c.Name == commandName);
+
+            /*if (parsedArguments.ContainsKey("--help"))
+            {
+                PrintUsage(commandName);
+                return null;
+            }*/
 
             if (command == null)
             {
@@ -700,7 +700,7 @@ namespace Maestro
             return null;
         }
 
-        private static void PrintFullCommandUsage(Dictionary<string, string> parsedArguments)
+        public static void PrintFullCommandUsage(Dictionary<string, string> parsedArguments)
         {
             string fullCommandPath = parsedArguments["command"];
             for (int i = 1; parsedArguments.ContainsKey($"subcommand{i}"); i++)

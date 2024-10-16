@@ -9,6 +9,7 @@ namespace Maestro
         {
             EntraClient entraClient = new EntraClient();
             entraClient = await EntraClient.InitAndGetAccessToken(options, database);
+            if (entraClient is null) return;
 
             // Set default properties to print
             if (options.Properties is null)

@@ -143,7 +143,9 @@ namespace Maestro
             // Check for errors in the response
             if (responseObject.ContainsKey("error"))
             {
-                Logger.Error($"Error in Microsoft Graph response: {responseObject["error"]["message"]}");
+                string message = responseObject["error"]["message"].ToString();
+                string prettyMessage = JsonHandler.GetProperties(message, print: false);
+                Logger.Error($"Error in Microsoft Graph response:\n{prettyMessage}");
                 return null;
             }
 

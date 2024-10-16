@@ -41,6 +41,11 @@ namespace Maestro
                 resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope,
                 prtMethod, accessTokenMethod: 1);
 
+            if (intuneClient._authClient is null)
+            {
+                Logger.Error("Failed to obtain an access token");
+                return null;
+            }
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
@@ -139,7 +144,7 @@ namespace Maestro
 
             if (devices is null)
             {
-                Logger.Warning("Found 0 matching devices in Intune");
+                //Logger.Warning("Found 0 matching devices in Intune");
                 return null;
             }
             Logger.Info($"Found {devices.Count} devices in filtered results");

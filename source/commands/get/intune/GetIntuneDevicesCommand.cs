@@ -12,6 +12,7 @@ namespace Maestro
         {
             IntuneClient intuneClient = new IntuneClient();
             intuneClient = await IntuneClient.InitAndGetAccessToken(options, database);
+            if (intuneClient is null) return;
 
             // Set default properties to print
             if (options.Properties is null)

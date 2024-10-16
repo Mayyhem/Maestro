@@ -40,7 +40,13 @@ namespace Maestro
                 resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, 
                 prtMethod, accessTokenMethod: 1);
 
-            // Copy the HttpHandler from the AuthClient for use in the IntuneClient
+            if (entraClient._authClient is null)
+            {
+                Logger.Error("Failed to obtain an access token");
+                return null;
+            }
+
+            // Copy the HttpHandler from the AuthClient for use in the EntraClient
             entraClient.HttpHandler = entraClient._authClient.HttpHandler;
             return entraClient;
         }

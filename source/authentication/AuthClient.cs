@@ -94,7 +94,12 @@ namespace Maestro
             {
                 if (string.IsNullOrEmpty(client.RefreshToken))
                 {
-                    await client.Authenticate(authRedirectUrl, database, prtMethod);
+                    bool success = await client.Authenticate(authRedirectUrl, database, prtMethod);
+                    if (!success)
+                    {
+                        Logger.Error("Failed to authenticate");
+                        return null;
+                    }
                 }
 
                 if (accessTokenMethod == 0)
@@ -428,6 +433,13 @@ namespace Maestro
 
             string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
 
+            // Not the best way to check this but it works for now
+            if (authorizeWithSsoNonceResponseContent.Contains("MFA"))
+            {
+                Logger.Error("MFA may be required and the PRT did not contain the required claim");
+                return null;
+            }
+
             // Parse response for signin URL
             string actionUrl = StringHandler.GetMatch(authorizeWithSsoNonceResponseContent, 
                 "<form method=\"POST\" name=\"hiddenform\" action=\"(.*?)\"");
@@ -442,6 +454,13 @@ namespace Maestro
             FormUrlEncodedContent formData = ParseFormDataFromHtml(authorizeWithSsoNonceResponseContent);
             if (formData is null) 
                 return null;
+
+            string decodedFormData = await formData.ReadAsStringAsync();
+            if (!decodedFormData.Contains("code") || !decodedFormData.Contains("id_token"))
+            {
+                Logger.Error("No code+id_token were found in the response");
+                return null;
+            }
 
             Logger.Info("Signing in with code+id_token obtained from authorize endpoint");
             HttpResponseMessage signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
@@ -482,20 +501,27 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task Authenticate(string redirectUrl, LiteDBHandler database = null, int prtMethod = 0)
+        public async Task<bool> Authenticate(string redirectUrl, LiteDBHandler database = null, int prtMethod = 0)
         {
             HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtMethod);
-            if (signinResponse is null) return;
+            if (signinResponse is null) return false;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();
 
             // Get tenantId for subsequent requests
             string tenantId = ParseTenantIdFromJsonResponse(signinResponseContent);
-            if (tenantId is null) return;
 
             // Get spaAuthCode and portalAuthorization for subsequent requests
             string spaAuthCode = ParseSpaAuthCodeFromJsonResponse(signinResponseContent, database);
             string portalAuthorization = ParsePortalAuthorizationFromJsonResponse(signinResponseContent);
+
+            if (string.IsNullOrEmpty(tenantId) || string.IsNullOrEmpty(spaAuthCode) || string.IsNullOrEmpty(portalAuthorization))
+            {
+                Logger.ErrorJson(signinResponseContent);
+                return false;
+            }
+
+            return true;
         }
 
         private FormUrlEncodedContent ParseFormDataFromHtml(string htmlContent)

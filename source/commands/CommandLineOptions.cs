@@ -62,6 +62,12 @@ namespace Maestro
                 return null;
             }
 
+            if (parsedArgs.ContainsKey("--help"))
+            {
+                CommandLine.PrintFullCommandUsage(parsedArgs);
+                return null;
+            }
+
             // Try to get the command and subcommands, accounting for null
             string thisCommandName = parsedArgs.TryGetValue("command", out string commandName) ? commandName : null;
 
