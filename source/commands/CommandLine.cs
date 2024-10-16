@@ -979,7 +979,11 @@ namespace Maestro
             {
                 PrintSubcommandUsage(subSubCommand, depth + 2);
             }
-            Console.WriteLine();
+            // Only write a blank line if there are options
+            if (subcommand.Options.Any())
+            {
+                Console.WriteLine();
+            }
         }
 
         private static void PrintOptionUsage(Option option, int depth)
