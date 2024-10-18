@@ -1061,6 +1061,14 @@ namespace Maestro
                         {
                             Console.WriteLine($"Usage: Maestro.exe {commandPath} [options]");
                             Console.WriteLine($"\nDescription: {subcommand.Description}\n");
+                            if (command.Options.Any())
+                            {
+                                Console.WriteLine("Options:");
+                                foreach (var option in command.Options)
+                                {
+                                    PrintOptionUsage(option, depth);
+                                }
+                            }
                             if (subcommand.Options.Any())
                             {
                                 Console.WriteLine("Options:");
