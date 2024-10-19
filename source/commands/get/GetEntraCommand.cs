@@ -22,6 +22,9 @@ namespace Maestro
                 case "groups":
                     await GetEntraGroupsCommand.Execute(options, database);
                     break;
+                case "membership":
+                    await GetEntraMembershipCommand.Execute(options, database);
+                    break;
                 case "users":
                     await GetEntraUsersCommand.Execute(options, database);
                     break;

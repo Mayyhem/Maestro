@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.Remoting.Channels;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
@@ -27,7 +29,7 @@ namespace Maestro
                 options.Reauth, options.PrtMethod);
         }
 
-        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "", 
+        public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
         {
             var entraClient = new EntraClient();
@@ -37,7 +39,7 @@ namespace Maestro
             string resourceName = "microsoft.graph";
             string requiredScope = "Directory.Read.All";
             entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
-                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope, 
+                resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope,
                 prtMethod, accessTokenMethod: 1);
 
             if (entraClient._authClient is null)
@@ -63,7 +65,7 @@ namespace Maestro
             }
             else if (groups.Count == 0)
             {
-                Logger.Error($"Failed to find the specified group");
+                Logger.Warning($"Failed to find the specified group");
                 return null;
             }
             groupId = groups.FirstOrDefault()?.Properties["id"].ToString();
@@ -114,7 +116,11 @@ namespace Maestro
             HttpResponseMessage groupsResponse = await HttpHandler.PostAsync(url, content);
             string groupsResponseContent = await groupsResponse.Content.ReadAsStringAsync();
 
-            if (groupsResponse.StatusCode != HttpStatusCode.OK)
+            if (groupsResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                return entraGroups;
+            }
+            else if (groupsResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get groups from Entra");
                 JsonHandler.GetProperties(groupsResponseContent, raw);
@@ -217,7 +223,7 @@ namespace Maestro
             }
             else if (devices.Count == 0)
             {
-                Logger.Error($"Failed to find the specified device");
+                Logger.Warning($"Failed to find the specified device");
                 return null;
             }
             return devices.FirstOrDefault();
@@ -253,14 +259,20 @@ namespace Maestro
             // Request devices from Entra
             Logger.Info("Requesting devices from Entra");
             HttpResponseMessage devicesResponse = await HttpHandler.GetAsync(entraDevicesUrl);
-            if (devicesResponse is null)
+            string devicesResponseContent = await devicesResponse.Content.ReadAsStringAsync();
+
+            if (devicesResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                return entraDevices;
+            }
+            else if (devicesResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get devices from Entra");
-                return null;
+                JsonHandler.GetProperties(devicesResponseContent);
+                return entraDevices;
             }
 
             // Deserialize the JSON response to a dictionary
-            string devicesResponseContent = await devicesResponse.Content.ReadAsStringAsync();
             JavaScriptSerializer serializer = new JavaScriptSerializer();
             var deviceResponseDict = serializer.Deserialize<Dictionary<string, object>>(devicesResponseContent);
             if (deviceResponseDict is null) return null;
@@ -375,10 +387,134 @@ namespace Maestro
             return entraGroupMembers;
         }
 
+        // get entra membership (group memberships for given object ID)
+        public async Task<List<EntraGroup>> GetMembership(string specifiedObjectId = "", string specifiedObjectName = "", 
+            string specifiedObjectType = "", string[] properties = null, LiteDBHandler database = null, bool printJson = true)
+        {
+            List<EntraGroup> memberOf = new List<EntraGroup>();
+
+            Logger.Info($"Requesting group memberships for {(specifiedObjectName != null ? specifiedObjectName : specifiedObjectId)} from Entra");
+
+            string objectId = "";
+            string objectType = "";
+            JsonObject entraObject = null;
+
+            if (string.IsNullOrEmpty(specifiedObjectType))
+            {
+                Logger.Info("Checking if the object is a device, user, or group");
+                (objectType, entraObject) = await GetObjectType(specifiedObjectId, specifiedObjectName, properties, database);
+                if (objectType == null)
+                {
+                    Logger.Error("Failed to find the specified object");
+                    return memberOf;
+                }
+                objectId = entraObject.Properties["id"].ToString();
+            } 
+            else
+            {
+                objectId = specifiedObjectId;
+                objectType = specifiedObjectType;
+            }
+
+            string url = $"https://graph.microsoft.com/v1.0/{objectType}/{objectId}/memberOf/$/microsoft.graph.group?$select={string.Join(",",properties)}";
+
+            HttpResponseMessage memberOfResponse = await HttpHandler.GetAsync(url);
+            string memberOfResponseContent = await memberOfResponse.Content.ReadAsStringAsync();
+            if (memberOfResponse.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to get group membership from Entra");
+                JsonHandler.GetProperties(memberOfResponseContent);
+                return memberOf;
+            }
+
+            // Deserialize the JSON response to a dictionary
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var memberOfResponseDict = serializer.Deserialize<Dictionary<string, object>>(memberOfResponseContent);
+            if (memberOfResponseDict == null) return memberOf;
+
+            var groups = (ArrayList)memberOfResponseDict["value"];
+
+            if (groups.Count > 0)
+            {
+                foreach (Dictionary<string, object> group in groups)
+                {
+                    // Create an object for each item in the response
+                    var entraGroup = new EntraGroup(group, database);
+                    memberOf.Add(entraGroup);
+                    Logger.Info($"Found group membership for {(specifiedObjectName != null ? specifiedObjectName : specifiedObjectId)}: {entraGroup.Properties["displayName"]}");
+
+                    // Recursive call to get nested group memberships
+                    await GetMembership(entraGroup.Properties["id"].ToString(), entraGroup.Properties["displayName"].ToString(), "groups", properties, database, true);
+                }
+
+                // Combine all the group memberships into lists of IDs and displayNames
+                List<string> memberOfGroupIds = memberOf.Select(group => group.Properties["id"].ToString()).ToList();
+                List<string> memberOfGroupNames = memberOf.Select(group => group.Properties["displayName"].ToString()).ToList();
+
+                // Set the memberOf properties for the specified object
+                if (entraObject != null)
+                {
+                    entraObject.Properties.Add("memberOfGroupIds", memberOfGroupIds);
+                    entraObject.Properties.Add("memberOfGroupNames", memberOfGroupNames);
+                    entraObject.Upsert(database);
+                }
+
+                // Convert the ArrayList to JSON blob string
+                string memberOfJson = JsonConvert.SerializeObject(groups, Formatting.Indented);
+
+                // Print the selected properties
+                if (printJson) JsonHandler.GetProperties(memberOfJson, false, properties);
+            }
+            else
+            {
+                Logger.Info($"No group membership found for {specifiedObjectName} ({specifiedObjectId})");
+            }
+            return memberOf;
+        }
+
+
+        public async Task<(string, JsonObject)> GetObjectType(string id = "", string name = "", string[] properties = null, 
+            LiteDBHandler database = null)
+        {
+            EntraUser specifiedEntraUser = null;
+            EntraDevice specifiedEntraDevice = null;
+            EntraGroup specifiedEntraGroup = null;
+
+            // See if the object is a device first
+            specifiedEntraDevice = await GetDevice(id, name, properties, database);
+
+            // Next, check users
+            if (specifiedEntraDevice != null)
+            {
+                return ("devices", specifiedEntraDevice);
+            }
+            else
+            {
+                specifiedEntraUser = await GetUser(id, name, properties, database);
+                if (specifiedEntraUser != null)
+                {
+                    return ("users", specifiedEntraUser);
+                }
+                else
+                {
+                    specifiedEntraGroup = await GetGroup(id, name, properties, database);
+                    if (specifiedEntraGroup != null)
+                    {
+                        return ("groups", specifiedEntraGroup);
+                    }
+                    else
+                    {
+                        Logger.Error("Failed to find the specified object");
+                        return (null, null);
+                    }
+                }
+            }
+        }
+
         public async Task<EntraUser> GetUser(string userId = "", string userName = "", string[] properties = null,
             LiteDBHandler database = null)
         {
-            List<EntraUser> users = await GetUsers(userId, properties, database, printJson: false);
+            List<EntraUser> users = await GetUsers(userId, userName, properties, database, printJson: false);
             if (users.Count > 1)
             {
                 Logger.Error("Multiple users found matching the specified name");
@@ -386,14 +522,14 @@ namespace Maestro
             }
             else if (users.Count == 0)
             {
-                Logger.Error($"Failed to find the specified user");
+                Logger.Warning($"Failed to find the specified user");
                 return null;
             }
             userId = users.FirstOrDefault()?.Properties["id"].ToString();
             return users.FirstOrDefault();
         }
 
-        public async Task<List<EntraUser>> GetUsers(string userId = "", string[] properties = null, LiteDBHandler database = null, 
+        public async Task<List<EntraUser>> GetUsers(string userId = "", string userName = "", string[] properties = null, LiteDBHandler database = null, 
             bool printJson = true)
         {
             Logger.Info($"Requesting users from Entra");
@@ -404,9 +540,19 @@ namespace Maestro
             {
                 url += $"?filter=Id%20eq%20%27{userId}%27";
             }
+            else if (!string.IsNullOrEmpty(userName))
+            {
+                url += $"?filter=userPrincipalName%20eq%20%27{userName}%27";
+            }
+
             HttpResponseMessage usersResponse = await HttpHandler.GetAsync(url);
             string usersResponseContent = await usersResponse.Content.ReadAsStringAsync();
-            if (usersResponse.StatusCode != HttpStatusCode.OK)
+
+            if (usersResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                return entraUsers;
+            }
+            else if (usersResponse.StatusCode != HttpStatusCode.OK)
             {
                 Logger.Error("Failed to get users from Entra");
                 JsonHandler.GetProperties(usersResponseContent);

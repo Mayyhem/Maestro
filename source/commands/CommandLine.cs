@@ -386,19 +386,24 @@ namespace Maestro
                     new Subcommand
                     {
                         Name = "entra",
-                        Description = "Get information about EntraID",
+                        Description = "Get information about Entra ID",
                         Subcommands = new List<Subcommand>
                         {
                             new Subcommand
                             {
                                 Name = "groups",
-                                Description = "Get information about EntraID groups"
+                                Description = "Get information about Entra ID groups"
 
                             },
                             new Subcommand
                             {
+                                Name = "membership",
+                                Description = "Get group memberships for an Entra ID object"
+                            },
+                            new Subcommand
+                            {
                                 Name = "users",
-                                Description = "Get information about EntraID users"
+                                Description = "Get information about Entra ID users"
                             }
                         }
                     },

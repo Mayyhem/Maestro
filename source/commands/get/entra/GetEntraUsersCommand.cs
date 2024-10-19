@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Maestro
@@ -36,7 +33,7 @@ namespace Maestro
             }
 
             string[] properties = options.Properties.ToArray();
-            await entraClient.GetUsers(options.Id, properties, database, true);
+            await entraClient.GetUsers(options.Id, options.Name, properties, database, true);
         }
     }
 }

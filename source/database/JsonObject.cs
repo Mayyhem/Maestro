@@ -110,7 +110,7 @@ namespace Maestro
             return JsonConvert.SerializeObject(this, Formatting.Indented);
         }
 
-        // Upsert dynamic objects with unknown properties using PrimaryKey object property value as _id
+        // Upsert dynamic objects with unknown/new properties using PrimaryKey object property value as _id
         public void Upsert(LiteDBHandler database)
         {
             if (database == null)

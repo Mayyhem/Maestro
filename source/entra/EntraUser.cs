@@ -7,6 +7,7 @@ namespace Maestro
         // Class instances will be stored in the collection in the database
         // Primary key: id
         public EntraUser(Dictionary<string, object> properties, LiteDBHandler database) 
-            : base("id", properties, database) { }
+            : base("id", properties, database) {
+        }
     }
 }
