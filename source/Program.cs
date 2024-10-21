@@ -48,6 +48,9 @@ namespace Maestro
                 // Direct execution flow based on the command
                 switch (options.Command)
                 {
+                    case "add":
+                        await AddCommand.Execute(options, database);
+                        break;
                     case "delete":
                         await DeleteCommand.Execute(options, database);
                         break;
@@ -64,7 +67,7 @@ namespace Maestro
                         await LocalCommand.Execute(options, database);
                         break;
                     case "new":
-                        //await NewCommand.Execute(options, database);
+                        await NewCommand.Execute(options, database);
                         break;
                     case "show":
                         ShowCommand.Execute(options, database);

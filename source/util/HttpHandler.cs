@@ -18,6 +18,7 @@ namespace Maestro
     {
         private readonly HttpClient _httpClient;
         public CookieContainer CookiesContainer { get; set; }
+        public int LastStatusCode { get; private set; }
 
         public HttpHandler()
         {
@@ -229,6 +230,7 @@ namespace Maestro
 
             if (response != null)
             {
+                LastStatusCode = (int)response.StatusCode;
                 string responseContent = await response.Content.ReadAsStringAsync();
                 if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.NotFound
                     || response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.Unauthorized)

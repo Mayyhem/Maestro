@@ -23,10 +23,13 @@ namespace Maestro
         public bool AsUser { get; set; }
         public string ClientId { get; set; }
         public bool Count { get; set; }
+        public string Device { get; set; }
         public bool DryRun { get; set; }
         public string Extension { get; set; }
         public string Filter { get; set; }
+        public string Group {get; set; }
         public string Id { get; set; }
+        public string Member { get; set;}
         public string Name { get; set; }
         public string OrderBy { get; set; }
         public string Path { get; set; }
@@ -39,7 +42,6 @@ namespace Maestro
         public string RefreshToken { get; set; }
         public string Resource { get; set; }
         public int Retries { get; set; }
-        public bool RunAsUser { get; set; }
         public string Scope { get; set; }
         public string Script { get; set; }
         public string TenantId { get; set; }

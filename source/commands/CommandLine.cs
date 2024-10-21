@@ -50,6 +50,46 @@ namespace Maestro
         {
             new Command
             {
+                Name = "add",
+                Description = "Add objects to existing Azure objects",
+                Subcommands = new List<Subcommand>
+                {
+                    new Subcommand
+                    {
+                        Name = "entra",
+                        Description = "Add objects to existing Entra objects",
+                        Subcommands = new List<Subcommand>
+                        {
+                            new Subcommand()
+                            {
+                                Name = "member",
+                                Description = "Add a member to an Entra group",
+                                Options = new List<Option>()
+                                {
+                                    new Option()
+                                    {
+                                        Required = true,
+                                        ShortName = "-g",
+                                        LongName = "--group-id",  
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the group to add the member to",
+                                    },
+                                    new Option()
+                                    {
+                                        Required = true,
+                                        ShortName = "-m",
+                                        LongName = "--member",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the member to add",
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            new Command
+            {
                 Name = "delete",
                 Description = "Delete objects from Azure",
                 Subcommands = new List<Subcommand>
@@ -95,20 +135,25 @@ namespace Maestro
                             new Subcommand
                             {
                                 Name = "app",
-                                Description = "Launch an executable from a specified UNC path on a device using a Win32 app",
+                                Description = "Launch an executable from a specified UNC path on a device",
                                 Options = new List<Option>
                                 {
                                     new Option
                                     {
-                                        Required = true,
                                         ShortName = "-i",
-                                        LongName = "--id",
+                                        LongName = "--device",
                                         ValuePlaceholder = "ID",
-                                        Description = "ID of the group to execute the app on"
+                                        Description = "ID of the Intune or Entra device to execute the app on (creates Entra group)"
                                     },
                                     new Option
                                     {
-                                        Required = true,
+                                        ShortName = "-g",
+                                        LongName = "--group",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the Entra group to execute the app on"
+                                    },
+                                    new Option
+                                    {
                                         ShortName = "-n",
                                         LongName = "--name",
                                         ValuePlaceholder = "APPNAME",
@@ -460,7 +505,8 @@ namespace Maestro
                     },
                 }
             },
-            /*new Command
+            /*
+            new Command
             {
                 Name = "local",
                 Description = "Execute actions on the local device",
@@ -468,15 +514,46 @@ namespace Maestro
                 {
                 }
             },
+            */
             new Command
             {
                 Name = "new",
                 Description = "Create new objects in Azure",
                 Subcommands = new List<Subcommand>
                 {
+                    new Subcommand
+                    {
+                        Name = "entra",
+                        Description = "Create new objects in Entra",
+                        Subcommands = new List<Subcommand>
+                        {
+                            new Subcommand
+                            {
+                                Name = "group",
+                                Description = "Create a new Entra security group",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-n",
+                                        LongName = "--name",
+                                        ValuePlaceholder = "NAME",
+                                        Description = "Name of the group to create"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-m",
+                                        LongName = "--member",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of a member to add after group creation"
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            },*/
-
+            },
             new Command
             {
                 Name = "show",

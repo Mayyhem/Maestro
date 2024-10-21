@@ -8,6 +8,13 @@ namespace Maestro
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
+            // Fail if neither a device or group ID is specified
+            if (options.Device is null && options.Group is null)
+            {
+                Logger.Error("Please specify the an Intune/Entra device ID (-i) or an Entra group (-g)");
+                return;
+            }
+
             // Authenticate and get an access token for Intune
             var intuneClient = new IntuneClient();
             intuneClient = await IntuneClient.InitAndGetAccessToken(options, database);
@@ -16,11 +23,54 @@ namespace Maestro
             var entraClient = new EntraClient();
             entraClient = await EntraClient.InitAndGetAccessToken(options, database);
 
-            // Find the specified group
-            string groupId = options.Id;
             string appName = options.Name;
-            EntraGroup group = await entraClient.GetGroup(groupId, null, null, database);
-            if (group is null) return;
+            if (appName is null)
+            {
+                // Assign a random guid as the app name if not specified
+                appName = "app_" + System.Guid.NewGuid();
+            }
+
+            string groupId = "";
+
+            // Find the specified group
+            if (options.Group != null)
+            {
+                groupId = options.Group;
+                EntraGroup group = await entraClient.GetGroup(groupId, null, null, database);
+                if (group is null) return;
+            }
+
+            // Find the specified device
+            if (options.Device != null)
+            {
+                // Check if this is an Intune device ID
+                IntuneDevice intuneDevice = await intuneClient.GetDevice(options.Device, database: database);
+
+                // Next, check if this is an Entra device ID or get it from the Intune device object
+                if (intuneDevice is null)
+                {
+                    intuneDevice = await intuneClient.GetDevice(aadDeviceId: options.Device, database: database);
+                };
+                if (intuneDevice is null)
+                {
+                    Logger.Error("Failed to find the device in Intune or Entra");
+                    return;
+                }
+
+                if (intuneDevice.Properties["azureADDeviceId"] == null)
+                {
+                    Logger.Error("Failed to identify the ID for the device in Entra");
+                    return;
+                }
+
+                // Correlate the Entra device ID with the Entra object ID
+                string entraDeviceId = intuneDevice.Properties["azureADDeviceId"].ToString();
+                EntraDevice entraDevice = await entraClient.GetDevice(deviceDeviceId: entraDeviceId, database: database);
+
+                // Create an Entra group containing the device's Entra object ID
+                groupId = await entraClient.NewGroup(intuneDevice.Properties["deviceName"].ToString(), 
+                    entraDevice.Properties["id"].ToString());
+            }
 
             // Run as system by default
             string runAsAccount = "system";
@@ -37,8 +87,28 @@ namespace Maestro
             if (!await intuneClient.AssignAppToGroup(appId, groupId)) return;
             Logger.Info($"App assigned to {groupId}");
 
+
             // Find devices in the Entra group
-            List<JsonObject> groupMembers = await entraClient.GetGroupMembers(groupId, "EntraDevice");
+            List<JsonObject> groupMembers = null;
+            int attempt = 1;
+            int total_attempts = 6;
+            while (attempt < total_attempts)
+            {
+                Logger.Info($"Checking whether Entra group exists and getting members every 10 seconds, attempt {attempt} of {total_attempts}");
+
+                groupMembers = await entraClient.GetGroupMembers(groupId, "EntraDevice");
+                if (groupMembers == null)
+                {
+                    await Task.Delay(10000);
+                    attempt++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // If no devices are found after the final attempt, exit
             if (groupMembers.Count == 0)
             {
                 Logger.Error("No devices found in the Entra group");
@@ -50,7 +120,7 @@ namespace Maestro
 
             // Correlate the Entra device IDs with Intune device IDs
             List<IntuneDevice> intuneDevices = await intuneClient.GetIntuneDevicesFromEntraDevices(entraDevices);
-
+            
             if (intuneDevices.Count != 0)
             {
                 Logger.Info("Waiting 30 seconds before requesting device sync");

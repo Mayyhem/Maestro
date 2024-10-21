@@ -1,12 +1,9 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.Remoting.Channels;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
@@ -53,9 +50,59 @@ namespace Maestro
             return entraClient;
         }
 
+        // add member
+        public async Task<HttpResponseMessage> AddGroupMember(string groupId, string memberId)
+        {
+            Logger.Info($"Adding members to group {groupId}");
+            string url = $"https://graph.microsoft.com/v1.0/groups/{groupId}/members/$ref";
+            StringContent content = new StringContent($"{{\"@odata.id\": \"https://graph.microsoft.com/v1.0/directoryObjects/{memberId}\"}}");
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            HttpResponseMessage addMemberResponse = await HttpHandler.PostAsync(url, content);
+            string addMemberResponseContent = await addMemberResponse.Content.ReadAsStringAsync();
+
+            if (addMemberResponse.StatusCode != HttpStatusCode.NoContent)
+            {
+                Logger.Error("Failed to add members to group");
+                JsonHandler.GetProperties(addMemberResponseContent);
+                return null;
+            }
+            Logger.Info($"Successfully added {memberId} to {groupId}");
+            return addMemberResponse;
+        }
+
+        // batch endpoint requests
+        public async Task<HttpResponseMessage> BatchRequest(string[] requests, string[] requestIds,
+            string[] requestUrls, string[] requestMethods,
+            Dictionary<string, object>[] requestHeaders, string[] requestBodies)
+        {
+            string url = "https://graph.microsoft.com/v1.0/$batch";
+            StringContent content = HttpHandler.CreateJsonContent(new
+            {
+                requests = requests.Select((request, index) => new
+                {
+                    id = requestIds[index],
+                    method = requestMethods[index],
+                    url = requestUrls[index],
+                    headers = requestHeaders[index],
+                    body = requestBodies[index]
+                }).ToArray()
+            });
+
+            HttpResponseMessage batchResponse = await HttpHandler.PostAsync(url, content);
+            string batchResponseContent = await batchResponse.Content.ReadAsStringAsync();
+
+            if (batchResponse.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error("Failed to send batch request to Entra");
+                JsonHandler.GetProperties(batchResponseContent);
+                return null;
+            }
+            return batchResponse;
+        }
+
         // entra groups
         public async Task<EntraGroup> GetGroup(string groupId = "", string groupName = "", string[] properties = null,
-    LiteDBHandler database = null)
+            LiteDBHandler database = null)
         {
             List<EntraGroup> groups = await GetGroups(groupId, properties, database, printJson: false);
             if (groups.Count > 1)
@@ -101,15 +148,15 @@ namespace Maestro
                 content = HttpHandler.CreateJsonContent(new
                 {
                     requests = new[]
-    {
-                    new
                     {
-                        id = "SecurityEnabledGroups",
-                        method = "GET",
-                        url = "groups?$filter=securityEnabled eq true",
-                        headers = new Dictionary<string, object>()
+                        new
+                        {
+                            id = "SecurityEnabledGroups",
+                            method = "GET",
+                            url = "groups?$filter=securityEnabled eq true",
+                            headers = new Dictionary<string, object>()
+                        }
                     }
-                }
                 });
             }
 
@@ -210,10 +257,10 @@ namespace Maestro
         }
 
         // entra devices
-        public async Task<EntraDevice> GetDevice(string deviceObjectId = "", string deviceName = "", string[] properties = null,
+        public async Task<EntraDevice> GetDevice(string deviceObjectId = "", string deviceDeviceId = "", string deviceName = "", string[] properties = null,
             LiteDBHandler database = null)
         {
-            List<EntraDevice> devices = await GetDevices(null, deviceObjectId, deviceName, properties, database, printJson: false);
+            List<EntraDevice> devices = await GetDevices(null, deviceObjectId, deviceDeviceId, deviceName, properties, database, printJson: false);
             if (devices is null) return null;
 
             if (devices.Count > 1)
@@ -229,7 +276,8 @@ namespace Maestro
             return devices.FirstOrDefault();
         }
 
-        public async Task<List<EntraDevice>> GetDevices(List<JsonObject> entraGroupMembers = null, string deviceId = "", string deviceName = "", string[] properties = null,
+        public async Task<List<EntraDevice>> GetDevices(List<JsonObject> entraGroupMembers = null, string deviceId = "", 
+            string deviceDeviceId = "", string deviceName = "", string[] properties = null,
             LiteDBHandler database = null, bool printJson = true)
         {
 
@@ -242,6 +290,10 @@ namespace Maestro
             if (!string.IsNullOrEmpty(deviceId))
             {
                 entraDevicesUrl += $"/{deviceId}";
+            }
+            else if (!string.IsNullOrEmpty(deviceDeviceId))
+            {
+                entraDevicesUrl += $"?$filter=deviceId%20eq%20%27{deviceDeviceId}%27";
             }
             else if (!string.IsNullOrEmpty(deviceName))
             {
@@ -313,7 +365,8 @@ namespace Maestro
             return entraDevices;
         }
 
-        public async Task<List<JsonObject>> GetGroupMembers(string groupId, string searchForType, string[] properties = null, bool printJson = false, LiteDBHandler database = null)
+        public async Task<List<JsonObject>> GetGroupMembers(string groupId, string searchForType, string[] properties = null, 
+            bool printJson = false, LiteDBHandler database = null)
         {
             List<JsonObject> entraGroupMembers = new List<JsonObject>();
 
@@ -481,7 +534,7 @@ namespace Maestro
             EntraGroup specifiedEntraGroup = null;
 
             // See if the object is a device first
-            specifiedEntraDevice = await GetDevice(id, name, properties, database);
+            specifiedEntraDevice = await GetDevice(id, id, name, properties, database);
 
             // Next, check users
             if (specifiedEntraDevice != null)
@@ -586,6 +639,53 @@ namespace Maestro
                 Logger.Info("No users found");
             }
             return entraUsers;
+        }
+
+        public async Task<string> NewGroup(string groupName, string memberId = "")
+        {
+            Logger.Info("Adding new group to Entra");
+            string url = "https://graph.microsoft.com/beta/groups";
+
+            StringContent content = HttpHandler.CreateJsonContent(new
+            {
+                displayName = groupName,
+                mailEnabled = false,
+                mailNickname = groupName.Replace(" ", ""),
+                securityEnabled = true,
+            });
+
+            HttpResponseMessage newGroupResponse = await HttpHandler.PostAsync(url, content);
+            string newGroupResponseContent = await newGroupResponse.Content.ReadAsStringAsync();
+
+            if (newGroupResponse.StatusCode != HttpStatusCode.Created)
+            {
+                Logger.Error("Failed to add new group to Entra");
+                JsonHandler.GetProperties(newGroupResponseContent);
+                return null;
+            }
+
+            // Parse the JSON response to get the new group ID
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            var newGroupResponseDict = serializer.Deserialize<Dictionary<string, object>>(newGroupResponseContent);
+            if (newGroupResponseDict == null)
+            {
+                Logger.Error("Failed to parse new group ID from response");
+                return null;
+            }
+
+            string newGroupId = newGroupResponseDict["id"].ToString();
+            Logger.Info($"Successfully added new group to Entra: {newGroupId}");
+
+            if (!string.IsNullOrEmpty(memberId))
+            {
+                HttpResponseMessage addMemberResponse = await AddGroupMember(newGroupId, memberId);
+                if (addMemberResponse is null)
+                {
+                    Logger.Error("Failed to add member to new group");
+                    return null;
+                }
+            }
+            return newGroupId;
         }
 
         public List<EntraUser> ShowUsers(LiteDBHandler database, string[] properties, string userId = "")
