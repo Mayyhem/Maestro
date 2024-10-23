@@ -10,10 +10,12 @@ namespace Maestro
     public class LiteDBHandler
     {
         public readonly LiteDatabase Database;
+        public readonly string Path;
 
         private LiteDBHandler(string databasePath)
         {
             Database = new LiteDatabase(databasePath);
+            Path = databasePath;
         }
 
         public static LiteDBHandler CreateOrOpen(string databasePath)

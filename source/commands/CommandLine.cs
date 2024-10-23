@@ -121,9 +121,25 @@ namespace Maestro
                     new Subcommand
                     {
                         Name = "intune",
-                        Description = "Execute actions on devices enrolled in Intune",
+                        Description = "Delete objects from Intune",
                         Subcommands = new List<Subcommand>
                         {
+                            new Subcommand
+                            {
+                                Name = "app",
+                                Description = "Delete an Intune app",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the app to delete"
+                                    }
+                                }
+                            },
                             new Subcommand
                             {
                                 Name = "script",

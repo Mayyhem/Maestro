@@ -18,6 +18,9 @@ namespace Maestro
 
             switch (options.Subcommands[0])
             {
+                case "app":
+                    await DeleteIntuneAppCommand.Execute(options, database);
+                    break;
                 case "script":
                     await DeleteIntuneScriptCommand.Execute(options, database);
                     break;
