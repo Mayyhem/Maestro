@@ -96,6 +96,30 @@ namespace Maestro
                 {
                     new Subcommand
                     {
+                        Name = "entra",
+                        Description = "Delete objects from Entra",
+                        Subcommands = new List<Subcommand>
+                        {
+                            new Subcommand
+                            {
+                                Name = "group",
+                                Description = "Delete an Entra security group",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-i",
+                                        LongName = "--id",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the group to delete"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    new Subcommand
+                    {
                         Name = "intune",
                         Description = "Execute actions on devices enrolled in Intune",
                         Subcommands = new List<Subcommand>

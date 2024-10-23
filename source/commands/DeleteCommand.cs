@@ -15,6 +15,9 @@ namespace Maestro
 
             switch (options.Subcommands[0])
             {
+                case "entra":
+                    await DeleteEntraCommand.Execute(options, database);
+                    break;
                 case "intune":
                     await DeleteIntuneCommand.Execute(options, database);
                     break;

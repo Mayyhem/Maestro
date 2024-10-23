@@ -100,6 +100,24 @@ namespace Maestro
             return batchResponse;
         }
 
+        // delete entra group
+        public async Task<HttpResponseMessage> DeleteGroup(string groupId)
+        {
+            Logger.Info($"Deleting group {groupId}");
+            string url = $"https://graph.microsoft.com/v1.0/groups/{groupId}";
+            HttpResponseMessage deleteGroupResponse = await HttpHandler.DeleteAsync(url);
+            string deleteGroupResponseContent = await deleteGroupResponse.Content.ReadAsStringAsync();
+
+            if (deleteGroupResponse.StatusCode != HttpStatusCode.NoContent)
+            {
+                Logger.Error("Failed to delete group");
+                JsonHandler.GetProperties(deleteGroupResponseContent);
+                return null;
+            }
+            Logger.Info($"Successfully deleted group {groupId}");
+            return deleteGroupResponse;
+        }
+
         // entra groups
         public async Task<EntraGroup> GetGroup(string groupId = "", string groupName = "", string[] properties = null,
             LiteDBHandler database = null)
