@@ -18,10 +18,10 @@ namespace Maestro
         {
             _authClient = new AuthClient();
         }
-        
+
         public static async Task<IntuneClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database)
         {
-            return await InitAndGetAccessToken(database, options.PrtCookie, options.RefreshToken, options.AccessToken, 
+            return await InitAndGetAccessToken(database, options.PrtCookie, options.RefreshToken, options.AccessToken,
                 options.Reauth, options.PrtMethod);
         }
         public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
@@ -103,7 +103,7 @@ namespace Maestro
 
             return apps;
         }
-        
+
         public async Task<List<IntuneDevice>> GetDevices(string id = "", string deviceName = "", string aadDeviceId = "",
             string[] properties = null, string filter = "", LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
@@ -148,7 +148,7 @@ namespace Maestro
             return devices;
         }
 
-        public async Task<List<IntuneScript>> GetScripts(string id = "", string displayName = "", string[] properties = null, 
+        public async Task<List<IntuneScript>> GetScripts(string id = "", string displayName = "", string[] properties = null,
             string filter = "", LiteDBHandler database = null, bool printJson = true, bool raw = false)
         {
             Logger.Info($"Requesting scripts from Intune");
@@ -192,7 +192,7 @@ namespace Maestro
         }
 
         // intune devices
-        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string aadDeviceId = "", 
+        public async Task<IntuneDevice> GetDevice(string deviceId = "", string deviceName = "", string aadDeviceId = "",
             string[] properties = null, string whereCondition = "", LiteDBHandler database = null)
         {
             List<IntuneDevice> devices = await GetDevices(deviceId, deviceName, aadDeviceId, properties, whereCondition, database, printJson: false);
@@ -274,6 +274,160 @@ namespace Maestro
 
 
         // intune exec app
+        public async Task<string> ExecWin32App(CommandLineOptions options, LiteDBHandler database)
+        {
+            string appName = options.Name;
+            if (appName is null)
+            {
+                // Assign a random guid as the app name if not specified
+                appName = "app_" + System.Guid.NewGuid();
+            }
+
+            // Authenticate and get an access token for EntraID 
+            var entraClient = new EntraClient();
+            entraClient = await EntraClient.InitAndGetAccessToken(options, database);
+
+            string groupId = "";
+            string newGroupId = "";
+
+            // Find the specified group
+            if (options.Group != null)
+            {
+                groupId = options.Group;
+                EntraGroup group = await entraClient.GetGroup(groupId, null, null, database);
+                if (group is null) return null;
+            }
+
+            // Find the specified device
+            IntuneDevice intuneDevice = null;
+            if (options.Device != null)
+            {
+                // Check if this is an Intune device ID
+                Logger.Info("Checking whether the specified device exists in Intune");
+                intuneDevice = await GetDevice(options.Device, database: database);
+
+                // Next, check if this is an Entra device ID or get it from the Intune device object
+                if (intuneDevice is null)
+                {
+                    Logger.Info("Checking whether the specified device exists in Entra");
+                    intuneDevice = await GetDevice(aadDeviceId: options.Device, database: database);
+                };
+                if (intuneDevice is null)
+                {
+                    Logger.Error("Failed to find the device in Intune or Entra");
+                    return null;
+                }
+
+                if (intuneDevice.Properties["azureADDeviceId"] == null)
+                {
+                    Logger.Error("Failed to identify the ID for the device in Entra");
+                    return null;
+                }
+
+                // Correlate the Entra device ID with the Entra object ID
+                string entraDeviceId = intuneDevice.Properties["azureADDeviceId"].ToString();
+                EntraDevice entraDevice = await entraClient.GetDevice(deviceDeviceId: entraDeviceId, database: database);
+                if (entraDevice is null) return null;
+
+                // Create an Entra group containing the device's Entra object ID
+                newGroupId = await entraClient.NewGroup(intuneDevice.Properties["deviceName"].ToString(),
+                    entraDevice.Properties["id"].ToString());
+                if (newGroupId is null) return null;
+
+                groupId = newGroupId;
+            }
+
+            // Find devices in the Entra group
+            List<JsonObject> groupMembers = null;
+            int attempt = 1;
+            int total_attempts = 6;
+            while (attempt < total_attempts)
+            {
+                Logger.Info($"Checking Entra group members every 10 seconds, attempt {attempt} of {total_attempts}");
+
+                groupMembers = await entraClient.GetGroupMembers(groupId, "EntraDevice");
+                if (groupMembers == null)
+                {
+                    await Task.Delay(10000);
+                    attempt++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // If no devices are found after the final attempt, exit
+            if (groupMembers.Count == 0)
+            {
+                Logger.Error("No devices found in the Entra group");
+                return null;
+            }
+
+            // Run as system by default
+            string runAsAccount = "system";
+            if (options.AsUser)
+            {
+                // Run as logged in user if specified
+                runAsAccount = "user";
+            }
+
+            // Create the app and assign it to the group
+            string appId = await NewWin32App(groupId, appName, options.Path, runAsAccount);
+            if (appId is null) return null;
+
+            if (!await AssignAppToGroup(appId, groupId)) return null;
+            Logger.Info($"App assigned to {groupId}");
+
+            if (options.Device != null)
+            {
+                Logger.Info("Waiting 30 seconds before requesting device sync");
+                await Task.Delay(30000);
+                await SyncDevice(intuneDevice.Id, database, skipDeviceLookup: true);
+            }
+
+            if (options.Group != null)
+            {
+                Logger.Info($"Fetching all members of {groupId} for device sync");
+
+                // Populate additional properties for the devices (e.g. deviceId)
+                List<EntraDevice> entraDevices = await entraClient.GetDevices(groupMembers, printJson: false);
+
+                // Correlate the Entra device IDs with Intune device IDs
+                List<IntuneDevice> intuneDevices = await GetIntuneDevicesFromEntraDevices(entraDevices);
+
+                if (intuneDevices.Count != 0)
+                {
+                    Logger.Info("Waiting 30 seconds before requesting device sync");
+                    await Task.Delay(30000);
+                    await SyncDevices(intuneDevices, database);
+                }
+                else
+                {
+                    Logger.Error("No devices found in Intune for the Entra group");
+                    return null;
+                }
+            }
+
+            Logger.Info($"App with id {appId} has been deployed");
+
+            string dbString = "";
+            if (database?.Path != null)
+            {
+                dbString = $" -d {database.Path}";
+            }
+            // Always write the cleanup commands to the console
+            Logger.ErrorTextOnly($"\nClean up after execution:\n    .\\Maestro.exe delete intune app -i {appId}{dbString}");
+
+            if (!string.IsNullOrEmpty(newGroupId))
+            {
+                Logger.ErrorTextOnly($"    .\\Maestro.exe delete entra group -i {groupId}{dbString}");
+            }
+            Console.WriteLine();
+            return appId;
+        }
+
+
         public async Task<string> NewWin32App(string groupId, string appName, string installationPath, string runAsAccount)
         {
             Logger.Info($"Creating new app with displayName: {appName}");
@@ -956,17 +1110,25 @@ namespace Maestro
             {
                 Logger.Info($"Attempt {tries + 1} of {maxRequests}");
 
-                HttpHandler.SetHeader("X-Ms-Command-Name", "fetchMDMDeviceActionResults");
+                //HttpHandler.SetHeader("X-Ms-Command-Name", "fetchMDMDeviceActionResults");
+                //string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')?$select=deviceactionresults";
 
-                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')?$select=deviceactionresults";
+                HttpHandler.SetHeader("X-Ms-Command-Name", "getDeviceHealthScriptPolicyStates");
+                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/deviceHealthScriptStates?";
+
                 HttpResponseMessage response = await HttpHandler.GetAsync(url);
                 HttpHandler.RemoveHeader("X-Ms-Command-Name");
                 string responseContent = await response.Content.ReadAsStringAsync();
-                string actionState = StringHandler.GetMatch(responseContent, "\"actionState\":\"([^\"]+)\"");
+                //string actionState = StringHandler.GetMatch(responseContent, "\"actionState\":\"([^\"]+)\"");
+                string actionState = StringHandler.GetMatch(responseContent, "\"detectionState\":\"([^\"]+)\"");
 
-                if (actionState == "done")
+                if (actionState == "success")
                 {
                     Logger.Info($"The proactive remediation script was executed on {deviceId}");
+                    string firstLineOfOutput = StringHandler.GetMatch(responseContent, "\"preRemediationDetectionScriptOutput\":\"([^\"]+)\"");
+                    string firstLineOfError = StringHandler.GetMatch(responseContent, "\"preRemediationDetectionScriptError\":\"([^\"]+)\"");
+
+                    Logger.ErrorTextOnly($"\nFirst line of stdout:\n    {firstLineOfOutput}\n\nFirst line of stderr:\n    {firstLineOfError}\n");
                     return true;
                 }
 

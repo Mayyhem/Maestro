@@ -392,7 +392,16 @@ namespace Maestro
             if (method == 0)
             {
                 Logger.Info("Requesting PRT cookie with nonce for this user/device from LSA/CloudAP via COM");
-                prtCookie = RequestAADRefreshToken.GetPrtCookies(database, ssoNonce).First();
+                List<PrtCookie> prtCookies = RequestAADRefreshToken.GetPrtCookies(database, ssoNonce);
+                if (prtCookies.Count > 0)
+                {
+                    prtCookie = prtCookies.First();
+                }
+                else
+                {
+                    Logger.Error("No x-ms-RefreshTokenCredential PRT cookies were found for this user");
+                    return null;
+                }
             }
             else if (method == 1)
             {
