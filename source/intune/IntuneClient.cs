@@ -1151,6 +1151,7 @@ namespace Maestro
         {
             Logger.Info($"Checking script output for device {deviceId} every {retryDelay} seconds");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/deviceHealthScriptStates?";
+            Logger.Info($"Results should eventually be available at: {url}");
 
             bool successful = false;
             int tries = 0;
@@ -1190,7 +1191,7 @@ namespace Maestro
                             Logger.Info($"The proactive remediation script was executed on {deviceId}");
                             if (printJson)
                             {
-                                Logger.ErrorTextOnly(intuneScriptState.ToString());
+                                Logger.ErrorTextOnly(raw ? intuneScriptState.ToJsonBlob() : intuneScriptState.ToString());
                             }
                             else
                             {
@@ -1208,7 +1209,6 @@ namespace Maestro
             }
 
             Logger.Info($"Could not obtain script output within the specified timeout period");
-            Logger.Info($"Results should eventually be available at: {url}");
             return null;
         }
 
