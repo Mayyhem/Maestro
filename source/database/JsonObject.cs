@@ -1,6 +1,7 @@
 ﻿using LiteDB;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Dynamic;
 using System.Web.Script.Serialization;
@@ -103,11 +104,11 @@ namespace Maestro
 
         public string ToJsonBlob()
         {
-            return JsonConvert.SerializeObject(this, Formatting.None);
+            return JsonConvert.SerializeObject(Properties, Formatting.None);
         }
         public override string ToString()
         {
-            return JsonConvert.SerializeObject(this, Formatting.Indented);
+            return JsonConvert.SerializeObject(Properties, Formatting.Indented);
         }
 
         // Upsert dynamic objects with unknown/new properties using PrimaryKey object property value as _id

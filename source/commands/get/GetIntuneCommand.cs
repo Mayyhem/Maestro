@@ -27,6 +27,9 @@ namespace Maestro
                 case "scripts":
                     await GetIntuneScriptsCommand.Execute(options, database);
                     break;
+                case "script-output":
+                    await GetIntuneScriptOutputCommand.Execute(options, database);
+                    break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.FullCommand}");
                     CommandLine.PrintUsage($"{options.FullCommand}");

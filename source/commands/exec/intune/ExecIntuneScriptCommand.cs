@@ -28,7 +28,12 @@ namespace Maestro
             if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
             {
                 Logger.Info("Proactive remediation initiated successfully");
-                await intuneClient.CheckWhetherProactiveRemediationScriptExecuted(deviceId, options.Timeout, options.Wait);
+                bool scriptWasExecuted = await intuneClient.CheckWhetherProactiveRemediationScriptExecuted(deviceId, options.Timeout, options.Wait);
+                if (scriptWasExecuted)
+                {
+                    await intuneClient.GetScriptOutput(deviceId, scriptId, options.Timeout,
+                        options.Wait);
+                }
                 await intuneClient.DeleteScriptPackage(scriptId);
             }
             else

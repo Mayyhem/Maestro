@@ -296,7 +296,7 @@ namespace Maestro
                                         ShortName = "-t",
                                         LongName = "--timeout",
                                         ValuePlaceholder = "SECONDS",
-                                        Description = "Time to wait for results before deleting (0 to wait forever)",
+                                        Description = "Time to wait for results (0 to wait forever)",
                                         Default = "300"
                                     },
                                     new Option
@@ -512,6 +512,41 @@ namespace Maestro
                             {
                                 Name = "scripts",
                                 Description = "Get information about scripts and remediations"
+                            },
+                            new Subcommand
+                            {
+                                Name = "script-output",
+                                Description = "Get output/errors from executed scripts and remediations",
+                                Options = new List<Option>()
+                                {
+                                    new Option
+                                    {
+                                        Required = true,
+                                        LongName = "--device",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the device to get script output for"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
+                                        LongName = "--id",
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--timeout",
+                                        ValuePlaceholder = "SECONDS",
+                                        Description = "Time to wait for results (0 to wait forever)",
+                                        Default = "300"
+                                    },
+                                    new Option
+                                    {
+                                        ShortName = "-w",
+                                        LongName = "--wait",
+                                        ValuePlaceholder = "SECONDS",
+                                        Description = "Time between each attempt to fetch results",
+                                        Default = "10"
+                                    }
+                                }
                             }
                         }
                     },

@@ -1,12 +1,15 @@
 ﻿using LiteDB;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.Script.Serialization;
+using Newtonsoft.Json.Linq;
 
 namespace Maestro
 {
@@ -1095,7 +1098,59 @@ namespace Maestro
 
         public async Task<bool> CheckWhetherProactiveRemediationScriptExecuted(string deviceId, int timeout, int retryDelay)
         {
-            Logger.Info($"Checking status of proactive remediation script execution for device {deviceId}");
+            Logger.Info($"Checking script execution status for device {deviceId} every {retryDelay} seconds");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')?$select=deviceactionresults";
+
+            bool successful = false;
+            int tries = 0;
+            string maxRequests = (timeout == 0) ? "∞" : (timeout / retryDelay).ToString();
+
+            if (timeout == 0)
+            {
+                Logger.Info("Unlimited timeout specified, trying forever");
+            }
+
+            while (!successful && (tries < timeout / retryDelay || timeout == 0))
+            {
+                Logger.Info($"Attempt {tries + 1} of {maxRequests}");
+                HttpHandler.SetHeader("X-Ms-Command-Name", "fetchMDMDeviceActionResults");
+                HttpResponseMessage response = await HttpHandler.GetAsync(url);
+                HttpHandler.RemoveHeader("X-Ms-Command-Name");
+                string responseContent = await response.Content.ReadAsStringAsync();
+
+                // Deserialize the JSON response to a dictionary
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                var fullResponseDict = serializer.Deserialize<Dictionary<string, object>>(responseContent);
+                if (fullResponseDict == null) return false;
+
+                var deviceActionResults = (ArrayList)fullResponseDict["deviceActionResults"];
+                if (deviceActionResults.Count == 0) return false;
+
+                foreach (Dictionary<string, object> deviceActionResult in deviceActionResults)
+                {
+                    if (deviceActionResult["actionName"].ToString() == "initiateOnDemandProactiveRemediation")
+                    {
+                        if (deviceActionResult["actionState"].ToString() == "done")
+                        {
+                            Logger.Info($"The proactive remediation script was executed on {deviceId}");
+                            return true;
+                        }
+                    }
+                }
+                
+                await Task.Delay(retryDelay * 1000);
+                tries++;
+            }
+
+            Logger.Info($"The proactive remediation script was not executed within the specified timeout period");
+            return false;
+        }
+
+        public async Task<Dictionary<string, object>> GetScriptOutput(string deviceId, string scriptId, int timeout, int retryDelay,
+            string[] properties = null, string filter = "", LiteDBHandler database = null, bool printJson = true, bool raw = false)
+        {
+            Logger.Info($"Checking script output for device {deviceId} every {retryDelay} seconds");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/deviceHealthScriptStates?";
 
             bool successful = false;
             int tries = 0;
@@ -1110,34 +1165,51 @@ namespace Maestro
             {
                 Logger.Info($"Attempt {tries + 1} of {maxRequests}");
 
-                //HttpHandler.SetHeader("X-Ms-Command-Name", "fetchMDMDeviceActionResults");
-                //string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices('{deviceId}')?$select=deviceactionresults";
-
                 HttpHandler.SetHeader("X-Ms-Command-Name", "getDeviceHealthScriptPolicyStates");
-                string url = $"https://graph.microsoft.com/beta/deviceManagement/managedDevices/{deviceId}/deviceHealthScriptStates?";
 
                 HttpResponseMessage response = await HttpHandler.GetAsync(url);
                 HttpHandler.RemoveHeader("X-Ms-Command-Name");
                 string responseContent = await response.Content.ReadAsStringAsync();
-                //string actionState = StringHandler.GetMatch(responseContent, "\"actionState\":\"([^\"]+)\"");
-                string actionState = StringHandler.GetMatch(responseContent, "\"detectionState\":\"([^\"]+)\"");
 
-                if (actionState == "success")
+                // Deserialize the JSON response to a dictionary
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                var fullResponseDict = serializer.Deserialize<Dictionary<string, object>>(responseContent);
+                if (fullResponseDict == null) return null;
+
+                var deviceHealthScriptStates = (ArrayList)fullResponseDict["value"];
+                if (deviceHealthScriptStates.Count == 0) return null;
+
+                foreach (Dictionary<string, object> deviceHealthScriptState in deviceHealthScriptStates)
                 {
-                    Logger.Info($"The proactive remediation script was executed on {deviceId}");
-                    string firstLineOfOutput = StringHandler.GetMatch(responseContent, "\"preRemediationDetectionScriptOutput\":\"([^\"]+)\"");
-                    string firstLineOfError = StringHandler.GetMatch(responseContent, "\"preRemediationDetectionScriptError\":\"([^\"]+)\"");
+                    if (deviceHealthScriptState["policyId"].ToString() == scriptId)
+                    {
+                        IntuneScriptState intuneScriptState = new IntuneScriptState(deviceHealthScriptState, database);
 
-                    Logger.ErrorTextOnly($"\nFirst line of stdout:\n    {firstLineOfOutput}\n\nFirst line of stderr:\n    {firstLineOfError}\n");
-                    return true;
+                        if (deviceHealthScriptState["detectionState"].ToString() == "success")
+                        {
+                            Logger.Info($"The proactive remediation script was executed on {deviceId}");
+                            if (printJson)
+                            {
+                                Logger.ErrorTextOnly(intuneScriptState.ToString());
+                            }
+                            else
+                            {
+                                Logger.ErrorTextOnly(
+                                    $"\nFirst line of stdout:\n    {deviceHealthScriptState["preRemediationDetectionScriptOutput"]}\n" +
+                                    $"\nFirst line of stderr:\n    {deviceHealthScriptState["preRemediationDetectionScriptError"]}\n");
+                            }
+                            return deviceHealthScriptState;
+                        }
+                    }
                 }
 
                 await Task.Delay(retryDelay * 1000);
                 tries++;
             }
 
-            Logger.Info($"The proactive remediation script was not executed within the specified timeout period");
-            return false;
+            Logger.Info($"Could not obtain script output within the specified timeout period");
+            Logger.Info($"Results should eventually be available at: {url}");
+            return null;
         }
 
         public async Task DeleteDeviceAssignmentFilter(string filterId)
