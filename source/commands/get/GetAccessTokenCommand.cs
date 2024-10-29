@@ -6,7 +6,7 @@ namespace Maestro
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
-            var authClient = new AuthClient();
+            var authClient = new AuthClient(options.UserAgent);
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
 

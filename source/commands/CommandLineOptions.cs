@@ -47,6 +47,7 @@ namespace Maestro
         public string TenantId { get; set; }
         public int Timeout { get; set; }
         public int TokenMethod { get; set; }
+        public string UserAgent { get; set; }
         public int Wait { get; set; }
 
         // Additional dictionary for any extra or custom options

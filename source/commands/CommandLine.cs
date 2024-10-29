@@ -32,6 +32,13 @@ namespace Maestro
             },
             new Option
             {
+                ShortName = "-ua",
+                LongName = "--user-agent",
+                ValuePlaceholder = "STRING",
+                Description = "User-Agent header value to include in HTTP requests"
+            },
+            new Option
+            {
                 ShortName = "-v",
                 LongName = "--verbosity",
                 ValuePlaceholder = "LEVEL",

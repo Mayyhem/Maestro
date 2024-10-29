@@ -6,7 +6,7 @@ namespace Maestro
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
-            var authClient = new AuthClient();
+            var authClient = new AuthClient(options.UserAgent);
             await authClient.GetPrtCookie(options.PrtMethod, database);
         }
     }

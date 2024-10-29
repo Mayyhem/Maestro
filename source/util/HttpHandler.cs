@@ -20,7 +20,7 @@ namespace Maestro
         public CookieContainer CookiesContainer { get; set; }
         public int LastStatusCode { get; private set; }
 
-        public HttpHandler()
+        public HttpHandler(string userAgent = "")
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
@@ -31,6 +31,17 @@ namespace Maestro
 
             _httpClient = new HttpClient(httpClientHandler);
             CookiesContainer = httpClientHandler.CookieContainer;
+
+            // Set the User-Agent header
+            if (!string.IsNullOrEmpty(userAgent))
+            {
+                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
+            }
+            else
+            {
+                // Windows 10/11 x64 Microsoft Edge 130
+                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0");
+            }
         }
 
         public StringContent CreateJsonContent(object jsonObject)

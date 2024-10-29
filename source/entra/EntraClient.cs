@@ -15,19 +15,19 @@ namespace Maestro
 
         private AuthClient _authClient;
         public HttpHandler HttpHandler;
-        public EntraClient()
+        public EntraClient(string userAgent = "")
         {
-            _authClient = new AuthClient();
+            _authClient = new AuthClient(userAgent);
         }
 
         public static async Task<EntraClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database)
         {
             return await InitAndGetAccessToken(database, options.PrtCookie, options.RefreshToken, options.AccessToken,
-                options.Reauth, options.PrtMethod);
+                options.Reauth, options.PrtMethod, options.UserAgent);
         }
 
         public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
-            string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0)
+            string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0, string userAgent = "")
         {
             var entraClient = new EntraClient();
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
@@ -37,7 +37,7 @@ namespace Maestro
             string requiredScope = "Directory.Read.All";
             entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
                 resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope,
-                prtMethod, accessTokenMethod: 1);
+                prtMethod, accessTokenMethod: 1, userAgent: userAgent);
 
             if (entraClient._authClient is null)
             {
