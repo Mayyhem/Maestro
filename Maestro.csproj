@@ -106,9 +106,17 @@
     <Compile Include="source\authentication\RefreshToken.cs" />
     <Compile Include="source\authentication\Jwt.cs" />
     <Compile Include="source\authentication\OAuthToken.cs" />
+    <Compile Include="source\commands\AddCommand.cs" />
+    <Compile Include="source\commands\add\AddEntraCommand.cs" />
+    <Compile Include="source\commands\add\entra\AddEntraMember.cs" />
     <Compile Include="source\commands\DeleteCommand.cs" />
+    <Compile Include="source\commands\delete\DeleteEntraCommand.cs" />
     <Compile Include="source\commands\delete\DeleteIntuneCommand.cs" />
+    <Compile Include="source\commands\delete\entra\DeleteEntraGroupCommand.cs" />
+    <Compile Include="source\commands\delete\intune\DeleteIntuneAppCommand.cs" />
     <Compile Include="source\commands\delete\intune\DeleteIntuneScriptCommand.cs" />
+    <Compile Include="source\commands\get\entra\GetEntraMembershipCommand.cs" />
+    <Compile Include="source\commands\get\intune\GetIntuneScriptOutputCommand.cs" />
     <Compile Include="source\commands\LocalCommand.cs" />
     <Compile Include="source\commands\ExecCommand.cs" />
     <Compile Include="source\commands\exec\ExecIntuneCommand.cs" />
@@ -129,6 +137,9 @@
     <Compile Include="source\commands\get\GetAccessTokenCommand.cs" />
     <Compile Include="source\commands\get\intune\GetIntuneAppsCommand.cs" />
     <Compile Include="source\commands\list\ListClientIdsCommand.cs" />
+    <Compile Include="source\commands\NewCommand.cs" />
+    <Compile Include="source\commands\new\entra\NewEntraGroupCommand.cs" />
+    <Compile Include="source\commands\new\NewEntraCommand.cs" />
     <Compile Include="source\commands\show\ShowAccessTokensCommand.cs" />
     <Compile Include="source\commands\ShowCommand.cs" />
     <Compile Include="source\commands\StoreCommand.cs" />
@@ -150,6 +161,7 @@
     <Compile Include="source\intune\IntuneDevice.cs" />
     <Compile Include="source\database\JsonObject.cs" />
     <Compile Include="source\authentication\ROADToken.cs" />
+    <Compile Include="source\intune\IntuneScriptState.cs" />
     <Compile Include="source\output\JsonHandler.cs" />
     <Compile Include="source\resourcegraph\ResourceGraphClient.cs" />
     <Compile Include="source\util\MSGraphBatchRequest.cs" />
@@ -170,12 +182,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="source\commands\local\" />
-    <Folder Include="source\commands\new\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent></PostBuildEvent>
-  </PropertyGroup>
   <Import Project="packages\dnMerge.0.5.15\build\dnMerge.targets" Condition="Exists('packages\dnMerge.0.5.15\build\dnMerge.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -183,4 +191,8 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\dnMerge.0.5.15\build\dnMerge.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\dnMerge.0.5.15\build\dnMerge.targets'))" />
   </Target>
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+  </PropertyGroup>
 </Project>
