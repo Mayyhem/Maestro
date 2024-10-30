@@ -17,9 +17,9 @@ namespace Maestro
     {
         private AuthClient _authClient;
         public HttpHandler HttpHandler;
-        public IntuneClient(string userAgent = "")
+        public IntuneClient(string userAgent = "", string proxyUrl = "")
         {
-            _authClient = new AuthClient(userAgent);
+            _authClient = new AuthClient(userAgent, proxyUrl);
         }
 
         public static async Task<IntuneClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database)
@@ -32,12 +32,12 @@ namespace Maestro
         {
             var intuneClient = new IntuneClient();
 
-            string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
+            string idpRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
             string extensionName = "Microsoft_Intune_DeviceSettings";
             string resourceName = "microsoft.graph";
             string requiredScope = "DeviceManagementConfiguration.ReadWrite.All";
-            intuneClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
+            intuneClient._authClient = await AuthClient.InitAndGetAccessToken(idpRedirectUrl, delegationTokenUrl, extensionName,
                 resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope,
                 prtMethod, accessTokenMethod: 1, userAgent: userAgent);
 
@@ -647,9 +647,10 @@ namespace Maestro
             // Upload the content file to Azure storage
             var content = new ByteArrayContent(winFileBytes);
 
-            // Don't include authorization header for this request
-            HttpHandler httpHandler = new HttpHandler();
-            HttpResponseMessage response = await httpHandler.PutAsync(url, content);
+            // Remove authorization header for this request, then put it back
+            HttpHandler._httpClient.DefaultRequestHeaders.Authorization = null;
+            HttpResponseMessage response = await HttpHandler.PutAsync(url, content);
+            HttpHandler.SetAuthorizationHeader(_authClient.BearerToken);
 
             if (response.StatusCode != HttpStatusCode.Created)
             {
@@ -671,8 +672,10 @@ namespace Maestro
             var content = new StringContent(data, Encoding.UTF8, "text/plain");
 
             // Don't include authorization header for this request either
-            HttpHandler httpHandler = new HttpHandler();
-            HttpResponseMessage response = await httpHandler.PutAsync(url, content);
+            HttpHandler._httpClient.DefaultRequestHeaders.Authorization = null;
+            HttpResponseMessage response = await HttpHandler.PutAsync(url, content);
+            HttpHandler.SetAuthorizationHeader(_authClient.BearerToken);
+
             if (response.StatusCode != HttpStatusCode.Created)
             {
                 Logger.Error($"Failed to send block list: {response.StatusCode} {response.Content}");

@@ -36,9 +36,11 @@ namespace Maestro
         public string PrtCookie { get; set; }
         public int PrtMethod { get; set; }
         public List<string> Properties { get; set; }
+        public string Proxy { get; set; }
         public string Query { get; set; }
         public bool Raw { get; set; }
         public bool Reauth { get; set; }
+        public string Redirect { get; set; }
         public string RefreshToken { get; set; }
         public string Resource { get; set; }
         public int Retries { get; set; }

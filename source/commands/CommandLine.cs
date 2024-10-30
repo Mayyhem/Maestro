@@ -26,6 +26,13 @@ namespace Maestro
             },
             new Option
             {
+                ShortName = "-X",
+                LongName = "--proxy",
+                ValuePlaceholder = "URL",
+                Description = "Proxy URL to use for HTTP requests"
+            },
+            new Option
+            {
                 LongName = "--raw",
                 Description = "Do not pretty print results",
                 IsFlag = true
@@ -400,6 +407,12 @@ namespace Maestro
                     },
                     new Option
                     {
+                        LongName = "--redirect",
+                        ValuePlaceholder = "URL",
+                        Description = "Authentication redirect URL"
+                    },
+                    new Option
+                    {
                         LongName = "--refresh-token",
                         ValuePlaceholder = "VALUE",
                         Description = "The refresh token to use (default: request a refresh token)",
@@ -454,7 +467,8 @@ namespace Maestro
                                 Description =
                                     "Method used to request access tokens (default: 0)\n" +
                                     new string(' ', DescriptionPadding) + "  0: /oauth2/v2.0/token\n" +
-                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken",
+                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken\n" +
+                                    new string(' ', DescriptionPadding) + "  2: MSAL",
                                 Default = "0"
                             },
                             new Option
@@ -470,7 +484,7 @@ namespace Maestro
                                 ShortName = "-s",
                                 LongName = "--scope",
                                 ValuePlaceholder = "SCOPE",
-                                Description = "The scope to request",
+                                Description = "The scopes to request (quoted and space-separated if multiple)",
                                 Default = ".default"
                             },
                         }

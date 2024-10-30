@@ -23,14 +23,14 @@ namespace Maestro
         public string SpaAuthCode { get; private set; }
         public string TenantId { get; private set; }
 
-        public AuthClient(string userAgent)
+        public AuthClient(string userAgent, string proxyUrl = "")
         {
-            HttpHandler = new HttpHandler(userAgent);
+            HttpHandler = new HttpHandler(userAgent, proxyUrl);
         }
 
-        public AuthClient(string userAgent, string clientId, string resource, string scope, string refreshToken = "", string tenantId = "")
+        public AuthClient(string userAgent, string clientId, string resource, string scope, string refreshToken = "", string tenantId = "", string proxyUrl = "")
         {
-            HttpHandler = new HttpHandler(userAgent);
+            HttpHandler = new HttpHandler(userAgent, proxyUrl);
             ClientId = clientId;
             Resource = resource;
             Scope = scope;
@@ -38,19 +38,19 @@ namespace Maestro
             TenantId = tenantId;
         }
 
-        public static async Task<AuthClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database, string authRedirectUrl = "", string delegationTokenUrl = "")
+        public static async Task<AuthClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database, string idpRedirectUrl = "", string delegationTokenUrl = "")
         {
-            return await InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
+            return await InitAndGetAccessToken(idpRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
                 options.PrtCookie, options.RefreshToken, options.AccessToken, options.Reauth, options.Scope, options.PrtMethod, 
-                options.TokenMethod, options.ClientId, options.TenantId, options.UserAgent, options);
+                options.TokenMethod, options.ClientId, options.TenantId, options.UserAgent, options.Proxy, options.Redirect, options);
         }
-        public static async Task<AuthClient> InitAndGetAccessToken(string authRedirectUrl, 
+        public static async Task<AuthClient> InitAndGetAccessToken(string idpRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resource, LiteDBHandler database = null,
             string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
             bool reauth = false, string scope = "", int prtMethod = 0, int accessTokenMethod = 0, 
-            string clientId = "", string tenantId = "", string userAgent = "", CommandLineOptions options = null)
+            string clientId = "", string tenantId = "", string userAgent = "", string proxyUrl = "", string authorizeRedirectUri = "", CommandLineOptions options = null)
         {
-            var client = new AuthClient(userAgent, clientId, resource, scope, providedRefreshToken, tenantId);
+            var client = new AuthClient(userAgent, clientId, resource, scope, providedRefreshToken, tenantId, proxyUrl);
             AccessToken accessToken = null;
 
             // Use the provided access token if available
@@ -94,7 +94,7 @@ namespace Maestro
             {
                 if (string.IsNullOrEmpty(client.RefreshToken))
                 {
-                    bool success = await client.Authenticate(authRedirectUrl, database, prtMethod);
+                    bool success = await client.Authenticate(idpRedirectUrl, authorizeRedirectUri, database, prtMethod);
                     if (!success)
                     {
                         Logger.Error("Failed to authenticate");
@@ -106,20 +106,20 @@ namespace Maestro
                 {
                     if (string.IsNullOrEmpty(client.RefreshToken))
                     {
-                        // Get user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)
+                        Logger.Info("Getting user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)");
                         accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
                             null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
                         if (accessToken is null)
                             return null;
 
-                        // Get access token for Azure Portal to Azure Portal (requires refreshToken)
+                        Logger.Info("Getting access token for Azure Portal to Azure Portal (requires refreshToken)");
                         accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
                             "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId,
                             client.SpaAuthCode);
                         if (accessToken is null)
                             return null;
 
-                        // Get user_impersonation token for Azure Portal to desired client (client = resource)
+                        Logger.Info("Getting user_impersonation token for Azure Portal to desired client (client = resource)");
                         accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
                             client.ClientId, ".default openid profile offline_access", client.TenantId,
                             client.SpaAuthCode);
@@ -139,6 +139,13 @@ namespace Maestro
                     // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
                     accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
                         client.PortalAuthorization, delegationTokenUrl, extensionName, resource, database);
+                    if (accessToken is null)
+                        return null;
+                }
+                else if (accessTokenMethod == 2)
+                {
+                    // Get access token using MSAL
+                    accessToken = await SharpGetEntraToken.Execute(client, database);
                     if (accessToken is null)
                         return null;
                 }
@@ -343,7 +350,7 @@ namespace Maestro
             return authHeader;
         }
 
-        private async Task<string> GetAuthorizeUrl(string idpRedirectUrl)
+        private async Task<string> GetAuthorizeRedirectUri(string idpRedirectUrl)
         {
             Logger.Info($"Requesting authorize URL from: {idpRedirectUrl}");
 
@@ -410,15 +417,24 @@ namespace Maestro
             return prtCookie.Value;
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string redirectUrl, LiteDBHandler database = null, 
+        public async Task<HttpResponseMessage> SignInToService(string idpRedirectUrl, string authorizeRedirectUri = "", LiteDBHandler database = null, 
             int prtMethod = 0)
         {
-
-            // Get authorize endpoint from redirect
-            string authorizeUrl = await GetAuthorizeUrl(redirectUrl);
-            if (authorizeUrl is null)
-                return null;
-
+            string authorizeUrl = "";
+            if (string.IsNullOrEmpty(authorizeRedirectUri))
+            {
+                // Get authorize redirect URI from idpRedirect.js
+                authorizeUrl = await GetAuthorizeRedirectUri(idpRedirectUrl);
+                if (authorizeUrl is null)
+                    return null;
+            }
+            else
+            {
+                // Use provided authorize redirect URI
+                authorizeUrl = $"https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?" +
+                               $"client_id={ClientId}&scope={Scope}&response_type=code+id_token&redirect_uri={authorizeRedirectUri}";
+            }
+            
             // Parse authorize URL for client_id and scope
             if (prtMethod == 1)
             {
@@ -510,9 +526,9 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task<bool> Authenticate(string redirectUrl, LiteDBHandler database = null, int prtMethod = 0)
+        public async Task<bool> Authenticate(string idpRedirectUrl, string authorizeRedirectUri = "", LiteDBHandler database = null, int prtMethod = 0)
         {
-            HttpResponseMessage signinResponse = await SignInToService(redirectUrl, database, prtMethod);
+            HttpResponseMessage signinResponse = await SignInToService(idpRedirectUrl, authorizeRedirectUri, database, prtMethod);
             if (signinResponse is null) return false;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();

@@ -6,8 +6,8 @@ namespace Maestro
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
-            var authClient = new AuthClient(options.UserAgent);
-            string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
+            var authClient = new AuthClient(options.UserAgent, options.Proxy);
+            string idpRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
 
             if (!string.IsNullOrEmpty(options.PrtCookie))
@@ -26,14 +26,14 @@ namespace Maestro
                 return;
             }
 
-            if (options.TokenMethod > 1 || options.TokenMethod < 0)
+            if (options.TokenMethod > 2 || options.TokenMethod < 0)
             {
                 Logger.Error("Invalid method (-m) specified");
                 CommandLine.PrintUsage("get access-token");
                 return;
             }
 
-            authClient = await AuthClient.InitAndGetAccessToken(options, database, authRedirectUrl, delegationTokenUrl);
+            authClient = await AuthClient.InitAndGetAccessToken(options, database, idpRedirectUrl, delegationTokenUrl);
         }
     }
 }
