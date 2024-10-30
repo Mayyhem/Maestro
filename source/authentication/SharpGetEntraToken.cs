@@ -19,12 +19,12 @@ namespace Maestro
 
         //static HttpClientHandler handler;
 
-        public StaticClientWithProxyFactory(AuthClient client)
+        public StaticClientWithProxyFactory(HttpClient httpClient)
         {
             //handler = new HttpClientHandler();
             //handler.SslProtocols = SslProtocols.Tls12;
             //s_httpClient = new HttpClient(handler);
-            s_httpClient = client.HttpHandler._httpClient;
+            s_httpClient = httpClient;
         }
 
         public HttpClient GetHttpClient()
@@ -35,16 +35,16 @@ namespace Maestro
 
     public class SharpGetEntraToken
     {
-        public static async Task<AccessToken> Execute(AuthClient client, LiteDBHandler database)
+        public static async Task<AccessToken> Execute(HttpClient httpClient, string clientId, string tenantId, string scope = "", LiteDBHandler database = null)
         {
             Logger.Info("SharpGetEntraToken attempting to get an access token");
-            IMsalHttpClientFactory httpClientFactory = new StaticClientWithProxyFactory(client);
+            IMsalHttpClientFactory httpClientFactory = new StaticClientWithProxyFactory(httpClient);
 
             // Authority URL for Microsoft identity platform (Entra ID)
-            string authority = $"https://login.microsoftonline.com/{client.TenantId}";
+            string authority = $"https://login.microsoftonline.com/{tenantId}";
 
             // Create a PublicClientApplication instance
-            var app = PublicClientApplicationBuilder.Create(client.ClientId)
+            var app = PublicClientApplicationBuilder.Create(clientId)
                 .WithAuthority(authority)
                 .WithHttpClientFactory(httpClientFactory)
                 .WithBroker(new BrokerOptions(BrokerOptions.OperatingSystems.Windows))
@@ -72,7 +72,7 @@ namespace Maestro
             try
             {
                 // Split the scopes by spaces and store as string[]
-                string[] scopes = client.Scope.Split(' ');
+                string[] scopes = scope.Split(' ');
                 var result = await app.AcquireTokenSilent(scopes, accountToLogin).ExecuteAsync();
                 Logger.Info($"SharpGetEntraToken got an access token:\n{result.AccessToken}");
                 return new AccessToken(result.AccessToken, database);

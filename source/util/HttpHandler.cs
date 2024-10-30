@@ -24,6 +24,7 @@ namespace Maestro
 
             var httpClientHandler = new HttpClientHandler
             {
+                AllowAutoRedirect = false,
                 CookieContainer = new CookieContainer()
             };
 

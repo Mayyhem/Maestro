@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Maestro
         public HttpHandler HttpHandler { get; }
         public string BearerToken { get; private set; }
         public string ClientId { get; private set; }
+        public string Nonce { get; private set; }
         public string PortalAuthorization { get; private set; }
         public string PrtCookie { get; private set; }
         public string RefreshToken { get; private set; }
@@ -92,62 +94,65 @@ namespace Maestro
             // Get a new access token if none is found in the database
             if (string.IsNullOrEmpty(client.BearerToken))
             {
-                if (string.IsNullOrEmpty(client.RefreshToken))
+                if (accessTokenMethod == 2)
                 {
-                    bool success = await client.Authenticate(idpRedirectUrl, authorizeRedirectUri, database, prtMethod);
-                    if (!success)
-                    {
-                        Logger.Error("Failed to authenticate");
+                    // Get access token using MSAL
+                    accessToken = await SharpGetEntraToken.Execute(client.HttpHandler._httpClient, clientId, tenantId, scope, database);
+                    if (accessToken is null)
                         return null;
-                    }
                 }
-
-                if (accessTokenMethod == 0)
+                else
                 {
                     if (string.IsNullOrEmpty(client.RefreshToken))
                     {
-                        Logger.Info("Getting user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)");
-                        accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                            null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
-                        if (accessToken is null)
+                        bool success = await client.AuthenticateWithPrt(idpRedirectUrl, authorizeRedirectUri, database, prtMethod);
+                        if (!success)
+                        {
+                            Logger.Error("Failed to authenticate");
                             return null;
+                        }
+                    }
 
-                        Logger.Info("Getting access token for Azure Portal to Azure Portal (requires refreshToken)");
-                        accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                            "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId,
-                            client.SpaAuthCode);
-                        if (accessToken is null)
-                            return null;
+                    if (accessTokenMethod == 0)
+                    {
+                        if (string.IsNullOrEmpty(client.RefreshToken))
+                        {
+                            Logger.Info("Getting user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)");
+                            accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                                null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
+                            if (accessToken is null)
+                                return null;
 
-                        Logger.Info("Getting user_impersonation token for Azure Portal to desired client (client = resource)");
-                        accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                            client.ClientId, ".default openid profile offline_access", client.TenantId,
-                            client.SpaAuthCode);
+                            Logger.Info("Getting access token for Azure Portal to Azure Portal (requires refreshToken)");
+                            accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                                "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId,
+                                client.SpaAuthCode);
+                            if (accessToken is null)
+                                return null;
+
+                            Logger.Info("Getting user_impersonation token for Azure Portal to desired client (client = resource)");
+                            accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
+                                client.ClientId, ".default openid profile offline_access", client.TenantId,
+                                client.SpaAuthCode);
+                            if (accessToken is null)
+                                return null;
+                        }
+
+                        // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
+                        accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
+                            client.Resource, client.Scope, client.TenantId, null, client.RefreshToken);
                         if (accessToken is null)
                             return null;
                     }
-
-                    // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
-                    accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
-                        client.Resource, client.Scope, client.TenantId, null, client.RefreshToken);
-                    if (accessToken is null)
-                        return null;
-                }
-                else if (accessTokenMethod == 1)
-                {
-                    resource = "microsoft.graph";
-                    // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
-                    accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
-                        client.PortalAuthorization, delegationTokenUrl, extensionName, resource, database);
-                    if (accessToken is null)
-                        return null;
-                }
-                else if (accessTokenMethod == 2)
-                {
-                    // Get access token using MSAL
-                    accessToken = await SharpGetEntraToken.Execute(client, database);
-                    if (accessToken is null)
-                        return null;
+                    else if (accessTokenMethod == 1)
+                    {
+                        resource = "microsoft.graph";
+                        // Get access token from /api/DelegationToken endpoint (requires portalAuthorization)
+                        accessToken = await client.GetAccessTokenFromDelegationTokenEndpoint(client.TenantId,
+                            client.PortalAuthorization, delegationTokenUrl, extensionName, resource, database);
+                        if (accessToken is null)
+                            return null;
+                    }
                 }
                 client.BearerToken = accessToken.Value;
                 client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
@@ -227,14 +232,6 @@ namespace Maestro
 
             HttpHandler.CookiesContainer.Add(prtCookie);
             HttpResponseMessage authorizeResponse = await HttpHandler.GetAsync(url, isJsonResponse: false);
-
-            if (!authorizeResponse.IsSuccessStatusCode)
-            {
-                Logger.Error("Failed to authenticate to authorize URL");
-                return null;
-            }
-
-            Logger.Debug(await authorizeResponse.Content.ReadAsStringAsync());
             return authorizeResponse;
         }
 
@@ -289,7 +286,7 @@ namespace Maestro
                     if (tokenResponse is null)
                     {
                         Logger.Error("No tokens were found in the /oauth2/v2.0/token response");
-                        Logger.ErrorJson(responseContent, options);
+                        Logger.ErrorJson(responseContent, options.Raw);
                         return null;
                     }
 
@@ -298,7 +295,7 @@ namespace Maestro
                     if (string.IsNullOrEmpty(BearerToken))
                     {
                         Logger.Error("No access token was found in the /oauth2/v2.0/token response");
-                        Logger.ErrorJson(responseContent, options);
+                        Logger.ErrorJson(responseContent, options.Raw);
                         return null;
                     }
 
@@ -306,14 +303,14 @@ namespace Maestro
                     if (string.IsNullOrEmpty(RefreshToken))
                     {
                         Logger.Error("No refresh token was found in the /oauth2/v2.0/token response");
-                        Logger.ErrorJson(responseContent, options);
+                        Logger.ErrorJson(responseContent, options.Raw);
                         return null;
                     }
                 }
                 else
                 {
                     Logger.Error("Unable to get tokens from /oauth2/v2.0/token endpoint");
-                    Logger.ErrorJson(responseContent, options);
+                    Logger.ErrorJson(responseContent, options.Raw);
                     return null;
                 }
 
@@ -393,6 +390,7 @@ namespace Maestro
                 return null;
             }
             Logger.Verbose($"Found nonce in the response: {ssoNonce}");
+            Nonce = ssoNonce;
 
             // Local request to mint PRT cookie with nonce
             PrtCookie prtCookie = null;
@@ -417,31 +415,20 @@ namespace Maestro
             return prtCookie.Value;
         }
 
-        public async Task<HttpResponseMessage> SignInToService(string idpRedirectUrl, string authorizeRedirectUri = "", LiteDBHandler database = null, 
-            int prtMethod = 0)
+        public async Task<HttpResponseMessage> SignInWithPrt(string idpRedirectUrl, LiteDBHandler database = null, int prtMethod = 0)
         {
-            string authorizeUrl = "";
-            if (string.IsNullOrEmpty(authorizeRedirectUri))
-            {
-                // Get authorize redirect URI from idpRedirect.js
-                authorizeUrl = await GetAuthorizeRedirectUri(idpRedirectUrl);
-                if (authorizeUrl is null)
-                    return null;
-            }
-            else
-            {
-                // Use provided authorize redirect URI
-                authorizeUrl = $"https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?" +
-                               $"client_id={ClientId}&scope={Scope}&response_type=code+id_token&redirect_uri={authorizeRedirectUri}";
-            }
-            
+            // Get authorize redirect URI from idpRedirect.js
+            string authorizeUrl = await GetAuthorizeRedirectUri(idpRedirectUrl);
+            if (authorizeUrl is null)
+                return null;
+
             // Parse authorize URL for client_id and scope
             if (prtMethod == 1)
             {
                 ClientId = StringHandler.GetMatch(authorizeUrl, "client_id=(.*?)&");
                 Scope = StringHandler.GetMatch(authorizeUrl, "scope=(.*?)&");
             }
-
+            
             if (string.IsNullOrEmpty(PrtCookie))
             {
                 // Get a nonce and primary refresh token cookie (x-Ms-Refreshtokencredential)
@@ -452,11 +439,12 @@ namespace Maestro
 
             // Use PRT cookie to obtain code+id_token required for signin
             Logger.Info("Requesting code+id_token required for signin using PRT cookie with nonce");
-            HttpResponseMessage authorizeWithSsoNonceResponse = await AuthorizeWithPrtCookie(authorizeUrl, PrtCookie);
-            if (authorizeWithSsoNonceResponse is null)
+            HttpResponseMessage authorizeResponse = await AuthorizeWithPrtCookie(authorizeUrl, PrtCookie);
+            if (authorizeResponse is null)
                 return null;
 
-            string authorizeWithSsoNonceResponseContent = await authorizeWithSsoNonceResponse.Content.ReadAsStringAsync();
+            string authorizeWithSsoNonceResponseContent =
+                await authorizeResponse.Content.ReadAsStringAsync();
 
             // Not the best way to check this but it works for now
             if (authorizeWithSsoNonceResponseContent.Contains("MFA"))
@@ -464,20 +452,20 @@ namespace Maestro
                 Logger.Error("MFA may be required and the PRT did not contain the required claim");
                 return null;
             }
-
-            // Parse response for signin URL
-            string actionUrl = StringHandler.GetMatch(authorizeWithSsoNonceResponseContent, 
+        
+            // Parse response for hidden form action URL
+            string actionUrl = StringHandler.GetMatch(authorizeWithSsoNonceResponseContent,
                 "<form method=\"POST\" name=\"hiddenform\" action=\"(.*?)\"");
             if (actionUrl is null)
             {
-                Logger.Error("No hidden form action URLs were found in the response");
+                Logger.Error("No hidden form action URL was found in the response");
                 return null;
             }
             Logger.Verbose($"Found hidden form action URL in the response: {actionUrl}");
 
             // Parse response for POST body with code+id_token
             FormUrlEncodedContent formData = ParseFormDataFromHtml(authorizeWithSsoNonceResponseContent);
-            if (formData is null) 
+            if (formData is null)
                 return null;
 
             string decodedFormData = await formData.ReadAsStringAsync();
@@ -486,7 +474,7 @@ namespace Maestro
                 Logger.Error("No code+id_token were found in the response");
                 return null;
             }
-
+            
             Logger.Info("Signing in with code+id_token obtained from authorize endpoint");
             HttpResponseMessage signinResponse = await HttpHandler.PostAsync(actionUrl, formData);
             if (signinResponse is null)
@@ -497,7 +485,6 @@ namespace Maestro
             Logger.Verbose("Obtained response from signin URL");
             return signinResponse;
         }
-
 
         // Submit refreshToken/PortalAuthorization blob to DelegationToken endpoint for PortalAuthorization blob
         private async Task<string> GetPortalAuthorization(string tenantId, string refreshToken, string url, string extensionName, string resourceName)
@@ -526,9 +513,9 @@ namespace Maestro
             return portalAuthorization;
         }
 
-        public async Task<bool> Authenticate(string idpRedirectUrl, string authorizeRedirectUri = "", LiteDBHandler database = null, int prtMethod = 0)
+        public async Task<bool> AuthenticateWithPrt(string idpRedirectUrl, string authorizeRedirectUri = "", LiteDBHandler database = null, int prtMethod = 0)
         {
-            HttpResponseMessage signinResponse = await SignInToService(idpRedirectUrl, authorizeRedirectUri, database, prtMethod);
+            HttpResponseMessage signinResponse = await SignInWithPrt(idpRedirectUrl, database, prtMethod);
             if (signinResponse is null) return false;
 
             string signinResponseContent = await signinResponse.Content.ReadAsStringAsync();

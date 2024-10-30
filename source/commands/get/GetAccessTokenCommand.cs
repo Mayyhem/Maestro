@@ -29,8 +29,18 @@ namespace Maestro
             if (options.TokenMethod > 2 || options.TokenMethod < 0)
             {
                 Logger.Error("Invalid method (-m) specified");
-                CommandLine.PrintUsage("get access-token");
+                CommandLine.PrintUsage(options.FullCommand);
                 return;
+            }
+
+            if (options.TokenMethod == 2)
+            {
+                if (string.IsNullOrEmpty(options.TenantId))
+                {
+                    Logger.Error("Please specify a tenant ID (-t)");
+                    CommandLine.PrintUsage(options.FullCommand);
+                    return;
+                }
             }
 
             authClient = await AuthClient.InitAndGetAccessToken(options, database, idpRedirectUrl, delegationTokenUrl);
