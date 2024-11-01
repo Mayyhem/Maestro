@@ -9,11 +9,13 @@
 ---
 
 # Maestro
-Maestro is a post-exploitation tool designed to interact with Intune/EntraID from a C2 agent on a user's workstation without requiring knowledge of the user's password or Azure authentication flows, token manipulation, and web-based administration console. Maestro makes interacting with Intune and EntraID (and potentially other Azure services) from C2 much easier, as the operator does not need to obtain the user's cleartext password, extract primary refresh token (PRT) cookies from the system, run additional tools or a browser session over a SOCKS proxy, or deal with Azure authentication flows, tokens, or conditional access policies in order to execute actions in Azure on behalf of the logged-in user. 
+Maestro is a post-exploitation tool designed to interact with Intune/EntraID from a C2 agent on a user's workstation without requiring knowledge of the user's password or Azure authentication flows, token manipulation, and web-based administration console. Maestro makes interacting with Intune and EntraID (and potentially other Azure services) from C2 much easier, as the operator does not need to obtain the user's cleartext password, extract primary refresh token (PRT) cookies from the system, run additional tools or a browser session over a SOCKS proxy, or deal with Azure authentication flows, tokens, or conditional access policies in order to execute actions in Azure on behalf of the logged-in user.
 
 Maestro is essentially a wrapper for local PRT cookie requests and calls to the Microsoft Graph API with a lot of quality-of-life features added for red teamers. Maestro enables attack paths between on-prem and Azure. For example, by running Maestro on an Intune admin's machine, you can execute PowerShell scripts on any enrolled device without ever knowing the admin's credentials, even if MFA, device compliance, and a hybrid-joined device are required by conditional access policies.
 
-Maestro's lateral movement functions were inspired by [Death from Above: Lateral Movement from Azure to On-Prem AD](https://posts.specterops.io/death-from-above-lateral-movement-from-azure-to-on-prem-ad-d18cb3959d4d) by Andy Robbins ([@_wald0](https://x.com/_wald0)).
+Maestro's lateral movement functions were inspired by [Death from Above: Lateral Movement from Azure to On-Prem AD](https://posts.specterops.io/death-from-above-lateral-movement-from-azure-to-on-prem-ad-d18cb3959d4d) by Andy Robbins ([@_wald0](https://x.com/_wald0)). 
+
+You can read more in this introductory blog post for Maestro: https://posts.specterops.io/maestro-9ed71d38d546
 
 # Syntax
 `Maestro.exe <command> [subcommand] [options]`
