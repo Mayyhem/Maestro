@@ -691,7 +691,8 @@ namespace Maestro
             // Hardcoded values from .intunewin file created for calc.exe using IntuneWinAppUtil.exe
             var content = HttpHandler.CreateJsonContent(new
             {
-                fileEncryptionInfo = new {
+                fileEncryptionInfo = new
+                {
                     encryptionKey = "OU22tJ9vWbw9Gdj3iLFbFPTyYvNe1/fwzzvd1YzBI/M=",
                     initializationVector = "o9TQazwkEY2uVWHuI+qHFQ==",
                     mac = "OJiQKIDluz9gypatflYsSzxalQbJgOLKDZP+C+hP3dA=",
@@ -741,7 +742,7 @@ namespace Maestro
                 content.Headers.Add("X-Ms-Command-Name", "patchLobApp");
 
                 HttpResponseMessage response = await HttpHandler.PatchAsync(url, content);
-                
+
                 if (response.StatusCode == HttpStatusCode.NoContent)
                 {
                     successful = true;
@@ -859,7 +860,7 @@ namespace Maestro
                 }
                 else
                 {
-                    
+
                 }
             }
             return intuneDevices;
@@ -992,6 +993,7 @@ namespace Maestro
 
         public async Task<string> NewDeviceAssignmentFilter(string deviceName)
         {
+            HttpHandler.SetAuthorizationHeader(this._authClient.BearerToken);
             string displayName = Guid.NewGuid().ToString();
             Logger.Info($"Creating new device assignment filter with displayName: {displayName}");
 
@@ -1093,7 +1095,7 @@ namespace Maestro
                 ScriptPolicyId = scriptId,
             });
 
-            return await HttpHandler.PostAsync(url, content); 
+            return await HttpHandler.PostAsync(url, content);
         }
 
         public async Task<bool> CheckWhetherProactiveRemediationScriptExecuted(string deviceId, int timeout, int retryDelay)
@@ -1137,7 +1139,7 @@ namespace Maestro
                         }
                     }
                 }
-                
+
                 await Task.Delay(retryDelay * 1000);
                 tries++;
             }
@@ -1233,7 +1235,7 @@ namespace Maestro
             Logger.Info("Successfully deleted detection script");
         }
 
- 
+
         // intune scripts
         public List<IntuneScript> ShowIntuneScripts(LiteDBHandler database, string[] properties, string scriptId = "")
         {
@@ -1307,7 +1309,7 @@ namespace Maestro
                 actionName = "syncDevice",
                 deviceIds = devices.Select(device => device.Properties["id"]).ToList()
             });
-            
+
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
             if (!(response.StatusCode == HttpStatusCode.OK))
             {
@@ -1315,6 +1317,141 @@ namespace Maestro
                 return;
             }
             Logger.Info("Successfully sent request for device sync notification");
+        }
+
+        public async Task<string[]> CreateDCv1DiagnosticLogPolicy(string deviceId, string url, List<string> registryKeys, List<string> events, List<string> commands, List<string> folderFiles, string outputFileFormat)
+        {
+            Logger.Info($"Creating custom config policy for device: {deviceId}");
+            string endpoint = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations";
+
+            var xmlDoc = new System.Xml.XmlDocument();
+            var root = xmlDoc.CreateElement("Collection");
+
+            var idElement = xmlDoc.CreateElement("ID");
+            var requestId = Guid.NewGuid().ToString();
+            idElement.InnerText = requestId;
+            root.AppendChild(idElement);
+
+            var urlElement = xmlDoc.CreateElement("Url");
+            urlElement.AppendChild(xmlDoc.CreateCDataSection(url));
+            root.AppendChild(urlElement);
+
+            if (registryKeys != null)
+            {
+                foreach (var key in registryKeys)
+                {
+                    var registryKeyElement = xmlDoc.CreateElement("RegistryKey");
+                    registryKeyElement.InnerText = key;
+                    root.AppendChild(registryKeyElement);
+                }
+            }
+
+            if (events != null)
+            {
+                foreach (var eventlog in events)
+                {
+                    var eventElement = xmlDoc.CreateElement("Events");
+                    eventElement.InnerText = eventlog;
+                    root.AppendChild(eventElement);
+                }
+            }
+
+            if (folderFiles != null)
+            {
+                foreach (var file in folderFiles)
+                {
+                    var folderFileElement = xmlDoc.CreateElement("FoldersFiles");
+                    folderFileElement.InnerText = file;
+                    root.AppendChild(folderFileElement);
+                }
+            }
+
+            if (commands != null)
+            {
+                foreach (var command in commands)
+                {
+                    var commandElement = xmlDoc.CreateElement("Command");
+                    commandElement.InnerText = command;
+                    root.AppendChild(commandElement);
+                }
+            }
+
+            if (outputFileFormat != null)
+            {
+                var outputFileFormatElement = xmlDoc.CreateElement("OutputFileFormat");
+                outputFileFormatElement.InnerText = outputFileFormat;
+                root.AppendChild(outputFileFormatElement);
+            }
+
+            xmlDoc.AppendChild(root);
+
+            var content = HttpHandler.CreateJsonContent(new Dictionary<string, object>
+            {
+                { "@odata.type", "#microsoft.graph.windows10CustomConfiguration" },
+                { "displayName", "Custom Config Policy" },
+                { "description", "Custom config policy for device" },
+                { "omaSettings", new[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            { "@odata.type", "#microsoft.graph.omaSettingString" },
+                            { "displayName", "diagnostics" },
+                            { "description", "Diagnostics settings" },
+                            { "omaUri", "./Vendor/MSFT/DiagnosticLog/DiagnosticArchive/ArchiveDefinition" },
+                            { "value", xmlDoc.OuterXml }
+                        }
+                    }
+                }
+            });
+            Logger.Verbose($"Using ArchiveDefinition: {xmlDoc.OuterXml}");
+
+            HttpHandler.SetAuthorizationHeader(this._authClient.BearerToken);
+            HttpResponseMessage response = await HttpHandler.PostAsync(endpoint, content);
+            if (response.StatusCode != HttpStatusCode.Created)
+            {
+                Logger.Error("Failed to create custom config policy");
+                return null;
+            }
+
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string policyId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
+            Logger.Info($"Obtained policy ID: {policyId}");
+            return new string[] { policyId, requestId };
+        }
+
+        public async Task<bool> AssignPolicyWithFilter(string policyId, string filterId)
+        {
+            Logger.Info($"Assigning policy {policyId} with filter {filterId}");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/{policyId}/assign";
+
+            var content = HttpHandler.CreateJsonContent(new
+            {
+                assignments = new[]
+                {
+                    new
+                    {
+                        target = new Dictionary<string, object>
+                        {
+                            { "@odata.type", "#microsoft.graph.allDevicesAssignmentTarget" },
+                            { "deviceAndAppManagementAssignmentFilterId", filterId },
+                            { "deviceAndAppManagementAssignmentFilterType", "include" }
+                        }
+                    }
+                }
+            });
+
+
+
+            HttpHandler.SetAuthorizationHeader(this._authClient.BearerToken);
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error($"Failed to assign policy: {response.StatusCode} {response.Content}");
+                return false;
+            }
+
+            Logger.Info("Successfully assigned policy with filter");
+            return true;
         }
     }
 }

@@ -124,6 +124,7 @@
     <Compile Include="source\commands\exec\intune\ExecIntuneDeviceQueryCommand.cs" />
     <Compile Include="source\commands\exec\intune\ExecIntuneScriptCommand.cs" />
     <Compile Include="source\commands\exec\intune\ExecIntuneAppCommand.cs" />
+    <Compile Include="source\commands\exec\intune\ExecIntuneUploadCommand.cs" />
     <Compile Include="source\commands\get\GetPrtCookieCommand.cs" />
     <Compile Include="source\commands\get\entra\GetEntraUsersCommand.cs" />
     <Compile Include="source\commands\get\entra\GetEntraGroupsCommand.cs" />

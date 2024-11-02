@@ -331,6 +331,65 @@ namespace Maestro
                                         Description = "ID of the device to sync"
                                     }
                                 }
+                            },
+                            new Subcommand
+                            {
+                                Name = "upload",
+                                Description = "Upload data from a device to a web server",
+                                Options = new List<Option>
+                                {
+                                    new Option
+                                    {
+                                        LongName = "--access-token",
+                                        ValuePlaceholder = "VALUE",
+                                        Description = "The access token to use (default: request an access token)"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
+                                        ShortName = "-i",
+                                        LongName = "--device",
+                                        ValuePlaceholder = "ID",
+                                        Description = "ID of the device to upload from"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
+                                        LongName = "--url",
+                                        ValuePlaceholder = "URL",
+                                        Description = "URL to upload to. Must accept PUT requests eg Azure blob storage SAS URL"
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--registry-keys",
+                                        ValuePlaceholder = "KEYS",
+                                        Description = "Comma-separated list of registry keys to upload"
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--events",
+                                        ValuePlaceholder = "EVENTS",
+                                        Description = "Comma-separated list of event logs to upload"
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--commands",
+                                        ValuePlaceholder = "COMMANDS",
+                                        Description = "Comma-separated list of commands to run and upload output"
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--folder-files",
+                                        ValuePlaceholder = "FOLDERFILES",
+                                        Description = "Comma-separated list of folders or files to upload"
+                                    },
+                                    new Option
+                                    {
+                                        LongName = "--output-file-format",
+                                        ValuePlaceholder = "FORMAT",
+                                        Description = "Format of uploaded zip file, 'Flattened' or null (default: null)",
+                                    }
+                                }
                             }
                         }
                     }

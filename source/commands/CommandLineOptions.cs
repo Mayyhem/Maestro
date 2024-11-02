@@ -22,16 +22,20 @@ namespace Maestro
         public string AppName { get; set; }
         public bool AsUser { get; set; }
         public string ClientId { get; set; }
+        public List<string> Commands { get; set; }
         public bool Count { get; set; }
         public string Device { get; set; }
         public bool DryRun { get; set; }
+        public List<string> Events { get; set; }
         public string Extension { get; set; }
         public string Filter { get; set; }
-        public string Group {get; set; }
+        public List<string> FolderFiles { get; set; }
+        public string Group { get; set; }
         public string Id { get; set; }
-        public string Member { get; set;}
+        public string Member { get; set; }
         public string Name { get; set; }
         public string OrderBy { get; set; }
+        public string OutputFileFormat { get; set; }
         public string Path { get; set; }
         public string PrtCookie { get; set; }
         public int PrtMethod { get; set; }
@@ -40,6 +44,7 @@ namespace Maestro
         public bool Raw { get; set; }
         public bool Reauth { get; set; }
         public string RefreshToken { get; set; }
+        public List<string> RegistryKeys { get; set; }
         public string Resource { get; set; }
         public int Retries { get; set; }
         public string Scope { get; set; }
@@ -48,6 +53,7 @@ namespace Maestro
         public int Timeout { get; set; }
         public int TokenMethod { get; set; }
         public string UserAgent { get; set; }
+        public string Url { get; set; }
         public int Wait { get; set; }
 
         // Additional dictionary for any extra or custom options
