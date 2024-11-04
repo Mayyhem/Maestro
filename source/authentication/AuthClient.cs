@@ -56,8 +56,18 @@ namespace Maestro
             // Use the provided access token if available
             if (!string.IsNullOrEmpty(providedAccessToken))
             {
+                Logger.Info("Using provided access token");
                 client.BearerToken = providedAccessToken;
                 _ = new AccessToken(providedAccessToken, database);
+                client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
+                // Test request to see if the token is valid
+                HttpResponseMessage response = await client.HttpHandler.GetAsync("https://graph.microsoft.com/v1.0/me");
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.Error("Provided access token is invalid");
+                    Logger.ErrorJson(await response.Content.ReadAsStringAsync());
+                    return null;
+                }
                 return client;
             }
 
@@ -282,7 +292,7 @@ namespace Maestro
                     if (tokenResponse is null)
                     {
                         Logger.Error("No tokens were found in the /oauth2/v2.0/token response");
-                        Logger.ErrorJson(responseContent, options);
+                        Logger.ErrorJson(responseContent, options.Raw);
                         return null;
                     }
 
@@ -291,7 +301,7 @@ namespace Maestro
                     if (string.IsNullOrEmpty(BearerToken))
                     {
                         Logger.Error("No access token was found in the /oauth2/v2.0/token response");
-                        Logger.ErrorJson(responseContent, options);
+                        Logger.ErrorJson(responseContent, options.Raw);
                         return null;
                     }
 
@@ -299,14 +309,14 @@ namespace Maestro
                     if (string.IsNullOrEmpty(RefreshToken))
                     {
                         Logger.Error("No refresh token was found in the /oauth2/v2.0/token response");
-                        Logger.ErrorJson(responseContent, options);
+                        Logger.ErrorJson(responseContent, options.Raw);
                         return null;
                     }
                 }
                 else
                 {
                     Logger.Error("Unable to get tokens from /oauth2/v2.0/token endpoint");
-                    Logger.ErrorJson(responseContent, options);
+                    Logger.ErrorJson(responseContent, options.Raw);
                     return null;
                 }
 

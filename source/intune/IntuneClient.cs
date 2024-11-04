@@ -30,7 +30,7 @@ namespace Maestro
         public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0, string userAgent = "")
         {
-            var intuneClient = new IntuneClient();
+            var intuneClient = new IntuneClient(userAgent);
 
             string authRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
@@ -46,6 +46,7 @@ namespace Maestro
                 Logger.Error("Failed to obtain an access token");
                 return null;
             }
+
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
@@ -811,7 +812,9 @@ namespace Maestro
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                Logger.Error($"Failed to delete application: {response.StatusCode} {response.Content}");
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
+                Logger.Error("Failed to delete application");
                 return false;
             }
 
@@ -991,19 +994,36 @@ namespace Maestro
             return scriptId;
         }
 
-        public async Task<string> NewDeviceAssignmentFilter(string deviceName)
+        public async Task<string> NewDeviceAssignmentFilter(string deviceId = "", string deviceName = "")
         {
-            HttpHandler.SetAuthorizationHeader(this._authClient.BearerToken);
             string displayName = Guid.NewGuid().ToString();
             Logger.Info($"Creating new device assignment filter with displayName: {displayName}");
-
             string url = "https://graph.microsoft.com/beta/deviceManagement/assignmentFilters";
+            string rule = "";
+
+            // Device IDs are not directly supported for device filters
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                IntuneDevice device = await GetDevice(deviceId);
+                if (device is null) return null;
+
+                deviceName = device.Properties["deviceName"].ToString();
+            }
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                rule = $"(device.deviceName -eq \"{deviceName}\")";
+            }
+            else
+            {
+                Logger.Error("No device ID or device name specified");
+                return null;
+            }
             var content = HttpHandler.CreateJsonContent(new
             {
                 displayName,
                 description = "",
                 platform = "Windows10AndLater",
-                rule = $"(device.deviceName -eq \"{deviceName}\")",
+                rule,
                 roleScopeTagIds = new List<string> { "0" }
             });
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
@@ -1205,7 +1225,6 @@ namespace Maestro
                         }
                     }
                 }
-
                 await Task.Delay(retryDelay * 1000);
                 tries++;
             }
@@ -1214,25 +1233,53 @@ namespace Maestro
             return null;
         }
 
-        public async Task DeleteDeviceAssignmentFilter(string filterId)
+        public async Task<bool> DeleteDeviceAssignmentFilter(string filterId)
         {
 
             Logger.Info($"Deleting device assignment filter with ID: {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/assignmentFilters/{filterId}";
-            await HttpHandler.DeleteAsync(url);
+            HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
+                Logger.Error("Failed to delete device assignment filter");
+                return false;
+            }
+            Logger.Info("Successfully deleted device assignment filter");
+            return true;
         }
 
-        public async Task DeleteScriptPackage(string scriptId)
+        public async Task<bool> DeletePolicy(string policyId)
+        {
+            Logger.Info($"Deleting policy with ID: {policyId}");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/{policyId}";
+            HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
+                Logger.Error("Failed to delete policy");
+                return false;
+            }
+            Logger.Info("Successfully deleted policy");
+            return true;
+        }
+
+        public async Task<bool> DeleteScriptPackage(string scriptId)
         {
             Logger.Info($"Deleting detection script with scriptId: {scriptId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
             HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
             if (response.StatusCode != HttpStatusCode.OK)
             {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
                 Logger.Error("Failed to delete detection script");
-                return;
+                return false;
             }
             Logger.Info("Successfully deleted detection script");
+            return true;
         }
 
 
@@ -1405,7 +1452,6 @@ namespace Maestro
             });
             Logger.Verbose($"Using ArchiveDefinition: {xmlDoc.OuterXml}");
 
-            HttpHandler.SetAuthorizationHeader(this._authClient.BearerToken);
             HttpResponseMessage response = await HttpHandler.PostAsync(endpoint, content);
             if (response.StatusCode != HttpStatusCode.Created)
             {
@@ -1440,9 +1486,6 @@ namespace Maestro
                 }
             });
 
-
-
-            HttpHandler.SetAuthorizationHeader(this._authClient.BearerToken);
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
             if (response.StatusCode != HttpStatusCode.OK)
             {

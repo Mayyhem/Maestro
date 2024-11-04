@@ -21,6 +21,12 @@ namespace Maestro
                 case "app":
                     await DeleteIntuneAppCommand.Execute(options, database);
                     break;
+                case "filter":
+                    await DeleteIntuneFilterCommand.Execute(options, database);
+                    break;
+                case "policy":
+                    await DeleteIntunePolicyCommand.Execute(options, database);
+                    break;
                 case "script":
                     await DeleteIntuneScriptCommand.Execute(options, database);
                     break;

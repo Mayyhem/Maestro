@@ -8,17 +8,21 @@ namespace Maestro
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
-            // Validate device ID
-            if (string.IsNullOrEmpty(options.Device))
-            {
-                Logger.Error("Device ID is required.");
-                return;
-            }
-
             // Validate URL
             if (!Uri.IsWellFormedUriString(options.Url, UriKind.Absolute))
             {
-                Logger.Error("Invalid URL.");
+                Logger.Error("Invalid URL");
+                return;
+            }
+
+            // Ensure at least one of the optional parameters is provided
+            if (options.RegistryKeys is null && options.Events is null && options.Commands is null && options.FolderFiles is null)
+            {
+                Logger.Error("At least one of the following optional parameters must be provided:\n" +
+                             "  --registry-keys\n" +
+                             "  --events\n" +
+                             "  --commands\n" +
+                             "  --folder-files");
                 return;
             }
 
@@ -29,7 +33,7 @@ namespace Maestro
                 {
                     if (!key.StartsWith("HKLM\\") && !key.StartsWith("HKCR\\"))
                     {
-                        Logger.Error("RegistryKey must start with HKLM\\ or HKCR\\.");
+                        Logger.Error("RegistryKey must start with HKLM\\ or HKCR\\");
                         return;
                     }
                 }
@@ -85,7 +89,8 @@ namespace Maestro
 
                     if (!isAllowed)
                     {
-                        Logger.Error("Command is not allowed. A list of allowed commands is available here: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#diagnosticarchivearchivedefinition");
+                        Logger.Error("Command is not allowed. A full list of allowed commands is available here: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#diagnosticarchivearchivedefinition");
+                        Logger.ErrorTextOnly("\nSupported commands:\n    - " + string.Join("\n    - ", allowedCommands) + "\n");
                         return;
                     }
                 }
@@ -136,23 +141,38 @@ namespace Maestro
             }
 
             // Authenticate and get an access token for Intune
-            _ = new IntuneClient();
             IntuneClient intuneClient = await IntuneClient.InitAndGetAccessToken(options, database);
             if (intuneClient is null) return;
 
             // Create a filter for the device
-            string filterId = await intuneClient.NewDeviceAssignmentFilter(options.Device);
+            string filterId = await intuneClient.NewDeviceAssignmentFilter(options.Id);
             if (filterId is null) return;
 
             // Create a custom config policy using the Graph API
-            string[] policyIds = await intuneClient.CreateDCv1DiagnosticLogPolicy(options.Device, options.Url, options.RegistryKeys, options.Events, options.Commands, options.FolderFiles, options.OutputFileFormat);
+            string[] policyIds = await intuneClient.CreateDCv1DiagnosticLogPolicy(options.Id, options.Url, options.RegistryKeys, options.Events, options.Commands, options.FolderFiles, options.OutputFileFormat);
             if (policyIds is null) return;
 
             // Assign the policy with the filter
             bool success = await intuneClient.AssignPolicyWithFilter(policyIds[0], filterId);
             if (!success) return;
 
-            Logger.Info($"Successfully created and assigned diagnostic logs policy with request ID {policyIds[1]}.");
+            Logger.Info($"Successfully created and assigned diagnostic logs policy with request ID {policyIds[1]}");
+
+            // Sync options
+            if (options.Sync)
+            {
+                System.Threading.Thread.Sleep(5000);
+                await intuneClient.SyncDevice(options.Id, database, true);
+            }
+            else
+            {
+                Logger.Info($"Not syncing automatically, execute the following to force device sync:\n    .\\Maestro.exe exec intune sync -i {options.Id}");
+            }
+
+            // Always write the cleanup commands to the console
+            Logger.ErrorTextOnly($"\nClean up after execution:");
+            Logger.ErrorTextOnly($"    .\\Maestro.exe delete intune policy -i {policyIds[0]}");
+            Logger.ErrorTextOnly($"    .\\Maestro.exe delete intune filter -i {filterId}\n");
         }
     }
 }

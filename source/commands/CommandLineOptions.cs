@@ -49,6 +49,7 @@ namespace Maestro
         public int Retries { get; set; }
         public string Scope { get; set; }
         public string Script { get; set; }
+        public bool Sync { get; set; }
         public string TenantId { get; set; }
         public int Timeout { get; set; }
         public int TokenMethod { get; set; }

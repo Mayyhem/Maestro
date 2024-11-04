@@ -29,7 +29,7 @@ namespace Maestro
         public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0, string userAgent = "")
         {
-            var entraClient = new EntraClient();
+            var entraClient = new EntraClient(userAgent);
             string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";

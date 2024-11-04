@@ -29,7 +29,10 @@ namespace Maestro
             if (options.TokenMethod > 1 || options.TokenMethod < 0)
             {
                 Logger.Error("Invalid method (-m) specified");
-                CommandLine.PrintUsage("get access-token");
+                CommandLine.PrintUsage("get " +
+                                       "access-token" +
+                                       "" +
+                                       "");
                 return;
             }
 
