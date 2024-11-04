@@ -80,9 +80,9 @@ namespace Maestro
             Log(LogLevel.Error, message);
         }
 
-        public static void ErrorJson(string message, CommandLineOptions options = null)
+        public static void ErrorJson(string message, bool raw = false)
         {
-            ErrorTextOnly(JsonHandler.GetProperties(message, options.Raw, null, false));
+            ErrorTextOnly(JsonHandler.GetProperties(message, raw, null, false));
         }
 
         public static void ErrorTextOnly(string message)

@@ -2,12 +2,12 @@
 
 namespace Maestro
 {
-    public class DeleteIntuneAppCommand
+    public class DeleteIntunePolicyCommand
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
             IntuneClient intuneClient = await IntuneClient.InitAndGetAccessToken(options, database);
-            await intuneClient.DeleteApplication(options.Id);
+            await intuneClient.DeletePolicy(options.Id);
         }
     }
 }

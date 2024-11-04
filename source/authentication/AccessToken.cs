@@ -31,7 +31,13 @@ namespace Maestro
             Requested = DateTimeHandler.ConvertFromUnixTimestamp((int)Jwt.Properties["iat"]);
             Scope = (string)Jwt.Properties["scp"];
             TenantId = (string)Jwt.Properties["tid"];
-            UserPrincipalName = (string)Jwt.Properties["upn"];
+            Jwt.Properties.TryGetValue("upn", out object upn);
+            if (upn != null) {
+                UserPrincipalName = (string)upn;
+            } else {
+                // if upn is missing, best guess is email
+                UserPrincipalName = (string)Jwt.Properties["email"];
+            }
 
             if (database != null)
             {
