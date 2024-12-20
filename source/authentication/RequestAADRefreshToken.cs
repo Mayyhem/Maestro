@@ -124,7 +124,7 @@ namespace Maestro
                         if (c.Name == "x-ms-RefreshTokenCredential")
                         {
                             // This is the PRT cookie
-                            string parsedPrtCookie = c.Data.Split(';').FirstOrDefault(x => x.Contains("eyJh"));
+                            string parsedPrtCookie = c.Data.Split(';').FirstOrDefault(x => x.Contains("eyJ"));
                             Logger.Info($"Found PRT cookie: {parsedPrtCookie}");
                             PrtCookie prtCookie = new PrtCookie(parsedPrtCookie, database);
                             prtCookies.Add(prtCookie);
