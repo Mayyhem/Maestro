@@ -1379,7 +1379,7 @@ namespace Maestro
             idElement.InnerText = requestId;
             root.AppendChild(idElement);
 
-            var urlElement = xmlDoc.CreateElement("Url");
+            var urlElement = xmlDoc.CreateElement("SasUrl");
             urlElement.AppendChild(xmlDoc.CreateCDataSection(url));
             root.AppendChild(urlElement);
 
