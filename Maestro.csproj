@@ -114,6 +114,8 @@
     <Compile Include="source\commands\delete\DeleteIntuneCommand.cs" />
     <Compile Include="source\commands\delete\entra\DeleteEntraGroupCommand.cs" />
     <Compile Include="source\commands\delete\intune\DeleteIntuneAppCommand.cs" />
+    <Compile Include="source\commands\delete\intune\DeleteIntuneFilterCommand.cs" />
+    <Compile Include="source\commands\delete\intune\DeleteIntunePolicyCommand.cs" />
     <Compile Include="source\commands\delete\intune\DeleteIntuneScriptCommand.cs" />
     <Compile Include="source\commands\get\entra\GetEntraMembershipCommand.cs" />
     <Compile Include="source\commands\get\intune\GetIntuneScriptOutputCommand.cs" />
