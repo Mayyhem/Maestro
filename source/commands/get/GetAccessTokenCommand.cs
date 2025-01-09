@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using System.Web.UI;
 
 namespace Maestro
 {
@@ -7,8 +8,9 @@ namespace Maestro
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
         {
             var authClient = new AuthClient(options.UserAgent, options.Proxy);
-            string idpRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
-            string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
+
+            string idpRedirectUrl = $"https://{options.Target}/signin/idpRedirect.js";
+            string delegationTokenUrl = $"https://{options.Target}/api/DelegationToken";
 
             if (!string.IsNullOrEmpty(options.PrtCookie))
             {
@@ -22,7 +24,7 @@ namespace Maestro
                 options.TokenMethod = 0;
 
                 // Authenticate and get an access token
-                authClient = await AuthClient.InitAndGetAccessToken(options, database);
+                await AuthClient.InitAndGetAccessToken(options, database);
                 return;
             }
 
@@ -43,7 +45,7 @@ namespace Maestro
                 }
             }
 
-            authClient = await AuthClient.InitAndGetAccessToken(options, database, idpRedirectUrl, delegationTokenUrl);
+            await AuthClient.InitAndGetAccessToken(options, database, idpRedirectUrl, delegationTokenUrl);
         }
     }
 }

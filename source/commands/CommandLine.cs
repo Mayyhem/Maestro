@@ -457,7 +457,8 @@ namespace Maestro
                                 LongName = "--extension",
                                 ValuePlaceholder = "NAME",
                                 Description = "Extension to request an access token for",
-                                Default = "Microsoft_AAD_IAM"
+                                Default = "Microsoft_Intune_DeviceSettings",
+                                Dependencies = new List<string> { "--token-method" }
                             },
                             new Option
                             {
@@ -485,7 +486,21 @@ namespace Maestro
                                 LongName = "--scope",
                                 ValuePlaceholder = "SCOPE",
                                 Description = "The scopes to request (quoted and space-separated if multiple)",
-                                Default = ".default"
+                                Default = ".default openid profile offline_access"
+                            },
+                            new Option
+                            {
+                                LongName = "--target",
+                                ValuePlaceholder = "FQDN",
+                                Description = "The host to send requests to",
+                                Default = "intune.microsoft.com"
+                            },
+                            new Option
+                            {
+                                LongName = "--brk-client-id",
+                                ValuePlaceholder = "VALUE",
+                                Description = "Broker client ID to use for token requests",
+                                Default = "c44b4083-3bb0-49c1-b47d-974e53cbdf3c"
                             },
                         }
                     },

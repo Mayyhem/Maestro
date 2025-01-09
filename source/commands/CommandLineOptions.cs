@@ -21,6 +21,7 @@ namespace Maestro
         public string AccessToken { get; set; }
         public string AppName { get; set; }
         public bool AsUser { get; set; }
+        public string BrkClientId { get; set; }
         public string ClientId { get; set; }
         public bool Count { get; set; }
         public string Device { get; set; }
@@ -46,6 +47,7 @@ namespace Maestro
         public int Retries { get; set; }
         public string Scope { get; set; }
         public string Script { get; set; }
+        public string Target { get; set; }
         public string TenantId { get; set; }
         public int Timeout { get; set; }
         public int TokenMethod { get; set; }
@@ -54,8 +56,6 @@ namespace Maestro
 
         // Additional dictionary for any extra or custom options
         public Dictionary<string, string> AdditionalOptions { get; } = new Dictionary<string, string>();
-
-        public CommandLineOptions() { }
 
         public static CommandLineOptions Parse(string[] args)
         {

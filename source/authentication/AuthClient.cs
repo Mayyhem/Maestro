@@ -44,13 +44,15 @@ namespace Maestro
         {
             return await InitAndGetAccessToken(idpRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
                 options.PrtCookie, options.RefreshToken, options.AccessToken, options.Reauth, options.Scope, options.PrtMethod, 
-                options.TokenMethod, options.ClientId, options.TenantId, options.UserAgent, options.Proxy, options.Redirect, options);
+                options.TokenMethod, options.ClientId, options.TenantId, options.UserAgent, options.Proxy, options.Redirect, 
+                options.BrkClientId, options);
         }
         public static async Task<AuthClient> InitAndGetAccessToken(string idpRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resource, LiteDBHandler database = null,
             string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
             bool reauth = false, string scope = "", int prtMethod = 0, int accessTokenMethod = 0, 
-            string clientId = "", string tenantId = "", string userAgent = "", string proxyUrl = "", string authorizeRedirectUri = "", CommandLineOptions options = null)
+            string clientId = "", string tenantId = "", string userAgent = "", string proxyUrl = "", string redirectUri = "", 
+            string brokerClientId = "", CommandLineOptions options = null)
         {
             var client = new AuthClient(userAgent, clientId, resource, scope, providedRefreshToken, tenantId, proxyUrl);
             AccessToken accessToken = null;
@@ -97,15 +99,15 @@ namespace Maestro
                 if (accessTokenMethod == 2)
                 {
                     // Get access token using MSAL
-                    accessToken = await SharpGetEntraToken.Execute(client.HttpHandler._httpClient, clientId, tenantId, scope, database);
-                    if (accessToken is null)
-                        return null;
+                    //accessToken = await SharpGetEntraToken.Execute(client.HttpHandler._httpClient, clientId, tenantId, scope, database);
+                    //if (accessToken is null)
+                    //    return null;
                 }
                 else
                 {
                     if (string.IsNullOrEmpty(client.RefreshToken))
                     {
-                        bool success = await client.AuthenticateWithPrt(idpRedirectUrl, authorizeRedirectUri, database, prtMethod);
+                        bool success = await client.AuthenticateWithPrt(idpRedirectUrl, redirectUri, database, prtMethod);
                         if (!success)
                         {
                             Logger.Error("Failed to authenticate");
@@ -119,20 +121,20 @@ namespace Maestro
                         {
                             Logger.Info("Getting user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)");
                             accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                                null, ".default openid profile offline_access", client.TenantId, client.SpaAuthCode);
+                                null, scope, client.TenantId, client.SpaAuthCode);
                             if (accessToken is null)
                                 return null;
 
                             Logger.Info("Getting access token for Azure Portal to Azure Portal (requires refreshToken)");
                             accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                                "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", ".default openid profile offline_access", client.TenantId,
+                                "c44b4083-3bb0-49c1-b47d-974e53cbdf3c", scope, client.TenantId,
                                 client.SpaAuthCode);
                             if (accessToken is null)
                                 return null;
 
                             Logger.Info("Getting user_impersonation token for Azure Portal to desired client (client = resource)");
                             accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
-                                client.ClientId, ".default openid profile offline_access", client.TenantId,
+                                client.ClientId, scope, client.TenantId,
                                 client.SpaAuthCode);
                             if (accessToken is null)
                                 return null;
@@ -140,7 +142,7 @@ namespace Maestro
 
                         // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
                         accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
-                            client.Resource, client.Scope, client.TenantId, null, client.RefreshToken);
+                            client.Resource, client.Scope, client.TenantId, null, client.RefreshToken, brokerClientId, redirectUri);
                         if (accessToken is null)
                             return null;
                     }
@@ -252,7 +254,7 @@ namespace Maestro
 
         public async Task<AccessToken> AuthToTokenEndpoint(CommandLineOptions options, LiteDBHandler database, 
             string clientId = "", string resource = "", string scope = "", string tenantId = "", 
-            string spaAuthCode = "", string refreshToken = "")
+            string spaAuthCode = "", string refreshToken = "", string brkClientId = "", string redirectUri = "")
         {
             string url = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
             OAuthTokenResponse tokenResponse = null;
@@ -266,13 +268,21 @@ namespace Maestro
                     resource += "/";
                 }
 
-                var content = new FormUrlEncodedContent(new[]
+                var parameters = new List<KeyValuePair<string, string>>
                 {
                     new KeyValuePair<string, string>("client_id", clientId),
                     new KeyValuePair<string, string>("scope", string.IsNullOrEmpty(spaAuthCode) ? scope : resource + scope),
                     new KeyValuePair<string, string>(string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "code", string.IsNullOrEmpty(spaAuthCode) ? refreshToken : spaAuthCode),
                     new KeyValuePair<string, string>("grant_type", string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "authorization_code")
-                });
+                };
+
+                if (!string.IsNullOrEmpty(brkClientId) && !string.IsNullOrEmpty(redirectUri))
+                {
+                    parameters.Add(new KeyValuePair<string, string>("brk_client_id", brkClientId));
+                    parameters.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
+                }
+
+                var content = new FormUrlEncodedContent(parameters);
 
                 // AADSTS9002327: Tokens issued for the 'Single-Page Application' client-type may only be redeemed via cross-origin requests. 
                 HttpHandler.SetHeader("Origin", "https://portal.azure.com");
