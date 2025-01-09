@@ -497,6 +497,12 @@ namespace Maestro
                             },
                             new Option
                             {
+                                LongName = "--broker",
+                                Description = "Use portal broker client ID to refresh to another portal extension client ID",
+                                IsFlag = true
+                            },
+                            new Option
+                            {
                                 LongName = "--brk-client-id",
                                 ValuePlaceholder = "VALUE",
                                 Description = "Broker client ID to use for token requests",

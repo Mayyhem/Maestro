@@ -22,6 +22,7 @@ namespace Maestro
         public string AppName { get; set; }
         public bool AsUser { get; set; }
         public string BrkClientId { get; set; }
+        public bool Broker { get; set; }
         public string ClientId { get; set; }
         public bool Count { get; set; }
         public string Device { get; set; }

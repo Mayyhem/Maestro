@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -45,14 +44,14 @@ namespace Maestro
             return await InitAndGetAccessToken(idpRedirectUrl, delegationTokenUrl, options.Extension, options.Resource, database, 
                 options.PrtCookie, options.RefreshToken, options.AccessToken, options.Reauth, options.Scope, options.PrtMethod, 
                 options.TokenMethod, options.ClientId, options.TenantId, options.UserAgent, options.Proxy, options.Redirect, 
-                options.BrkClientId, options);
+                options.Broker, options.BrkClientId, options);
         }
         public static async Task<AuthClient> InitAndGetAccessToken(string idpRedirectUrl, 
             string delegationTokenUrl, string extensionName, string resource, LiteDBHandler database = null,
             string providedPrtCookie = "", string providedRefreshToken = "", string providedAccessToken = "", 
             bool reauth = false, string scope = "", int prtMethod = 0, int accessTokenMethod = 0, 
             string clientId = "", string tenantId = "", string userAgent = "", string proxyUrl = "", string redirectUri = "", 
-            string brokerClientId = "", CommandLineOptions options = null)
+            bool broker = false, string brokerClientId = "", CommandLineOptions options = null)
         {
             var client = new AuthClient(userAgent, clientId, resource, scope, providedRefreshToken, tenantId, proxyUrl);
             AccessToken accessToken = null;
@@ -154,7 +153,8 @@ namespace Maestro
 
                         // Get scoped access and refresh tokens from /oauth/v2.0/token endpoint (requires refreshToken)
                         accessToken = await client.AuthToTokenEndpoint(options, database, client.ClientId,
-                            client.Resource, client.Scope, client.TenantId, null, client.RefreshToken, brokerClientId, redirectUri);
+                            client.Resource, client.Scope, client.TenantId, null, client.RefreshToken, broker,
+                            brokerClientId, redirectUri);
                         if (accessToken is null)
                             return null;
                     }
@@ -266,7 +266,7 @@ namespace Maestro
 
         public async Task<AccessToken> AuthToTokenEndpoint(CommandLineOptions options, LiteDBHandler database, 
             string clientId = "", string resource = "", string scope = "", string tenantId = "", 
-            string spaAuthCode = "", string refreshToken = "", string brkClientId = "", string redirectUri = "")
+            string spaAuthCode = "", string refreshToken = "", bool broker = false, string brkClientId = "", string redirectUri = "")
         {
             string url = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
             OAuthTokenResponse tokenResponse = null;
@@ -288,7 +288,13 @@ namespace Maestro
                     new KeyValuePair<string, string>("grant_type", string.IsNullOrEmpty(spaAuthCode) ? "refresh_token" : "authorization_code")
                 };
 
-                if (!string.IsNullOrEmpty(brkClientId) && !string.IsNullOrEmpty(redirectUri))
+                if (broker)
+                {
+                    parameters.Add(new KeyValuePair<string, string>("brk_client_id", "c44b4083-3bb0-49c1-b47d-974e53cbdf3c"));
+                    parameters.Add(new KeyValuePair<string, string>("redirect_uri", $"brk-c44b4083-3bb0-49c1-b47d-974e53cbdf3c://{options.Target}"));
+                }
+
+                else if (!string.IsNullOrEmpty(brkClientId) && !string.IsNullOrEmpty(redirectUri))
                 {
                     parameters.Add(new KeyValuePair<string, string>("brk_client_id", brkClientId));
                     parameters.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
