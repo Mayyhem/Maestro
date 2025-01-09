@@ -60,8 +60,18 @@ namespace Maestro
             // Use the provided access token if available
             if (!string.IsNullOrEmpty(providedAccessToken))
             {
+                Logger.Info("Using provided access token");
                 client.BearerToken = providedAccessToken;
                 _ = new AccessToken(providedAccessToken, database);
+                client.HttpHandler.SetAuthorizationHeader(client.BearerToken);
+                // Test request to see if the token is valid
+                HttpResponseMessage response = await client.HttpHandler.GetAsync("https://graph.microsoft.com/v1.0/me");
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.Error("Provided access token is invalid");
+                    Logger.ErrorJson(await response.Content.ReadAsStringAsync());
+                    return null;
+                }
                 return client;
             }
 
@@ -119,6 +129,7 @@ namespace Maestro
                     {
                         if (string.IsNullOrEmpty(client.RefreshToken))
                         {
+                            /*
                             Logger.Info("Getting user_impersonation token for Azure Portal to management.core.windows.net (requires spaAuthCode)");
                             accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
                                 null, scope, client.TenantId, client.SpaAuthCode);
@@ -132,7 +143,8 @@ namespace Maestro
                             if (accessToken is null)
                                 return null;
 
-                            Logger.Info("Getting user_impersonation token for Azure Portal to desired client (client = resource)");
+                            */
+                            Logger.Info("Getting user_impersonation token for Azure Portal");
                             accessToken = await client.AuthToTokenEndpoint(options, database, "c44b4083-3bb0-49c1-b47d-974e53cbdf3c",
                                 client.ClientId, scope, client.TenantId,
                                 client.SpaAuthCode);
