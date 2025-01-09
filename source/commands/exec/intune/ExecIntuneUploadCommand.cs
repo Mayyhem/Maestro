@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 
 namespace Maestro
 {
+
+    // https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp
     public class ExecIntuneUploadCommand
     {
         public static async Task Execute(CommandLineOptions options, LiteDBHandler database)
@@ -166,7 +168,8 @@ namespace Maestro
             }
             else
             {
-                Logger.Info($"Not syncing automatically, execute the following to force device sync:\n    .\\Maestro.exe exec intune sync -i {options.Id}");
+                Logger.Info($"Not syncing automatically, execute the following to force device sync:\n\n" +
+                            $"    .\\Maestro.exe exec intune sync -i {options.Id}");
             }
 
             // Always write the cleanup commands to the console
