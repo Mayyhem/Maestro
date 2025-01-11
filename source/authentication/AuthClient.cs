@@ -108,9 +108,9 @@ namespace Maestro
                 if (accessTokenMethod == 2)
                 {
                     // Get access token using MSAL
-                    //accessToken = await SharpGetEntraToken.Execute(client.HttpHandler._httpClient, clientId, tenantId, scope, database);
-                    //if (accessToken is null)
-                    //    return null;
+                    accessToken = await SharpGetEntraToken.Execute(client.HttpHandler._httpClient, clientId, tenantId, scope, database);
+                    if (accessToken is null)
+                        return null;
                 }
                 else
                 {
