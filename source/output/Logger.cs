@@ -92,13 +92,13 @@ namespace Maestro
 
         public static void ExceptionDetails(Exception ex)
         {
-            Error($"An exception occurred!\n");
+            Error($"An exception occurred!");
 
             while (ex != null)
             {
-                Error($"  Exception type: {ex.GetType().Name}\n");
-                Error($"  Message: {ex.Message}\n");
-                Debug($"  Stack Trace:\n {ex.StackTrace}\n");
+                Error($"Exception type: {ex.GetType().Name}");
+                Error($"Message:\n{ex.Message}");
+                Debug($"Stack Trace:\n{ex.StackTrace}");
                 ex = ex.InnerException;
             }
         }

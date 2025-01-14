@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+	<Costura>
+		<IncludeAssemblies Condition="'$(Configuration)' == 'Debug' OR '$(Configuration)' == 'Release'">
+			LiteDB
+			Newtonsoft.Json
+			System.Buffers
+			System.ValueTuple
+		</IncludeAssemblies>
+		<IncludeAssemblies Condition="'$(Configuration)' == 'DebugPlusMSAL' OR '$(Configuration)' == 'ReleasePlusMSAL'">
+			LiteDB
+			Microsoft.Identity.Client
+			Microsoft.Identity.Client.Broker
+			Newtonsoft.Json
+			System.Buffers
+			System.ValueTuple
+		</IncludeAssemblies>
+		<Unmanaged32Assemblies>
+			msalruntime_x86
+		</Unmanaged32Assemblies>
+		<Unmanaged64Assemblies>
+			msalruntime
+		</Unmanaged64Assemblies>
+	</Costura>
+</Weavers>

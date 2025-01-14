@@ -21,6 +21,8 @@ namespace Maestro
         public string AccessToken { get; set; }
         public string AppName { get; set; }
         public bool AsUser { get; set; }
+        public string BrkClientId { get; set; }
+        public bool Broker { get; set; }
         public string ClientId { get; set; }
         public List<string> Commands { get; set; }
         public bool Count { get; set; }
@@ -40,9 +42,11 @@ namespace Maestro
         public string PrtCookie { get; set; }
         public int PrtMethod { get; set; }
         public List<string> Properties { get; set; }
+        public string Proxy { get; set; }
         public string Query { get; set; }
         public bool Raw { get; set; }
         public bool Reauth { get; set; }
+        public string Redirect { get; set; }
         public string RefreshToken { get; set; }
         public List<string> RegistryKeys { get; set; }
         public string Resource { get; set; }
@@ -50,6 +54,7 @@ namespace Maestro
         public string Scope { get; set; }
         public string Script { get; set; }
         public bool Sync { get; set; }
+        public string Target { get; set; }
         public string TenantId { get; set; }
         public int Timeout { get; set; }
         public int TokenMethod { get; set; }
@@ -59,8 +64,6 @@ namespace Maestro
 
         // Additional dictionary for any extra or custom options
         public Dictionary<string, string> AdditionalOptions { get; } = new Dictionary<string, string>();
-
-        public CommandLineOptions() { }
 
         public static CommandLineOptions Parse(string[] args)
         {

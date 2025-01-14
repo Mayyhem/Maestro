@@ -15,9 +15,9 @@ namespace Maestro
 
         private AuthClient _authClient;
         public HttpHandler HttpHandler;
-        public EntraClient(string userAgent = "")
+        public EntraClient(string userAgent = "", string proxyUrl = "")
         {
-            _authClient = new AuthClient(userAgent);
+            _authClient = new AuthClient(userAgent, proxyUrl);
         }
 
         public static async Task<EntraClient> InitAndGetAccessToken(CommandLineOptions options, LiteDBHandler database)
@@ -29,13 +29,13 @@ namespace Maestro
         public static async Task<EntraClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0, string userAgent = "")
         {
-            var entraClient = new EntraClient(userAgent);
-            string authRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
+            var entraClient = new EntraClient();
+            string idpRedirectUrl = "https://portal.azure.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://portal.azure.com/api/DelegationToken";
             string extensionName = "Microsoft_AAD_IAM";
             string resourceName = "microsoft.graph";
             string requiredScope = "Directory.Read.All";
-            entraClient._authClient = await AuthClient.InitAndGetAccessToken(authRedirectUrl, delegationTokenUrl, extensionName,
+            entraClient._authClient = await AuthClient.InitAndGetAccessToken(idpRedirectUrl, delegationTokenUrl, extensionName,
                 resourceName, database, providedPrtCookie, providedRefreshToken, providedAccessToken, reauth, requiredScope,
                 prtMethod, accessTokenMethod: 1, userAgent: userAgent);
 

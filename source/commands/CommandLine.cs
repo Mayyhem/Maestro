@@ -33,6 +33,13 @@ namespace Maestro
             },
             new Option
             {
+                ShortName = "-X",
+                LongName = "--proxy",
+                ValuePlaceholder = "URL",
+                Description = "Proxy URL to use for HTTP requests"
+            },
+            new Option
+            {
                 LongName = "--raw",
                 Description = "Do not pretty print results",
                 IsFlag = true
@@ -460,6 +467,12 @@ namespace Maestro
                     },
                     new Option
                     {
+                        LongName = "--redirect",
+                        ValuePlaceholder = "URL",
+                        Description = "Authentication redirect URL"
+                    },
+                    new Option
+                    {
                         LongName = "--refresh-token",
                         ValuePlaceholder = "VALUE",
                         Description = "The refresh token to use (default: request a refresh token)",
@@ -504,7 +517,8 @@ namespace Maestro
                                 LongName = "--extension",
                                 ValuePlaceholder = "NAME",
                                 Description = "Extension to request an access token for",
-                                Default = "Microsoft_AAD_IAM"
+                                Default = "Microsoft_Intune_DeviceSettings",
+                                Dependencies = new List<string> { "--token-method" }
                             },
                             new Option
                             {
@@ -514,7 +528,8 @@ namespace Maestro
                                 Description =
                                     "Method used to request access tokens (default: 0)\n" +
                                     new string(' ', DescriptionPadding) + "  0: /oauth2/v2.0/token\n" +
-                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken",
+                                    new string(' ', DescriptionPadding) + "  1: /api/DelegationToken\n" +
+                                    new string(' ', DescriptionPadding) + "  2: MSAL",
                                 Default = "0"
                             },
                             new Option
@@ -530,8 +545,28 @@ namespace Maestro
                                 ShortName = "-s",
                                 LongName = "--scope",
                                 ValuePlaceholder = "SCOPE",
-                                Description = "The scope to request",
-                                Default = ".default"
+                                Description = "The scopes to request (quoted and space-separated if multiple)",
+                                Default = ".default openid profile offline_access"
+                            },
+                            new Option
+                            {
+                                LongName = "--target",
+                                ValuePlaceholder = "FQDN",
+                                Description = "The host to send requests to",
+                                Default = "intune.microsoft.com"
+                            },
+                            new Option
+                            {
+                                LongName = "--broker",
+                                Description = "Use portal broker client ID to refresh to another portal extension client ID",
+                                IsFlag = true
+                            },
+                            new Option
+                            {
+                                LongName = "--brk-client-id",
+                                ValuePlaceholder = "VALUE",
+                                Description = "Broker client ID to use for token requests",
+                                Default = "c44b4083-3bb0-49c1-b47d-974e53cbdf3c"
                             },
                         }
                     },
