@@ -151,7 +151,7 @@ namespace Maestro
             if (filterId is null) return;
 
             // Create a custom config policy using the Graph API
-            string[] policyIds = await intuneClient.CreateDCv1DiagnosticLogPolicy(options.Id, options.Url, options.RegistryKeys, options.Events, options.Commands, options.FolderFiles, options.OutputFileFormat);
+            string[] policyIds = await intuneClient.CreateDCv1DiagnosticLogPolicy(options.Id, options.Name, options.Url, options.RegistryKeys, options.Events, options.Commands, options.FolderFiles, options.OutputFileFormat);
             if (policyIds is null) return;
 
             // Assign the policy with the filter

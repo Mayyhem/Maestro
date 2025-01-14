@@ -363,6 +363,14 @@ namespace Maestro
                                     new Option
                                     {
                                         Required = true,
+                                        ShortName = "-n",
+                                        LongName = "--name",
+                                        ValuePlaceholder = "NAME",
+                                        Description = "A name for the configuration policy (avoid duplicates to prevent conflicts)"
+                                    },
+                                    new Option
+                                    {
+                                        Required = true,
                                         LongName = "--url",
                                         ValuePlaceholder = "URL",
                                         Description = "URL to upload to. Must accept PUT requests (e.g., Azure blob storage SAS URL)"

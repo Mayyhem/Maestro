@@ -355,7 +355,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>REM scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)Maestro.exe labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:C:\Users\cthompson\git\Maestro\bin\x64\Debug</PostBuildEvent>
+    <PostBuildEvent>REM scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)Maestro.exe labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:$(TargetDir)</PostBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

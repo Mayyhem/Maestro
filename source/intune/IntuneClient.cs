@@ -1371,7 +1371,7 @@ namespace Maestro
             Logger.Info("Successfully sent request for device sync notification");
         }
 
-        public async Task<string[]> CreateDCv1DiagnosticLogPolicy(string deviceId, string url, List<string> registryKeys, List<string> events, List<string> commands, List<string> folderFiles, string outputFileFormat)
+        public async Task<string[]> CreateDCv1DiagnosticLogPolicy(string deviceId, string policyName, string url, List<string> registryKeys, List<string> events, List<string> commands, List<string> folderFiles, string outputFileFormat)
         {
             Logger.Info($"Creating custom config policy for device: {deviceId}");
             string endpoint = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations";
@@ -1440,7 +1440,7 @@ namespace Maestro
             var content = HttpHandler.CreateJsonContent(new Dictionary<string, object>
             {
                 { "@odata.type", "#microsoft.graph.windows10CustomConfiguration" },
-                { "displayName", "Custom Config Policy" },
+                { "displayName", $"{policyName}" },
                 { "description", "Custom config policy for device" },
                 { "omaSettings", new[]
                     {
