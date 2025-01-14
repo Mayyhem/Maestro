@@ -37,6 +37,24 @@ namespace Maestro
     {
         public static async Task<AccessToken> Execute(HttpClient httpClient, string clientId, string tenantId, string scope = "", LiteDBHandler database = null)
         {
+            try
+            {
+                // Determine whether the current process is 64-bit or 32-bit
+                bool is64BitProcess = Environment.Is64BitProcess;
+
+                // Append the appropriate suffix to the DLL name
+                string @namespace = is64BitProcess ? "costura64" : "costura32";
+                string dllName = is64BitProcess ? "msalruntime.dll" : "msalruntime_x86.dll";
+
+                // Load the unmanaged DLL
+                UnmanagedDllLoader.LoadUnmanagedDll(@namespace, dllName);
+                Logger.Info("MSAL DLL loaded and ready for use.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex.Message);
+            }
+
             Logger.Info("SharpGetEntraToken attempting to get an access token");
             IMsalHttpClientFactory httpClientFactory = new StaticClientWithProxyFactory(httpClient);
 
