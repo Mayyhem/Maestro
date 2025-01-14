@@ -1011,6 +1011,8 @@ namespace Maestro
             }
             if (!string.IsNullOrEmpty(deviceName))
             {
+                // Intune truncates deviceNames to 15 chars during evaluation (bug since preview), so we do the same to match. usually impacts Hyper-V VMs
+                deviceName = deviceName.Length <= 15 ? deviceName : deviceName.Substring(0, 15);
                 rule = $"(device.deviceName -eq \"{deviceName}\")";
             }
             else
