@@ -1,33 +1,38 @@
-﻿using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
-using System.Collections.Generic;
+﻿using LiteDB;
+using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
-using System.Linq;
-using LiteDB;
-using System.ComponentModel;
 
 namespace Maestro
 {
     public class HttpHandler
     {
-        private readonly HttpClient _httpClient;
+        public readonly HttpClient _httpClient;
         public CookieContainer CookiesContainer { get; set; }
         public int LastStatusCode { get; private set; }
 
-        public HttpHandler(string userAgent = "")
+        public HttpHandler(string userAgent = "", string proxyUrl = "")
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
             var httpClientHandler = new HttpClientHandler
             {
+                AllowAutoRedirect = false,
                 CookieContainer = new CookieContainer()
             };
+
+            if (!string.IsNullOrEmpty(proxyUrl))
+            {
+                httpClientHandler.Proxy = new WebProxy(proxyUrl);
+                httpClientHandler.UseProxy = true;
+            }
 
             _httpClient = new HttpClient(httpClientHandler);
             CookiesContainer = httpClientHandler.CookieContainer;
