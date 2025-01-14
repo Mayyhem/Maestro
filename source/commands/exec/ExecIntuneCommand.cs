@@ -30,6 +30,9 @@ namespace Maestro
                 case "sync":
                     await ExecIntuneSyncCommand.Execute(options, database);
                     break;
+                case "upload":
+                    await ExecIntuneUploadCommand.Execute(options, database);
+                    break;
                 default:
                     Logger.Error($"Unknown subcommand for '{options.FullCommand}");
                     CommandLine.PrintUsage($"{options.FullCommand}");

@@ -53,6 +53,14 @@ namespace Maestro
         {
             var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(jsonObject);
+            /*
+             var settings = new JsonSerializerSettings
+            {
+                StringEscapeHandling = StringEscapeHandling.EscapeNonAscii
+            };
+
+            string json = JsonConvert.SerializeObject(jsonObject, settings);
+            */
             return new StringContent(json, Encoding.UTF8, "application/json");
         }
 

@@ -30,7 +30,7 @@ namespace Maestro
         public static async Task<IntuneClient> InitAndGetAccessToken(LiteDBHandler database, string providedPrtCookie = "",
             string providedRefreshToken = "", string providedAccessToken = "", bool reauth = false, int prtMethod = 0, string userAgent = "")
         {
-            var intuneClient = new IntuneClient();
+            var intuneClient = new IntuneClient(userAgent);
 
             string idpRedirectUrl = "https://intune.microsoft.com/signin/idpRedirect.js";
             string delegationTokenUrl = "https://intune.microsoft.com/api/DelegationToken";
@@ -46,6 +46,7 @@ namespace Maestro
                 Logger.Error("Failed to obtain an access token");
                 return null;
             }
+
             // Copy the HttpHandler from the AuthClient for use in the IntuneClient
             intuneClient.HttpHandler = intuneClient._authClient.HttpHandler;
             return intuneClient;
@@ -694,7 +695,8 @@ namespace Maestro
             // Hardcoded values from .intunewin file created for calc.exe using IntuneWinAppUtil.exe
             var content = HttpHandler.CreateJsonContent(new
             {
-                fileEncryptionInfo = new {
+                fileEncryptionInfo = new
+                {
                     encryptionKey = "OU22tJ9vWbw9Gdj3iLFbFPTyYvNe1/fwzzvd1YzBI/M=",
                     initializationVector = "o9TQazwkEY2uVWHuI+qHFQ==",
                     mac = "OJiQKIDluz9gypatflYsSzxalQbJgOLKDZP+C+hP3dA=",
@@ -744,7 +746,7 @@ namespace Maestro
                 content.Headers.Add("X-Ms-Command-Name", "patchLobApp");
 
                 HttpResponseMessage response = await HttpHandler.PatchAsync(url, content);
-                
+
                 if (response.StatusCode == HttpStatusCode.NoContent)
                 {
                     successful = true;
@@ -813,7 +815,9 @@ namespace Maestro
 
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                Logger.Error($"Failed to delete application: {response.StatusCode} {response.Content}");
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
+                Logger.Error("Failed to delete application");
                 return false;
             }
 
@@ -862,7 +866,7 @@ namespace Maestro
                 }
                 else
                 {
-                    
+
                 }
             }
             return intuneDevices;
@@ -993,18 +997,38 @@ namespace Maestro
             return scriptId;
         }
 
-        public async Task<string> NewDeviceAssignmentFilter(string deviceName)
+        public async Task<string> NewDeviceAssignmentFilter(string deviceId = "", string deviceName = "")
         {
             string displayName = Guid.NewGuid().ToString();
             Logger.Info($"Creating new device assignment filter with displayName: {displayName}");
-
             string url = "https://graph.microsoft.com/beta/deviceManagement/assignmentFilters";
+            string rule = "";
+
+            // Device IDs are not directly supported for device filters
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                IntuneDevice device = await GetDevice(deviceId);
+                if (device is null) return null;
+
+                deviceName = device.Properties["deviceName"].ToString();
+            }
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                // Intune truncates deviceNames to 15 chars during evaluation (bug since preview), so we do the same to match. usually impacts Hyper-V VMs
+                deviceName = deviceName.Length <= 15 ? deviceName : deviceName.Substring(0, 15);
+                rule = $"(device.deviceName -eq \"{deviceName}\")";
+            }
+            else
+            {
+                Logger.Error("No device ID or device name specified");
+                return null;
+            }
             var content = HttpHandler.CreateJsonContent(new
             {
                 displayName,
                 description = "",
                 platform = "Windows10AndLater",
-                rule = $"(device.deviceName -eq \"{deviceName}\")",
+                rule,
                 roleScopeTagIds = new List<string> { "0" }
             });
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
@@ -1096,7 +1120,7 @@ namespace Maestro
                 ScriptPolicyId = scriptId,
             });
 
-            return await HttpHandler.PostAsync(url, content); 
+            return await HttpHandler.PostAsync(url, content);
         }
 
         public async Task<bool> CheckWhetherProactiveRemediationScriptExecuted(string deviceId, int timeout, int retryDelay)
@@ -1140,7 +1164,7 @@ namespace Maestro
                         }
                     }
                 }
-                
+
                 await Task.Delay(retryDelay * 1000);
                 tries++;
             }
@@ -1206,7 +1230,6 @@ namespace Maestro
                         }
                     }
                 }
-
                 await Task.Delay(retryDelay * 1000);
                 tries++;
             }
@@ -1215,28 +1238,56 @@ namespace Maestro
             return null;
         }
 
-        public async Task DeleteDeviceAssignmentFilter(string filterId)
+        public async Task<bool> DeleteDeviceAssignmentFilter(string filterId)
         {
 
             Logger.Info($"Deleting device assignment filter with ID: {filterId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/assignmentFilters/{filterId}";
-            await HttpHandler.DeleteAsync(url);
+            HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
+                Logger.Error("Failed to delete device assignment filter");
+                return false;
+            }
+            Logger.Info("Successfully deleted device assignment filter");
+            return true;
         }
 
-        public async Task DeleteScriptPackage(string scriptId)
+        public async Task<bool> DeletePolicy(string policyId)
+        {
+            Logger.Info($"Deleting policy with ID: {policyId}");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/{policyId}";
+            HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
+                Logger.Error("Failed to delete policy");
+                return false;
+            }
+            Logger.Info("Successfully deleted policy");
+            return true;
+        }
+
+        public async Task<bool> DeleteScriptPackage(string scriptId)
         {
             Logger.Info($"Deleting detection script with scriptId: {scriptId}");
             string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceHealthScripts/{scriptId}";
             HttpResponseMessage response = await HttpHandler.DeleteAsync(url);
             if (response.StatusCode != HttpStatusCode.OK)
             {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                Logger.ErrorJson(responseContent);
                 Logger.Error("Failed to delete detection script");
-                return;
+                return false;
             }
             Logger.Info("Successfully deleted detection script");
+            return true;
         }
 
- 
+
         // intune scripts
         public List<IntuneScript> ShowIntuneScripts(LiteDBHandler database, string[] properties, string scriptId = "")
         {
@@ -1310,7 +1361,7 @@ namespace Maestro
                 actionName = "syncDevice",
                 deviceIds = devices.Select(device => device.Properties["id"]).ToList()
             });
-            
+
             HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
             if (!(response.StatusCode == HttpStatusCode.OK))
             {
@@ -1318,6 +1369,137 @@ namespace Maestro
                 return;
             }
             Logger.Info("Successfully sent request for device sync notification");
+        }
+
+        public async Task<string[]> CreateDCv1DiagnosticLogPolicy(string deviceId, string policyName, string url, List<string> registryKeys, List<string> events, List<string> commands, List<string> folderFiles, string outputFileFormat)
+        {
+            Logger.Info($"Creating custom config policy for device: {deviceId}");
+            string endpoint = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations";
+
+            var xmlDoc = new System.Xml.XmlDocument();
+            var root = xmlDoc.CreateElement("Collection");
+
+            var idElement = xmlDoc.CreateElement("ID");
+            var requestId = Guid.NewGuid().ToString();
+            idElement.InnerText = requestId;
+            root.AppendChild(idElement);
+
+            var urlElement = xmlDoc.CreateElement("SasUrl");
+            urlElement.AppendChild(xmlDoc.CreateCDataSection(url));
+            root.AppendChild(urlElement);
+
+            if (registryKeys != null)
+            {
+                foreach (var key in registryKeys)
+                {
+                    var registryKeyElement = xmlDoc.CreateElement("RegistryKey");
+                    registryKeyElement.InnerText = key;
+                    root.AppendChild(registryKeyElement);
+                }
+            }
+
+            if (events != null)
+            {
+                foreach (var eventlog in events)
+                {
+                    var eventElement = xmlDoc.CreateElement("Events");
+                    eventElement.InnerText = eventlog;
+                    root.AppendChild(eventElement);
+                }
+            }
+
+            if (folderFiles != null)
+            {
+                foreach (var file in folderFiles)
+                {
+                    var folderFileElement = xmlDoc.CreateElement("FoldersFiles");
+                    folderFileElement.InnerText = file;
+                    root.AppendChild(folderFileElement);
+                }
+            }
+
+            if (commands != null)
+            {
+                foreach (var command in commands)
+                {
+                    var commandElement = xmlDoc.CreateElement("Command");
+                    commandElement.InnerText = command;
+                    root.AppendChild(commandElement);
+                }
+            }
+
+            if (outputFileFormat != null)
+            {
+                var outputFileFormatElement = xmlDoc.CreateElement("OutputFileFormat");
+                outputFileFormatElement.InnerText = outputFileFormat;
+                root.AppendChild(outputFileFormatElement);
+            }
+
+            xmlDoc.AppendChild(root);
+
+            var content = HttpHandler.CreateJsonContent(new Dictionary<string, object>
+            {
+                { "@odata.type", "#microsoft.graph.windows10CustomConfiguration" },
+                { "displayName", $"{policyName}" },
+                { "description", "Custom config policy for device" },
+                { "omaSettings", new[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            { "@odata.type", "#microsoft.graph.omaSettingString" },
+                            { "displayName", "diagnostics" },
+                            { "description", "Diagnostics settings" },
+                            { "omaUri", "./Vendor/MSFT/DiagnosticLog/DiagnosticArchive/ArchiveDefinition" },
+                            { "value", xmlDoc.OuterXml }
+                        }
+                    }
+                }
+            });
+            Logger.Verbose($"Using ArchiveDefinition: {xmlDoc.OuterXml}");
+
+            HttpResponseMessage response = await HttpHandler.PostAsync(endpoint, content);
+            if (response.StatusCode != HttpStatusCode.Created)
+            {
+                Logger.Error("Failed to create custom config policy");
+                return null;
+            }
+
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string policyId = StringHandler.GetMatch(responseContent, "\"id\":\"([^\"]+)\"");
+            Logger.Info($"Obtained policy ID: {policyId}");
+            return new string[] { policyId, requestId };
+        }
+
+        public async Task<bool> AssignPolicyWithFilter(string policyId, string filterId)
+        {
+            Logger.Info($"Assigning policy {policyId} with filter {filterId}");
+            string url = $"https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/{policyId}/assign";
+
+            var content = HttpHandler.CreateJsonContent(new
+            {
+                assignments = new[]
+                {
+                    new
+                    {
+                        target = new Dictionary<string, object>
+                        {
+                            { "@odata.type", "#microsoft.graph.allDevicesAssignmentTarget" },
+                            { "deviceAndAppManagementAssignmentFilterId", filterId },
+                            { "deviceAndAppManagementAssignmentFilterType", "include" }
+                        }
+                    }
+                }
+            });
+
+            HttpResponseMessage response = await HttpHandler.PostAsync(url, content);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                Logger.Error($"Failed to assign policy: {response.StatusCode} {response.Content}");
+                return false;
+            }
+
+            Logger.Info("Successfully assigned policy with filter");
+            return true;
         }
     }
 }

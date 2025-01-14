@@ -264,6 +264,8 @@
     <Compile Include="source\commands\delete\DeleteIntuneCommand.cs" />
     <Compile Include="source\commands\delete\entra\DeleteEntraGroupCommand.cs" />
     <Compile Include="source\commands\delete\intune\DeleteIntuneAppCommand.cs" />
+    <Compile Include="source\commands\delete\intune\DeleteIntuneFilterCommand.cs" />
+    <Compile Include="source\commands\delete\intune\DeleteIntunePolicyCommand.cs" />
     <Compile Include="source\commands\delete\intune\DeleteIntuneScriptCommand.cs" />
     <Compile Include="source\commands\get\entra\GetEntraMembershipCommand.cs" />
     <Compile Include="source\commands\get\intune\GetIntuneScriptOutputCommand.cs" />
@@ -274,6 +276,7 @@
     <Compile Include="source\commands\exec\intune\ExecIntuneDeviceQueryCommand.cs" />
     <Compile Include="source\commands\exec\intune\ExecIntuneScriptCommand.cs" />
     <Compile Include="source\commands\exec\intune\ExecIntuneAppCommand.cs" />
+    <Compile Include="source\commands\exec\intune\ExecIntuneUploadCommand.cs" />
     <Compile Include="source\commands\get\GetPrtCookieCommand.cs" />
     <Compile Include="source\commands\get\entra\GetEntraUsersCommand.cs" />
     <Compile Include="source\commands\get\entra\GetEntraGroupsCommand.cs" />
@@ -352,7 +355,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>REM scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)Maestro.exe labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:C:\Users\cthompson\git\Maestro\bin\x64\Debug</PostBuildEvent>
+    <PostBuildEvent>REM scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)Maestro.exe labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:$(TargetDir)</PostBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

