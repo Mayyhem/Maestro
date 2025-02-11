@@ -557,7 +557,8 @@ namespace Maestro
 
             if (string.IsNullOrEmpty(tenantId) || string.IsNullOrEmpty(spaAuthCode) || string.IsNullOrEmpty(portalAuthorization))
             {
-                Logger.ErrorJson(signinResponseContent);
+                Logger.Error("Signin failed, possibly due to MFA requirements");
+                Logger.DebugTextOnly(signinResponseContent);
                 return false;
             }
 

@@ -3,6 +3,8 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
 //using System.Xml;
 
 namespace Maestro
@@ -53,18 +55,26 @@ namespace Maestro
         public static string GetProperties(string jsonBlob, bool raw = false, string[] properties = null, bool print = true)
         {
             // Parse the JSON blob
-            JToken parsedJson = JToken.Parse(jsonBlob);
-
-            if (parsedJson is JArray jsonArray)
+            try
             {
-                // Handle JArray
-                return GetProperties(jsonArray, raw, properties, print);
+                JToken parsedJson = JToken.Parse(jsonBlob);
+
+                if (parsedJson is JArray jsonArray)
+                {
+                    // Handle JArray
+                    return GetProperties(jsonArray, raw, properties, print);
+                }
+
+                if (parsedJson is JObject jsonObject)
+                {
+                    // Handle JObject
+                    return GetProperties(jsonObject, raw, properties, print);
+                }
             }
-
-            else if (parsedJson is JObject jsonObject)
+            catch
             {
-                // Handle JObject
-                return GetProperties(jsonObject, raw, properties, print);
+                Logger.Error("Could not parse message as JSON");
+                Logger.DebugTextOnly(jsonBlob);
             }
             return null;
         }

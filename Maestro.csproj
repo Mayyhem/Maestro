@@ -354,9 +354,6 @@
     <EmbeddedResource Include="Costura32\msalruntime_x86.dll" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>REM scp -i C:\Users\cthompson\.ssh\id_rsa_sccmlab $(TargetDir)Maestro.exe labadmin@aadjoin-intunee.eastus.cloudapp.azure.com:$(TargetDir)</PostBuildEvent>
-  </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
@@ -378,4 +375,11 @@
   <Import Project="packages\Fody.6.9.1\build\Fody.targets" Condition="Exists('packages\Fody.6.9.1\build\Fody.targets')" />
   <Import Project="packages\NETStandard.Library.2.0.3\build\netstandard2.0\NETStandard.Library.targets" Condition="Exists('packages\NETStandard.Library.2.0.3\build\netstandard2.0\NETStandard.Library.targets')" />
   <Import Project="packages\Costura.Fody.5.7.0\build\Costura.Fody.targets" Condition="Exists('packages\Costura.Fody.5.7.0\build\Costura.Fody.targets')" />
+  <Target Name="SetFodyWeaver" BeforeTargets="BeforeBuild">
+    <Copy Condition="'$(Configuration)' != 'DebugPlusMSAL' AND '$(Configuration)' != 'ReleasePlusMSAL'" SourceFiles="FodyWeavers.Base.xml" DestinationFiles="FodyWeavers.xml" />
+    <Copy Condition="('$(Configuration)' == 'DebugPlusMSAL' OR '$(Configuration)' == 'ReleasePlusMSAL') AND '$(Platform)' == 'x64'" SourceFiles="FodyWeavers.MSAL.x64.xml" DestinationFiles="FodyWeavers.xml" />
+    <Copy Condition="('$(Configuration)' == 'DebugPlusMSAL' OR '$(Configuration)' == 'ReleasePlusMSAL') AND ('$(Platform)' == 'x86' OR '$(Platform)' == 'AnyCPU')" SourceFiles="FodyWeavers.MSAL.x86.xml" DestinationFiles="FodyWeavers.xml" />
+  </Target>
+  <!-- Import user-specific build settings if they exist -->
+  <Import Project="$(MSBuildProjectDirectory)\Maestro.User.targets" Condition="Exists('$(MSBuildProjectDirectory)\Maestro.User.targets')" />
 </Project>

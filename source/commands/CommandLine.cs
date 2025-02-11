@@ -810,7 +810,7 @@ namespace Maestro
                             new Option
                             {
                                 Required = true,
-                                ShortName = "-t",
+                                ShortName = "-a",
                                 LongName = "--access-token",
                                 ValuePlaceholder = "TOKEN",
                                 Description = "Access token to store"
@@ -842,7 +842,7 @@ namespace Maestro
                             new Option
                             {
                                 Required = true,
-                                ShortName = "-t",
+                                ShortName = "-r",
                                 LongName = "--refresh-token",
                                 ValuePlaceholder = "TOKEN",
                                 Description = "Refresh token to store"

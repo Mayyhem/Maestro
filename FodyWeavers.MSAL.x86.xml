@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+    <Costura>
+        <IncludeAssemblies>
+			LiteDB
+			Microsoft.Identity.Client
+			Microsoft.Identity.Client.Broker
+			Microsoft.Identity.Client.NativeInterop
+			Microsoft.IdentityModel.Abstractions
+			Newtonsoft.Json
+			System.Buffers
+			System.ValueTuple
+		</IncludeAssemblies>
+        <Unmanaged32Assemblies>
+            msalruntime_x86
+        </Unmanaged32Assemblies>
+    </Costura>
+</Weavers>
