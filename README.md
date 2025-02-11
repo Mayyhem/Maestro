@@ -25,6 +25,11 @@ You can read more in this introductory blog post for Maestro: https://posts.spec
 - Intune and Entra object enumeration
 - Local database to store credentials and query results
 
+# Notes
+There is a compiled release in this repository using the `ReleasePlusMSAL` build configuration. Note that this configuration merges the MSAL dependencies into the .exe but increases the size of the resulting binary significantly. If you are not planning to use the `-m 2` method of requesting access tokens (SharpGetEntraToken via MSAL), you can compile a `Release` build and the size will be significantly reduced.
+
+As of February 2025, Microsoft is rolling out mandatory MFA enforcement for authentication to Azure Portal and its extensions. The default access token request method using auth code flow will likely fail in this case, but using SharpGetEntraToken/MSAL (`-m 2` option) and specifying a client ID that does not require MFA like Azure Powershell (`1950a258-227b-4e31-a9cf-717495945fc2`) should still work. 
+
 # Syntax
 `Maestro.exe <command> [subcommand] [options]`
 
@@ -50,6 +55,7 @@ The time I'm able to spend researching, developing, and improving Maestro would 
 Some Maestro features were inspired by or built based on the work of others, including:
 - [RequestAADRefreshToken](https://github.com/leechristensen/RequestAADRefreshToken), by Lee Chagolla-Christensen ([@tifkin_](https://x.com/tifkin_))
 - [ROADtoken](https://github.com/dirkjanm/ROADtoken), by Dirk-jan Mollema ([@_dirkjan](https://x.com/_dirkjan))
+- [SharpGetEntraToken](https://github.com/hotnops/SharpGetEntraToken), by Daniel Heinsen ([@hotnops](https://x.com/hotnops))
 
 If you're interested in collaborating, please hit me up on Twitter ([@_Mayyhem](https://twitter.com/_Mayyhem)) or in the [BloodHoundGang Slack](http://ghst.ly/BHSlack)!
 
