@@ -62,7 +62,7 @@ jobs:
           This is the latest release of ${{ env.Solution }} compiled from source (${{ github.sha }}).
         fail_on_unmatched_files: true
         files: |
-          D:/a/Maestro/Maestro/bin/Release/Maestro.exe
+          D:/a/Maestro/Maestro/bin/x64/ReleasePlusMSAL/Maestro.exe
           RELEASE_NOTES.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
