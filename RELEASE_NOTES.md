@@ -1,5 +1,9 @@
 # Maestro Release Notes
 
+### Version 1.3.0 (February 11, 2025)
+- Fix dependency merge issue
+- Notify user when MFA is likely enforced
+
 ### Version 1.2.0 (January 16, 2025)
 - exec intune upload
 - fix access token manipulation
