@@ -6,6 +6,10 @@
         alt="@_Mayyhem on Twitter"/></a>
 </p>
 
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/b83c2371-c055-45e0-9667-08a70fc4f823" alt="maestro-logo" width="200">
+</div>
+
 ---
 
 # Maestro
