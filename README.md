@@ -19,7 +19,7 @@ Maestro is essentially a wrapper for local PRT cookie requests and calls to the 
 
 Maestro's lateral movement functions were inspired by [Death from Above: Lateral Movement from Azure to On-Prem AD](https://posts.specterops.io/death-from-above-lateral-movement-from-azure-to-on-prem-ad-d18cb3959d4d) by Andy Robbins ([@_wald0](https://x.com/_wald0)). 
 
-You can read more in this introductory blog post for Maestro: https://posts.specterops.io/maestro-9ed71d38d546
+You can read more in this introductory blog post for Maestro: https://specterops.io/blog/2024/10/31/maestro-abusing-intune-for-lateral-movement-over-c2/
 
 # Features
 - Real-time PowerShell script execution (via Proactive Remediations)
